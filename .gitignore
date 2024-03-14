@@ -1,0 +1,7 @@
+build/*
+out/*
+resources/level/*
+demo/*
+.git/
+.vs/
+.DS_Store
