@@ -179,12 +179,9 @@ public:
     std::vector<Animator> animators{};
     std::vector<Critter> critters{};
     std::vector<SpecialBlock> special_blocks{};
-    
-    //std::vector<Sign> signs{};
-    //std::vector<NPC> npcs{};
-    //std::vector<Chest> chests{};
-    //std::vector<Bed> beds{};
-    //I could store these all in one data structure...
+
+    dj::Json metadata{};
+    dj::Json tiles{};
     
     STYLE style{};
     BACKDROP bg{};

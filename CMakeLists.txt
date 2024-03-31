@@ -27,39 +27,11 @@ add_subdirectory(dependencies)
 target_link_libraries(${PROJECT_NAME} PRIVATE ImGui-SFML::ImGui-SFML)
 target_link_libraries(${PROJECT_NAME} PRIVATE sfml-audio)
 
+file(GLOB_RECURSE sources LIST_DIRECTORIES false CONFIGURE_DEPENDS "src/*.?pp")
 
 target_sources(${PROJECT_NAME} PRIVATE
 main.cpp
-src/automa/GameState.hpp
-src/automa/GameState.cpp
-src/automa/Editor
-src/automa/Demo.cpp
-src/automa/StateManager.hpp
-src/automa/StateManager.cpp
-src/canvas/Canvas.hpp
-src/canvas/Canvas.cpp
-src/canvas/Layer.hpp
-src/canvas/Layer.cpp
-src/canvas/Tile.hpp
-src/canvas/Clipboard.hpp
-src/canvas/Clipboard.cpp
-src/canvas/Grid.hpp
-src/canvas/Grid.cpp
-src/canvas/Metagrid.hpp
-src/canvas/Metagrid.cpp
-src/tool/Tool.hpp
-src/tool/Tool.cpp
-src/tool/Brush.cpp
-src/tool/Hand.cpp
-src/tool/Fill.cpp
-src/tool/Erase.cpp
-src/tool/EntityPlacer.cpp
-src/tool/SelectionRectangular.cpp
-src/util/Lookup.hpp
-src/util/Camera.hpp
-src/util/PhysicsComponent.hpp
-src/util/Service.hpp
-src/util/ServiceLocator.hpp
+${sources}
 )
 
 # Copy DLLs needed for runtime on Windows
