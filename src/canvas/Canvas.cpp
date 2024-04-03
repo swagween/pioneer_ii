@@ -194,6 +194,94 @@ bool Canvas::save(const std::string& path) {
     if (!output.is_open()) {
         return false;
     }
+
+
+    /*json overhaul*/
+
+    //clean jsons
+    metadata = {};
+    tiles = {};
+
+    //empty json array
+    constexpr auto empty_array = R"([])";
+    auto const wipe = dj::Json::parse(empty_array);
+
+    //metadata
+    metadata["meta"]["room_id"] = room_id;
+    metadata["meta"]["dimensions"][0] = dimensions.x;
+    metadata["meta"]["dimensions"][1] = dimensions.y;
+    metadata["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
+    metadata["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
+    metadata["meta"]["style"] = pi::lookup::get_style_id.at(style);
+    metadata["meta"]["background"] = pi::lookup::get_backdrop_id.at(bg);
+
+    int ctr{};
+    for (auto& portal : portals) {
+        metadata["portals"].push_back(wipe);
+        metadata["portals"][ctr]["dimensions"][0] = portal.dimensions.x;
+        metadata["portals"][ctr]["dimensions"][1] = portal.dimensions.y;
+        metadata["portals"][ctr]["position"][0] = portal.position.x;
+        metadata["portals"][ctr]["position"][1] = portal.position.y;
+        metadata["portals"][ctr]["source_id"] = portal.source_map_id;
+        metadata["portals"][ctr]["destination_id"] = portal.destination_map_id;
+        metadata["portals"][ctr]["activate_on_contact"] = (dj::Boolean)(portal.activate_on_contact);
+        ++ctr;
+    }
+    ctr = 0;
+    for (auto& inspectable : inspectables) {
+        metadata["inspectables"].push_back(wipe);
+        metadata["inspectables"][ctr]["dimensions"][0] = inspectable.dimensions.x;
+        metadata["inspectables"][ctr]["dimensions"][1] = inspectable.dimensions.y;
+        metadata["inspectables"][ctr]["position"][0] = inspectable.position.x;
+        metadata["inspectables"][ctr]["position"][1] = inspectable.position.y;
+        metadata["inspectables"][ctr]["activate_on_contact"] = (dj::Boolean)(inspectable.activate_on_contact);
+        metadata["inspectables"][ctr]["key"] = inspectable.message;
+        ++ctr;
+    }
+    ctr = 0;
+    for (auto& animator : animators) {
+        metadata["animators"].push_back(wipe);
+        metadata["animators"][ctr]["id"] = animator.id;
+        metadata["animators"][ctr]["dimensions"][0] = animator.dimensions.x;
+        metadata["animators"][ctr]["dimensions"][1] = animator.dimensions.y;
+        metadata["animators"][ctr]["position"][0] = animator.position.x;
+        metadata["animators"][ctr]["position"][1] = animator.position.y;
+        metadata["animators"][ctr]["automatic"] = (dj::Boolean)(animator.automatic);
+        metadata["animators"][ctr]["foreground"] = (dj::Boolean)(animator.foreground);
+        ++ctr;
+    }
+    ctr = 0;
+    for (auto& critter : critters) {
+        metadata["enemies"].push_back(wipe);
+        metadata["enemies"][ctr]["id"] = critter.id;
+        metadata["enemies"][ctr]["position"][0] = critter.position.x;
+        metadata["enemies"][ctr]["position"][1] = critter.position.y;
+        ++ctr;
+    }
+
+
+    tiles["layers"] = wipe;
+    for (int i = 0; i < NUM_LAYERS; ++i) {
+        tiles["layers"].push_back(wipe);
+    }
+    //push layer data
+    int current_layer{};
+    for (auto& layer : map_states.back().layers) {
+        int current_cell{};
+        for (auto& cell : layer.grid.cells) {
+            tiles["layers"][current_layer].push_back(layer.grid.cells.at(current_cell).value);
+            ++current_cell;
+        }
+        ++current_layer;
+    }
+
+    metadata.to_file((path + "/meta.json").c_str());
+    tiles.to_file((path + "/tile.json").c_str());
+
+    /*json overhaul*/
+
+
+
     output << room_id << ", " << dimensions.x << ", " << dimensions.y << ", "
     << chunk_dimensions.x << ", " << chunk_dimensions.y << ", "
     << pi::lookup::get_style_id.at(style) << ", " << pi::lookup::get_backdrop_id.at(bg);
