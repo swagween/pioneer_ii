@@ -71,7 +71,7 @@ void run(char** argv) {
     t_tiles_provisional.loadFromFile(resource_path + "/tile/provisional_tiles.png");
     
     SM.set_current_state(std::make_unique<pi::automa::Editor>());
-    SM.get_current_state().init(resource_path + "/level/TEST_ROOM_01");
+    SM.get_current_state().init(resource_path + "/level/BREAKABLE_TEST_01");
     SM.get_current_state().setTilesetTexture(t_tiles_provisional);
     
     bool debug_mode = false;
