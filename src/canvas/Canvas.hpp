@@ -141,6 +141,17 @@ struct SpecialBlock {
     sf::Vector2<uint32_t> position{};
 };
 
+struct NPC {
+    int id{};
+    sf::Vector2<uint32_t> position{};
+};
+
+struct Chest {
+    int id{};
+    int item_id{};
+    sf::Vector2<uint32_t> position{};
+};
+
 struct Map {
     std::vector<Layer> layers{};
 };
@@ -178,10 +189,20 @@ public:
     std::vector<Inspectable> inspectables{};
     std::vector<Animator> animators{};
     std::vector<Critter> critters{};
+    std::vector<NPC> npcs{};
+    std::vector<Chest> chests{};
     std::vector<SpecialBlock> special_blocks{};
 
-    dj::Json metadata{};
-    dj::Json tiles{};
+    // read and write
+    struct {
+        dj::Json meta{};
+        dj::Json tiles{};
+        dj::Json inspectables{};
+    } data{};
+
+    struct {
+        float cell_size{ 32.f };
+    } constants{};
     
     STYLE style{};
     BACKDROP bg{};

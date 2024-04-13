@@ -24,6 +24,9 @@ namespace pi {
 			small_animator_textures.loadFromFile(load_path + "../../../animators/small_animators_01.png");
 			small_animator_thumbs.loadFromFile(load_path + "../../../animators/small_animator_thumbs.png");
 			enemy_thumbnails.loadFromFile(load_path + "../../../enemies/thumbnails.png");
+			t_chest.loadFromFile(load_path + "../../../entity/chest.png");
+			t_npc.loadFromFile(load_path + "../../../entity/npc.png");
+
 			map.map_states.back().layers.at(canvas::MIDDLEGROUND).active = true;
 
 			curr_critter.setTexture(enemy_thumbnails);
@@ -310,6 +313,7 @@ namespace pi {
 			win.draw(box);
 
 			if (show_grid && !map.map_states.empty()) {
+				if (map.map_states.back().layers.empty()) { return; }
 				for (auto& cell : map.map_states.back().layers.back().grid.cells) {
 					if (cell.position.x + svc::cameraLocator.get().bounding_box.left < 0) { continue; }
 					if (cell.position.x + svc::cameraLocator.get().bounding_box.left > screen_dimensions.x) { continue; }
@@ -450,15 +454,15 @@ namespace pi {
 						ZeroMemory(&ofn, sizeof(ofn));
 						ofn.lStructSize = sizeof(ofn);
 						ofn.hwndOwner = NULL;  // If you have a window to center over, put its HANDLE here
-						ofn.lpstrFilter = "Text Files\0*.txt\0Any File\0*.*\0Folders\0\0";
+						ofn.lpstrFilter = "Json Files\0*.json\0Any File\0*.*\0Folders\0\0";
 						ofn.lpstrFile = filename;
 						ofn.nMaxFile = MAX_PATH;
-						ofn.lpstrTitle = "Select a Folder!";
+						ofn.lpstrTitle = "Select a [meta.json] to load.";
 						ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 
 						if (GetOpenFileNameA(&ofn)) {
 							std::string loadpath = filename;
-							std::string mapdata = "/map_data.txt";
+							std::string mapdata = "/meta.json";
 							std::string loaddir = loadpath.substr(0, loadpath.size() - mapdata.size());
 							map.load(loaddir);
 							filepath = loaddir;

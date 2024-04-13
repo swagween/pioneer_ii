@@ -145,6 +145,11 @@ namespace pi {
             std::vector<sf::Sprite> enemy_thumb_sprites{};
             sf::Sprite curr_critter{};
 
+            sf::Texture t_chest{};
+            sf::Sprite s_chest{};
+            sf::Texture t_npc{};
+            sf::Sprite s_npc{};
+
             sf::Vector2<float> mouse_clicked_position{};
 
             bool mouse_held{};
