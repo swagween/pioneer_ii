@@ -23,6 +23,7 @@ namespace tool {
 			switch (ent_type) {
 			case ENTITY_TYPE::PORTAL:       canvas.portals.push_back(current_portal); break;
 			case ENTITY_TYPE::INSPECTABLE:  canvas.inspectables.push_back(current_inspectable); break;
+			case ENTITY_TYPE::PLATFORM:		 canvas.platforms.push_back(current_platform); break;
 			case ENTITY_TYPE::PLAYER_PLACER:  pi::svc::playerStartLocator.get() = scaled_position; break;
 			case ENTITY_TYPE::CRITTER:		if (crit_available) { canvas.critters.push_back(current_critter); } break;
 			case ENTITY_TYPE::ANIMATOR:     if (anim_available) { canvas.animators.push_back(current_animator); } break;
@@ -33,9 +34,10 @@ namespace tool {
 				std::erase_if(canvas.critters,		[this](auto&& const c) { return c.position == scaled_position;  });
 				std::erase_if(canvas.inspectables,	[this](auto&& const c) { return c.position == scaled_position;  });
 				std::erase_if(canvas.portals,		[this](auto&& const c) { return c.position == scaled_position;  });
+				std::erase_if(canvas.platforms,		[this](auto&& const c) { return c.position == scaled_position;  });
 				break;
 			}
-			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR) { trigger_switch = true; }
+			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR && ent_type != ENTITY_TYPE::PLATFORM) { trigger_switch = true; }
 		}
 		update();
 	}
@@ -52,6 +54,7 @@ namespace tool {
 		current_inspectable.position = scaled_position - current_inspectable.dimensions + sf::Vector2<uint32_t>(1, 1);
 		current_animator.position = scaled_position - current_animator.dimensions + sf::Vector2<uint32_t>(1, 1);
 		current_critter.position = scaled_position;
+		current_platform.position = scaled_position;
 	}
 
 	void EntityPlacer::render(sf::RenderWindow& win, sf::Vector2<float> offset) {

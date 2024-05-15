@@ -100,6 +100,10 @@ namespace pi {
 			inspbox.setOutlineThickness(-1);
 			inspbox.setSize({ canvas::CELL_SIZE, canvas::CELL_SIZE });
 
+			platbox.setFillColor(sf::Color{ 220, 120, 100, 128 });
+			platbox.setOutlineColor(sf::Color{ 240, 230, 255, 180 });
+			platbox.setOutlineThickness(-4);
+
 			target.setFillColor(sf::Color{ 110, 90, 200, 80 });
 			target.setOutlineColor(sf::Color{ 240, 230, 255, 100 });
 			target.setOutlineThickness(-2);
@@ -140,6 +144,7 @@ namespace pi {
 				}
 				if (event.key.code == sf::Keyboard::V) {
 					svc::current_tool.get()->handle_keyboard_events(map, event.key.code);
+					map.save_state();
 				}
 				if (event.key.code == sf::Keyboard::Q) {
 					svc::current_tool.get()->handle_keyboard_events(map, event.key.code);
@@ -281,6 +286,12 @@ namespace pi {
 				win.draw(inspbox);
 			}
 
+			for (auto& platform : map.platforms) {
+				platbox.setSize({ platform.dimensions.x * 32.f, platform.dimensions.y * 32.f });
+				platbox.setPosition((platform.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (platform.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+				win.draw(platbox);
+			}
+
 			for (auto& critter : map.critters) {
 				int idx = critter.id;
 				curr_critter.setTextureRect(sf::IntRect({ (idx * 16) % (64), (idx / 4) * 16 }, { 16, 16 }));
@@ -375,6 +386,7 @@ namespace pi {
 					ImGui::TextUnformatted("Press 'Q' to cancel.");
 				} else if (svc::current_tool.get()->ent_type == tool::ENTITY_TYPE::INSPECTABLE) {
 					ImGui::Text("Place an inspectable with message: %s", svc::current_tool.get()->current_inspectable.message.c_str());
+					ImGui::Text("and with key: %s", svc::current_tool.get()->current_inspectable.key.c_str());
 					ImGui::Text("Activate on contact: %s", svc::current_tool.get()->current_inspectable.activate_on_contact ? "Yes" : "No");
 					ImGui::TextUnformatted("Press 'Q' to cancel.");
 				} else if (svc::current_tool.get()->ent_type == tool::ENTITY_TYPE::CRITTER) {
@@ -789,9 +801,13 @@ namespace pi {
 				if (ImGui::BeginPopupModal("Inspectable Message", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 
 					static bool activate_on_contact{ false };
-					static char buffer[128] = "";
+					static char keybuffer[128] = "";
+					static char msgbuffer[512] = "";
 
-					ImGui::InputTextWithHint("Message", "Type message here...", buffer, IM_ARRAYSIZE(buffer));
+					ImGui::InputTextWithHint("Key", "Title (invisible in-game; must be unique per room)", keybuffer, IM_ARRAYSIZE(keybuffer));
+					ImGui::Separator(); ImGui::NewLine();
+
+					ImGui::InputTextWithHint("Message", "Type message here...", msgbuffer, IM_ARRAYSIZE(msgbuffer));
 					ImGui::Separator(); ImGui::NewLine();
 
 					ImGui::Checkbox("Activate on contact?", &activate_on_contact);
@@ -801,7 +817,52 @@ namespace pi {
 						//switch to entity tool, and store the specified portal for placement
 						svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
 						svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::INSPECTABLE;
-						svc::current_tool.get()->current_inspectable = canvas::Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, buffer);
+						svc::current_tool.get()->current_inspectable = canvas::Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer, msgbuffer);
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("Close")) {
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::EndPopup();
+				}
+				if (ImGui::Button("Platform")) {
+					ImGui::OpenPopup("Platform Specifications");
+				}
+				if (ImGui::BeginPopupModal("Platform Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+					static int x{};
+					static int y{};
+					static int extent{};
+					static int style{};
+					static char typebuffer[128] = "";
+					static float start{};
+
+					ImGui::InputInt("X Dimensions", &x);
+					ImGui::InputInt("Y Dimensions", &y);
+					ImGui::SameLine();
+					ImGui::Separator(); ImGui::NewLine();
+
+					ImGui::InputInt("Extent", &extent);
+					ImGui::SameLine(); help_marker("In units of 32x32.");
+					ImGui::Separator(); ImGui::NewLine();
+
+					ImGui::InputInt("Style", &style);
+					ImGui::SameLine(); help_marker("Must not exceed number of styles.");
+					ImGui::Separator(); ImGui::NewLine();
+
+					ImGui::InputTextWithHint("Type", "Must exist in platforms.json", typebuffer, IM_ARRAYSIZE(typebuffer));
+					ImGui::Separator(); ImGui::NewLine();
+
+					ImGui::InputFloat("Start", &start);
+					ImGui::SameLine(); help_marker("Must be a value between 0 and 1.");
+					ImGui::Separator(); ImGui::NewLine();
+
+					if (ImGui::Button("Create")) {
+						//switch to entity tool, and store the specified portal for placement
+						svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+						svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::PLATFORM;
+						svc::current_tool.get()->current_platform = canvas::Platform(sf::Vector2<uint32_t>{0, 0}, sf::Vector2<uint32_t>{(uint32_t)x, (uint32_t)y}, extent, style, typebuffer, start);
 						ImGui::CloseCurrentPopup();
 					}
 					ImGui::SameLine();
@@ -944,6 +1005,10 @@ namespace pi {
 				};
 				ImGui::PopStyleColor(3);
 				ImGui::NewLine();
+				if (ImGui::Button("Export Layer to .png")) {
+					screencap.create(win.getSize().x, win.getSize().y);
+					export_layer_texture();
+				};
 
 				//fixme: map is erased when size changes (resizing 1D vectors in a 2D context is hard...)
 				/*
@@ -1010,6 +1075,28 @@ namespace pi {
 				ImGui::PopTextWrapPos();
 				ImGui::EndTooltip();
 			}
+		}
+
+		void Editor::export_layer_texture() {
+			screencap.clear(sf::Color::Transparent);
+			screencap.create(map.real_dimensions.x, map.real_dimensions.y);
+			for (int i = 0; i <= svc::active_layer; ++i) {
+				for (auto& cell : map.map_states.back().layers.at(i).grid.cells) {
+					if (cell.value > 0) {
+						int x_coord = (cell.value % 16) * TILE_WIDTH;
+						int y_coord = std::floor(cell.value / 16) * TILE_WIDTH;
+						tile_sprite.setTexture(tileset_textures.at(lookup::get_style_id.at(map.style)));
+						tile_sprite.setTextureRect(sf::IntRect({ x_coord, y_coord }, { 32, 32 }));
+						tile_sprite.setPosition(cell.position);
+						screencap.draw(tile_sprite);
+					}
+				}
+			}
+			std::time_t const now = std::time(nullptr);
+			std::string filedate = std::asctime(std::localtime(&now));
+			std::erase_if(filedate, [](auto const& c) { return c == ':' || isspace(c); });
+			std::string filename = "screenshot_" + filedate + ".png";
+			if (screencap.getTexture().copyToImage().saveToFile(filename)) { std::cout << "screenshot saved to " << filename << std::endl; }
 		}
 
 	}

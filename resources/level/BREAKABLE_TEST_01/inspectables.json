@@ -1,0 +1,37 @@
+{
+  "bookshelf": {
+    "suite": [
+      [
+        "You find several thick instruction manuals."
+      ]
+    ],
+    "responses": [
+      [
+      ]
+    ]
+  },
+  "sign": {
+    "suite": [
+      [
+        "- Cargo Room -"
+      ]
+    ],
+    "responses": [
+      [
+
+      ]
+    ]
+  },
+  "computer": {
+    "suite": [
+      [
+        "Entering safe reboot mode..."
+      ]
+    ],
+    "responses": [
+      [
+
+      ]
+    ]
+  }
+}

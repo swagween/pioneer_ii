@@ -145,9 +145,6 @@ void run(char** argv) {
                         SM.get_current_state().init(resource_path + "/level/WOODSHINE_SHACK_01");
                         SM.get_current_state().setTilesetTexture(t_tiles_provisional);*/
                     }
-                    if(event.key.code == sf::Keyboard::Equal) {
-                        SM.set_current_state(std::make_unique<pi::automa::Metagrid>());
-                    }
                     if(event.key.code == sf::Keyboard::Escape) {
                     if(SM.get_current_state().state == pi::automa::STATE::DOJO) {
                         std::string loaddir = SM.get_current_state().filepath;

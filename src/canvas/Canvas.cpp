@@ -49,7 +49,7 @@ void Canvas::load(const std::string& path) {
     // get npc data
     if (!data.meta.is_null()) {
         auto const& meta = data.meta["meta"];
-        room_id = meta["id"].as<int>();
+        room_id = meta["room_id"].as<int>();
         dimensions.x = meta["dimensions"][0].as<int>();
         dimensions.y = meta["dimensions"][1].as<int>();
         chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
@@ -107,15 +107,32 @@ void Canvas::load(const std::string& path) {
             animators.push_back(a);
         }
 
+        for (auto& entry : data.meta["platforms"].array_view()) {
+            Platform p{};
+            p.position.x = entry["position"][0].as<int>();
+            p.position.y = entry["position"][1].as<int>();
+            p.dimensions.x = entry["dimensions"][0].as<int>();
+            p.dimensions.y = entry["dimensions"][1].as<int>();
+            p.extent = entry["extent"].as<int>();
+            p.style = entry["style"].as<int>();
+            p.start = entry["start"].as<float>();
+            p.type = entry["type"].as_string();
+            platforms.push_back(p);
+        }
+
         for (auto& entry : data.meta["inspectables"].array_view()) {
             Inspectable i{};
-            i.message = entry["key"].as_string();
+            i.key = entry["key"].as_string();
             i.position.x = entry["position"][0].as<int>();
             i.position.y = entry["position"][1].as<int>();
             i.dimensions.x = entry["dimensions"][0].as<int>();
             i.dimensions.y = entry["dimensions"][1].as<int>();
             inspectables.push_back(i);
             inspectables.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
+        }
+        for (auto& inspectable : inspectables) {
+            inspectable.message = data.inspectables[inspectable.key]["suite"][0][0].as_string();
+            inspectable.response = data.inspectables[inspectable.key]["responses"][0][0].as_string();
         }
 
         for (auto& entry : data.meta["enemies"].array_view()) {
@@ -173,7 +190,7 @@ bool Canvas::save(const std::string& path) {
         data.meta["portals"][ctr]["dimensions"][1] = portal.dimensions.y;
         data.meta["portals"][ctr]["position"][0] = portal.position.x;
         data.meta["portals"][ctr]["position"][1] = portal.position.y;
-        data.meta["portals"][ctr]["source_id"] = portal.source_map_id;
+        data.meta["portals"][ctr]["source_id"] = room_id;
         data.meta["portals"][ctr]["destination_id"] = portal.destination_map_id;
         data.meta["portals"][ctr]["activate_on_contact"] = (dj::Boolean)(portal.activate_on_contact);
         ++ctr;
@@ -186,7 +203,15 @@ bool Canvas::save(const std::string& path) {
         data.meta["inspectables"][ctr]["position"][0] = inspectable.position.x;
         data.meta["inspectables"][ctr]["position"][1] = inspectable.position.y;
         data.meta["inspectables"][ctr]["activate_on_contact"] = (dj::Boolean)(inspectable.activate_on_contact);
-        data.meta["inspectables"][ctr]["key"] = inspectable.message;
+        data.meta["inspectables"][ctr]["key"] = inspectable.key;
+        data.inspectables[inspectable.key]["suite"].push_back(wipe);
+        if (!inspectable.message.empty()) {
+            data.inspectables[inspectable.key]["suite"][0].push_back(inspectable.message);
+        }
+        data.inspectables[inspectable.key]["responses"].push_back(wipe);
+        if (!inspectable.response.empty()) {
+            data.inspectables[inspectable.key]["responses"][0].push_back(inspectable.response);
+        }
         ++ctr;
     }
     ctr = 0;
@@ -199,6 +224,19 @@ bool Canvas::save(const std::string& path) {
         data.meta["animators"][ctr]["position"][1] = animator.position.y;
         data.meta["animators"][ctr]["automatic"] = (dj::Boolean)(animator.automatic);
         data.meta["animators"][ctr]["foreground"] = (dj::Boolean)(animator.foreground);
+        ++ctr;
+    }
+    ctr = 0;
+    for (auto& plat : platforms) {
+        data.meta["platforms"].push_back(wipe);
+        data.meta["platforms"][ctr]["position"][0] = plat.position.x;
+        data.meta["platforms"][ctr]["position"][1] = plat.position.y;
+        data.meta["platforms"][ctr]["dimensions"][0] = plat.dimensions.x;
+        data.meta["platforms"][ctr]["dimensions"][1] = plat.dimensions.y;
+        data.meta["platforms"][ctr]["extent"] = plat.extent;
+        data.meta["platforms"][ctr]["style"] = plat.style;
+        data.meta["platforms"][ctr]["type"] = plat.type;
+        data.meta["platforms"][ctr]["start"] = plat.start;
         ++ctr;
     }
     ctr = 0;
@@ -227,6 +265,7 @@ bool Canvas::save(const std::string& path) {
     }
 
     data.meta.to_file((path + "/meta.json").c_str());
+    data.inspectables.to_file((path + "/inspectables.json").c_str());
     data.tiles.to_file((path + "/tile.json").c_str());
 
     /*json overhaul*/
@@ -249,7 +288,8 @@ void Canvas::clear() {
 }
 
 void Canvas::save_state() {
-    auto undoable_tool = pi::svc::current_tool.get()->type == tool::TOOL_TYPE::BRUSH || pi::svc::current_tool.get()->type == tool::TOOL_TYPE::FILL;
+    auto const& type = pi::svc::current_tool.get()->type;
+    auto undoable_tool = type == tool::TOOL_TYPE::BRUSH || type == tool::TOOL_TYPE::FILL || type == tool::TOOL_TYPE::SELECT || type == tool::TOOL_TYPE::ERASE;
     auto just_clicked = !pi::svc::current_tool.get()->active && pi::svc::current_tool.get()->ready;
     if (undoable_tool && just_clicked) {
         map_states.emplace_back(canvas::Map(map_states.back()));

@@ -29,7 +29,8 @@ enum class ENTITY_TYPE {
 	CHEST,
     ANIMATOR,
     ENTITY_EDITOR,
-    PLAYER_PLACER
+    PLAYER_PLACER,
+    PLATFORM
 };
 
 
@@ -70,6 +71,7 @@ public:
     canvas::Inspectable current_inspectable{};
     canvas::Animator current_animator{};
     canvas::Critter current_critter{};
+    canvas::Platform current_platform{};
     
     TOOL_TYPE type{};
     ENTITY_TYPE ent_type{};

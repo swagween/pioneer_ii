@@ -127,6 +127,7 @@ namespace pi {
             void render(sf::RenderWindow& win);
             void gui_render(sf::RenderWindow& win);
             void help_marker(const char* desc);
+            void export_layer_texture();
 
             canvas::Canvas map{};
             std::vector<sf::Texture> tileset_textures{};
@@ -150,6 +151,10 @@ namespace pi {
             sf::Texture t_npc{};
             sf::Sprite s_npc{};
 
+            //for loading out layer pngs
+            sf::RenderTexture screencap{};
+            sf::Sprite tile_sprite{};
+
             sf::Vector2<float> mouse_clicked_position{};
 
             bool mouse_held{};
@@ -161,6 +166,7 @@ namespace pi {
             sf::RectangleShape gridbox{};
             sf::RectangleShape portalbox{};
             sf::RectangleShape inspbox{};
+            sf::RectangleShape platbox{};
             sf::RectangleShape target{};
             sf::RectangleShape backdrop{};
 

@@ -114,7 +114,9 @@ struct Portal {
 struct Inspectable {
     sf::Vector2<uint32_t> dimensions{};
     bool activate_on_contact{};
+    std::string key{};
     std::string message{};
+    std::string response{};
 
     sf::Vector2<uint32_t> position{};
 };
@@ -132,6 +134,15 @@ struct Animator {
     bool automatic{};
     bool foreground{};
     sf::Vector2<uint32_t> position{};
+};
+
+struct Platform {
+    sf::Vector2<uint32_t> position{};
+    sf::Vector2<uint32_t> dimensions{};
+    int extent{};
+    int style{};
+    std::string type{};
+    float start{};
 };
 
 struct SpecialBlock {
@@ -192,6 +203,7 @@ public:
     std::vector<NPC> npcs{};
     std::vector<Chest> chests{};
     std::vector<SpecialBlock> special_blocks{};
+    std::vector<Platform> platforms{};
 
     // read and write
     struct {
