@@ -320,7 +320,6 @@ namespace pi {
 			}
 
 			//player start
-			box.setPosition(svc::playerStartLocator.get().x * CELL_SIZE + svc::cameraLocator.get().physics.position.x, svc::playerStartLocator.get().y * CELL_SIZE + svc::cameraLocator.get().physics.position.y);
 			win.draw(box);
 
 			if (show_grid && !map.map_states.empty()) {
@@ -980,7 +979,7 @@ namespace pi {
 					ImGui::EndMenu();
 				}
 				ImGui::EndMenuBar();
-				for (int i = 0; i < NUM_LAYERS; ++i) {
+				for (int i = 0; i < 8; ++i) {
 					if (ImGui::Selectable(lookup::layer_name.at(i), svc::active_layer == i)) {
 						svc::active_layer = i;
 					}

@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "room_id": 115,
+    "dimensions": [
+      80,
+      16
+    ],
+    "chunk_dimensions": [
+      5,
+      1
+    ],
+    "style": 0,
+    "background": 5
+  }
+}

@@ -7,6 +7,7 @@
 #include "src/automa/StateManager.hpp"
 #include "src/util/Lookup.hpp"
 #include "src/util/ServiceLocator.hpp"
+#include "demo/src/setup/Game.hpp"
 #include <iostream>
 #include <chrono>
 
@@ -20,7 +21,7 @@ namespace fs = std::filesystem;
 
 fs::path find_resources(fs::path exe) {
     auto check = [](fs::path const& prefix) {
-        auto path = prefix / "resources";
+        auto path = prefix / "assets";
         if (fs::is_directory(path)) { return path; }
         return fs::path{};
     };
@@ -52,15 +53,7 @@ float G = 0.8f;
 
 void run(char** argv) {
 
-    //fornani demo stuff
-    lookup::populate_lookup();
-    //load all assets
-    //images
-    svc::assetLocator.get().setResourcePath(argv);
-    svc::assetLocator.get().importTextures();
-    svc::assetLocator.get().assignSprites();
-    //sounds
-    svc::assetLocator.get().load_audio();
+    fornani::Game game{argv};
     
     //load textures
     std::string resource_path = find_resources(argv[0]).string();
@@ -105,8 +98,6 @@ void run(char** argv) {
     int frame{};
     while (window.isOpen()) {
 
-        svc::clockLocator.get().tick();
-
         frame++;
         auto now = Clock::now();
         auto dt = Time{now - start};
@@ -122,9 +113,7 @@ void run(char** argv) {
                     pi::lookup::get_state_string.clear();
                     return;
                 case sf::Event::KeyPressed:
-                    if(event.key.code == sf::Keyboard::D) {
-                        debug_mode = !debug_mode;
-                    }
+					if (event.key.code == sf::Keyboard::D) { game.run(); }
                     if (event.key.code == sf::Keyboard::R) {
                         
                     }
@@ -167,8 +156,6 @@ void run(char** argv) {
                 std::string loaddir = SM.get_current_state().filepath;
                 SM.set_current_state(std::make_unique<pi::automa::Dojo>());
                 SM.get_current_state().init(loaddir);
-                sf::Vector2<float> player_pos = { (float)pi::svc::playerStartLocator.get().x * CELL_SIZE, (float)pi::svc::playerStartLocator.get().y * CELL_SIZE };
-                svc::playerLocator.get().set_position(player_pos);
                 window.setView(demo_view);
             }
         }

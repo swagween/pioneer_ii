@@ -1,603 +1,587 @@
-//
-//  Map.cpp
-//  for_loop
-//
-//  Created by Alex Frasca on 10/6/18.
-//  Copyright © 2018 Western Forest Studios. All rights reserved.
-//
 
 #include "Map.hpp"
+#include <imgui.h>
+#include "../entities/player/Player.hpp"
+#include "../gui/InventoryWindow.hpp"
+#include "../gui/Portrait.hpp"
+#include "../service/ServiceProvider.hpp"
 #include "../setup/EnumLookups.hpp"
-#include "../setup/ServiceLocator.hpp"
+
+#include "../utils/Math.hpp"
 
 namespace world {
 
-Map::Map() {
-    
-}
+Map::Map(automa::ServiceProvider& svc, player::Player& player, gui::Console& console) : player(&player), enemy_catalog(svc), save_point(svc), transition(svc, 256), m_services(&svc), m_console(&console) {}
 
-void Map::load(const std::string& path) {
-    
-    std::string filepath = path + "/map_data.txt";
-    
-    int value{};
-    int counter = 0;
-    std::ifstream input{};
-    input.open(filepath);
-    if (!input.is_open()) {
-        printf("Failed to open file.\n");
-        return;
-    }
-    
-    //dimensions and layers
-    input >> value; room_id = value; input.ignore();
-    input >> value; dimensions.x = value; input.ignore();
-    input >> value; dimensions.y = value; input.ignore();
-    input >> value; chunk_dimensions.x = value; input.ignore();
-    input >> value; chunk_dimensions.y = value; input.ignore();
-    if((dimensions.x / chunk_dimensions.x != CHUNK_SIZE) ||
-       (dimensions.y / chunk_dimensions.y != CHUNK_SIZE)) { printf("File is corrupted: Invalid dimensions.\n"); return; }
-    real_dimensions = {(float)dimensions.x * CELL_SIZE, (float)dimensions.y * CELL_SIZE};
-    for(int i = 0; i < NUM_LAYERS; ++i) {
-        layers.push_back(Layer( i, (i == MIDDLEGROUND), dimensions ));
-        layers.back().grid.initialize();
-    }
-    //style
-    input >> value; input.ignore();
-    if(value >= lookup::get_style.size()) { printf("File is corrupted: Invalid style.\n"); return; } else {
-        style = lookup::get_style.at(value);
-    }
-    //bg;
-    input >> value;
-    bg = value;
-    background = std::make_unique<bg::Background>(bg::bg_behavior_lookup.at(bg), bg);
-    input.close();
-    
-    //get map tiles from text files
-    for(auto& layer : layers) {
-        input.open(path + "/map_tiles_" + std::to_string(counter) + ".txt");
-        for(auto& cell : layer.grid.cells) {
-            input >> value;
-            lookup::TILE_TYPE typ = lookup::tile_lookup.at(value);
-            cell.value = value;
-            cell.type = typ;
-            
-            input.ignore(); //ignore the delimiter
-        }
-        layer.grid.update();
-        layer.grid.init_shape_vertices();
-        //close the current file
-        input.close();
-        ++counter;
-    }
+void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 
-    //get portal data
-    input.open(path + "/map_portals.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
-            entity::Portal p{};
-            input >> p.scaled_dimensions.x; input.ignore();
-            input >> p.scaled_dimensions.y; input.ignore();
-            input >> value; p.activate_on_contact = (bool)value; input.ignore();
-            input >> p.source_map_id; input.ignore();
-            input >> p.destination_map_id; input.ignore();
-            input >> p.scaled_position.x; input.ignore();
-            input >> p.scaled_position.y; input.ignore();
-            p.update();
-            if (p.dimensions.x != 0) { //only push if one was read, otherwise we reached the end of the file
-                portals.push_back(p);
-                portals.back().update();
-            }
-        }
-        input.close();
-    }
+	std::string room_str = svc.data.finder.resource_path + room.data();
+	metadata = dj::Json::from_file((room_str + "/meta.json").c_str());
+	assert(!metadata.is_null());
+	tiles = dj::Json::from_file((room_str + "/tile.json").c_str());
+	assert(!tiles.is_null());
+	inspectable_data = dj::Json::from_file((room_str + "/inspectables.json").c_str());
 
-    //get inspectable data
-    input.open(path + "/map_inspectables.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
-            entity::Inspectable p{};
-            input >> p.scaled_dimensions.x; input.ignore();
-            input >> p.scaled_dimensions.y; input.ignore();
-            input >> value; p.activate_on_contact = (bool)value; input.ignore(); input.ignore();
-            std::getline(input, p.message, '#');
-            input >> p.scaled_position.x; input.ignore();
-            input >> p.scaled_position.y; input.ignore();
-            p.update();
-            if (p.dimensions.x != 0) { //only push if one was read, otherwise we reached the end of the file
-                inspectables.push_back(p);
-                inspectables.back().update();
-            }
-        }
-        input.close();
-    }
+	// get npc data
+	if (!metadata.is_null()) {
+		auto const& meta = metadata["meta"];
+		room_id = meta["id"].as<int>();
+		dimensions.x = meta["dimensions"][0].as<int>();
+		dimensions.y = meta["dimensions"][1].as<int>();
+		chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
+		chunk_dimensions.y = meta["chunk_dimensions"][1].as<int>();
+		real_dimensions = {(float)dimensions.x * svc.constants.cell_size, (float)dimensions.y * svc.constants.cell_size};
+		for (int i = 0; i < NUM_LAYERS; ++i) { layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
 
-    //get animator data
-    input.open(path + "/map_animators.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
-            entity::Animator p{};
-            input >> p.scaled_dimensions.x; input.ignore();
-            input >> p.scaled_dimensions.y; input.ignore();
-            input >> value; p.id = value; input.ignore();
-            input >> value; p.automatic = (bool)value; input.ignore();
-            input >> value; p.foreground = (bool)value; input.ignore();
-            input >> p.scaled_position.x; input.ignore();
-            input >> p.scaled_position.y; input.ignore();
-            if (p.scaled_dimensions.x != 0) { //only push if one was read, otherwise we reached the end of the file
-                uint32_t large_dim = 16;
-                p.dimensions = static_cast<Vec>(p.scaled_dimensions * large_dim);
-                p.bounding_box = shape::Shape(p.dimensions);
-                animators.push_back(p);
-            }
-        }
-        input.close();
-    }
+		if (meta["music"].is_string()) {
+			svc.music.load(meta["music"].as_string());
+			svc.music.play_looped(20);
+		}
 
-    //get critter data
-    //zero the pool_counter
-    critter::pool_counter.fill(0);
-    input.open(path + "/map_critters.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
+		auto style_value = meta["style"].as<int>();
+		style_label = svc.data.map_styles["styles"][style_value]["label"].as_string();
+		style_id = svc.data.map_styles["styles"][style_value]["id"].as<int>();
+		if (svc.greyblock_mode()) { style_id = 20; }
+		native_style_id = svc.data.map_styles["styles"][style_value]["id"].as<int>();
+		background = std::make_unique<bg::Background>(svc, meta["background"].as<int>());
+		styles.breakables = meta["styles"]["breakables"].as<int>();
 
-            int id{}; sf::Vector2<int> pos{};
+		for (auto& entry : metadata["npcs"].array_view()) {
+			sf::Vector2<float> pos{};
+			pos.x = entry["position"][0].as<int>();
+			pos.y = entry["position"][1].as<int>();
+			npcs.push_back(npc::NPC(svc, entry["id"].as<int>()));
+			for (auto& convo : entry["suites"].array_view()) { npcs.back().push_conversation(convo.as_string()); }
+			npcs.back().set_position_from_scaled(pos);
+		}
 
-            //extract id and position
-            input >> id; input.ignore();
-            input >> pos.x; input.ignore();
-            input >> pos.y; input.ignore();
+		for (auto& entry : metadata["portals"].array_view()) {
+			sf::Vector2<uint32_t> pos{};
+			sf::Vector2<uint32_t> dim{};
+			pos.x = entry["position"][0].as<int>();
+			pos.y = entry["position"][1].as<int>();
+			dim.x = entry["dimensions"][0].as<int>();
+			dim.y = entry["dimensions"][1].as<int>();
+			portals.push_back(entity::Portal(dim, pos));
+			portals.back().source_map_id = entry["source_id"].as<int>();
+			portals.back().destination_map_id = entry["destination_id"].as<int>();
+			portals.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
+			portals.back().update();
+		}
 
-            //fetch the type
-            critter::CRITTER_TYPE type = critter::get_critter_type.at(id);
+		auto const& savept = metadata["save_point"];
+		auto id = savept["id"].as<int>();
+		save_point.id = id != 0 ? id : -1;
+		save_point.scaled_position.x = savept["position"][0].as<int>();
+		save_point.scaled_position.y = savept["position"][1].as<int>();
 
-            //push the critter
-            //which type of critter? and how deep into the pool are we?
-            critters.push_back(*bestiary.fetch_critter_of_type(type, critter::pool_counter.at(id)));
-            critters.back()->set_position({ pos.x * TILE_WIDTH, pos.y * TILE_WIDTH });
-            critters.back()->collider.physics.zero();
-            critter::pool_counter.at(id)++;
+		for (auto& entry : metadata["chests"].array_view()) {
+			sf::Vector2<float> pos{};
+			pos.x = entry["position"][0].as<int>();
+			pos.y = entry["position"][1].as<int>();
+			chests.push_back(entity::Chest(svc));
+			chests.back().set_id(entry["id"].as<int>());
+			chests.back().set_item(entry["item_id"].as<int>());
+			chests.back().set_position_from_scaled(pos);
+		}
 
-        }
-        input.close();
-    }
+		for (auto& entry : metadata["animators"].array_view()) {
+			sf::Vector2<int> scaled_dim{};
+			sf::Vector2<int> scaled_pos{};
+			scaled_pos.x = entry["position"][0].as<int>();
+			scaled_pos.y = entry["position"][1].as<int>();
+			scaled_dim.x = entry["dimensions"][0].as<int>();
+			scaled_dim.y = entry["dimensions"][1].as<int>();
+			auto lg = scaled_dim.x == 2;
+			auto a = entity::Animator(svc, scaled_pos, lg);
+			a.id = entry["id"].as<int>();
+			a.automatic = (bool)entry["automatic"].as_bool();
+			a.foreground = (bool)entry["foreground"].as_bool();
+			animators.push_back(a);
+		}
 
-    for(auto& critter : critters) {
+		for (auto& entry : metadata["inspectables"].array_view()) {
+			sf::Vector2<uint32_t> dim{};
+			sf::Vector2<uint32_t> pos{};
+			auto key = entry["key"].as_string();
+			pos.x = entry["position"][0].as<int>();
+			pos.y = entry["position"][1].as<int>();
+			dim.x = entry["dimensions"][0].as<int>();
+			dim.y = entry["dimensions"][1].as<int>();
+			inspectables.push_back(entity::Inspectable(dim, pos, key));
+			inspectables.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
+		}
 
-        colliders.push_back(&critter->collider);
-    
-    }
-    colliders.push_back(&svc::playerLocator.get().collider);
+		for (auto& entry : metadata["enemies"].array_view()) {
+			int id{};
+			sf::Vector2<int> pos{};
+			pos.x = entry["position"][0].as<int>();
+			pos.y = entry["position"][1].as<int>();
+			enemy_catalog.push_enemy(svc, *this, *m_console, entry["id"].as<int>());
+			enemy_catalog.enemies.back()->set_position({(float)(pos.x * svc.constants.cell_size), (float)(pos.y * svc.constants.cell_size)});
+			enemy_catalog.enemies.back()->get_collider().physics.zero();
+		}
 
-    transition.fade_in = true;
-    svc::playerLocator.get().unrestrict_inputs();
-    minimap = sf::View(sf::FloatRect(0.0f, 0.0f, cam::screen_dimensions.x * 2, cam::screen_dimensions.y * 2));
-    minimap.setViewport(sf::FloatRect(0.0f, 0.75f, 0.2f, 0.2f));
-    
-}
-
-void Map::update() {
-
-    svc::consoleLocator.get().update();
-
-    background->update();
-    svc::playerLocator.get().collider.reset();
-    for (auto& critter : critters) {
-        critter->collider.reset();
-    }
-
-    manage_projectiles();
-    auto barrier = 3.0f;
-
-    //someday, I will have a for(auto& entity : entities) loop and the player will be included in that
-
-    for(auto& collider : colliders) {
-        for (auto& cell : layers.at(MIDDLEGROUND).grid.cells) {
-            cell.collision_check = false;
-            if (abs(cell.bounding_box.position.x - collider->bounding_box.position.x) > collider->dimensions.x * barrier ||
-                abs(cell.bounding_box.position.y - collider->bounding_box.position.y) > collider->dimensions.y * (barrier - 1)) {
-                continue;
-            }
-            else {
-                cell.collision_check = true;
-                if (cell.value > 0) {
-                    collider->handle_map_collision(cell.bounding_box, cell.type);
-                }
-            }
-            
-        }
-    }
-
-    for(auto& cell : layers.at(MIDDLEGROUND).grid.cells) {
-        for(auto& proj : active_projectiles) {
-            if(abs(cell.bounding_box.position.x - proj.bounding_box.position.x) > PLAYER_WIDTH * barrier ||
-               abs(cell.bounding_box.position.y - proj.bounding_box.position.y) > PLAYER_HEIGHT * barrier) {
-                continue;
-            } else {
-                cell.collision_check = true;
-                if(proj.bounding_box.SAT(cell.bounding_box) && cell.value > 0) {
-                    if(cell.type == lookup::TILE_TYPE::TILE_BREAKABLE) {
-                        --cell.value;
-                        if (lookup::tile_lookup.at(cell.value) != lookup::TILE_TYPE::TILE_BREAKABLE) {
-                            cell.value = 0;
-                            active_emitters.push_back(breakable_debris);
-                            active_emitters.back().get_physics().acceleration += proj.physics.acceleration;
-                            active_emitters.back().set_position(cell.position.x + CELL_SIZE / 2, cell.position.y + CELL_SIZE / 2);
-                            active_emitters.back().set_direction(proj.physics.dir);
-                            active_emitters.back().update();
-                            svc::assetLocator.get().shatter.play();
-                        }
-                    }
-                    proj.destroy(false);
-                }
-            }
-        }
-    }
-
-    for(auto& cell : layers.at(MIDDLEGROUND).grid.cells) {
-        for(auto& emitter : active_emitters) {
-            for(auto& particle : emitter.get_particles()) {
-                if(abs(cell.bounding_box.position.x - particle.bounding_box.position.x) > PLAYER_WIDTH * barrier ||
-                   abs(cell.bounding_box.position.y - particle.bounding_box.position.y) > PLAYER_HEIGHT * barrier) {
-                    continue;
-                } else {
-                    cell.collision_check = true;
-                    if(particle.bounding_box.SAT(cell.bounding_box) && cell.value > 0) {
-                        shape::Shape::Vec mtv = particle.bounding_box.testCollisionGetMTV(particle.bounding_box, cell.bounding_box);
-                        sf::operator+=(particle.physics.position, mtv);
-                        particle.physics.acceleration.y *= -1.0f;
-                        particle.physics.acceleration.x *= -1.0f;
-                        if(abs(mtv.y) > abs(mtv.x)) {
-                            particle.physics.velocity.y *= -1.0f;
-                        }
-                        if(abs(mtv.x) > abs(mtv.y)){
-                            particle.physics.velocity.x *= -1.0f;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    for (auto& proj : active_projectiles) {
-        if (proj.state.test(arms::ProjectileState::destruction_initiated)) { continue; }
-        for (auto& critter : critters) {
-            if (proj.bounding_box.SAT(critter->collider.bounding_box)) {
-                critter->flags.shot = true;
-                if (critter->flags.vulnerable) {
-                    critter->flags.hurt = true;
-                    critter->flags.just_hurt = true;
-                    critter->condition.hp -= proj.stats.damage;
-                }
-                proj.destroy(false);
-            }
-        }
-    }
-    
-    for(auto& critter : critters) {
-
-        critter->facing_lr = (svc::playerLocator.get().collider.physics.position.x < critter->collider.physics.position.x) ? behavior::DIR_LR::RIGHT : behavior::DIR_LR::LEFT;
-        //critter->random_walk(sf::Vector2<int>(120, 180));
-        if (svc::playerLocator.get().collider.bounding_box.SAT(critter->hostile_range)) {
-            critter->current_target = svc::playerLocator.get().collider.physics.position;
-            critter->awake();
-        } else if (svc::playerLocator.get().collider.bounding_box.SAT(critter->alert_range)) {
-            critter->wake_up();
-        } else {
-            critter->sleep();
-        }
-
-    }
-
-    for(auto& collider : colliders) {
-        collider->reset_ground_flags();
-    }
-
-
-    for (auto& portal : portals) {
-        portal.update();
-        portal.handle_activation(room_id, transition.fade_out, transition.done);
-    }
-
-    for (auto& inspectable : inspectables) {
-        if (svc::playerLocator.get().flags.input.test(Input::inspecting) && inspectable.bounding_box.SAT(svc::playerLocator.get().collider.bounding_box)) {
-            inspectable.activated = true;
-            svc::consoleLocator.get().flags.set(gui::ConsoleFlags::active);
-            svc::playerLocator.get().restrict_inputs();
-        }
-        if(inspectable.activated && svc::consoleLocator.get().flags.test(gui::ConsoleFlags::active)) {
-            svc::consoleLocator.get().begin();
-            if(svc::playerLocator.get().flags.input.test(Input::exit_request)) {
-                inspectable.activated = false;
-                svc::consoleLocator.get().end();
-            }
-        }
-    }
-
-    for (auto& animator : animators) {
-        if (animator.bounding_box.SAT(svc::playerLocator.get().collider.bounding_box) && svc::playerLocator.get().moving_at_all()) {
-            animator.anim.on();
-            animator.activated = true;
-        } else {
-            animator.activated = false;
-        }
-        animator.update();
-    }
-
-    //check if player died
-    if(!svc::playerLocator.get().flags.state.test(State::alive) && !game_over) {
-        active_emitters.push_back(player_death);
-        active_emitters.back().get_physics().acceleration += svc::playerLocator.get().collider.physics.acceleration;
-        active_emitters.back().set_position(svc::playerLocator.get().collider.physics.position.x, svc::playerLocator.get().collider.physics.position.y);
-        active_emitters.back().set_direction(components::DIRECTION::DOWN);
-        active_emitters.back().update();
-        svc::assetLocator.get().player_death.play();
-        game_over = true;
-    }
-
-    if(game_over) {
-        transition.fade_out = true;
-        if (transition.done) {
-            svc::playerLocator.get().start_over();
-            svc::stateControllerLocator.get().next_state = lookup::get_map_label.at(101); //temporary. later, we will load the last save
-            svc::stateControllerLocator.get().trigger = true;
-            svc::playerLocator.get().set_position(sf::Vector2<float>(200.f, 390.f));
-        }
-    }
-
-    if (svc::clockLocator.get().every_x_frames(1)) {
-        transition.update();
-    }
-
-}
-
-void Map::render(sf::RenderWindow& win, std::vector<sf::Sprite>& tileset, sf::Vector2<float> cam) {
-    for(auto& proj : active_projectiles) {
-        proj.render(win, cam);
-        /*sf::Sprite proj_sprite;
-        int curr_frame = proj.sprite_id + proj.anim.num_sprites*proj.anim_frame;
-        svc::assetLocator.get().sp_clover_projectile.at(curr_frame).setPosition( {proj.bounding_box.position.x - cam.x, proj.bounding_box.position.y - cam.y - proj.bounding_box.dimensions.y/2} );
-        arms::Weapon& curr_weapon = lookup::type_to_weapon.at(proj.type);
-        std::vector<sf::Sprite>& curr_proj_sprites = lookup::projectile_sprites.at(curr_weapon.type);
-        
-        
-        if(curr_weapon.type == arms::WEAPON_TYPE::CLOVER) {
-            win.draw(svc::assetLocator.get().sp_clover_projectile.at(curr_frame));
-        } else if(!curr_proj_sprites.empty()) {
-            proj_sprite = curr_proj_sprites.at(arms::ProjDirLookup.at(proj.dir));
-            proj_sprite.setPosition({proj.bounding_box.position.x - cam.x, proj.bounding_box.position.y - cam.y - proj.bounding_box.dimensions.y/2} );
-            win.draw(proj_sprite);
-        }*/
-    }
-    
-    //emitters
-	for (auto& emitter : active_emitters) {
-		for (auto& particle : emitter.get_particles()) {
-			sf::RectangleShape dot{};
-			dot.setFillColor(emitter.color);
-			dot.setSize({ particle.size, particle.size });
-			dot.setPosition(particle.physics.position.x - cam.x, particle.physics.position.y - cam.y);
-			win.draw(dot);
-            svc::counterLocator.get().at(svc::draw_calls)++;
+		for (auto& entry : metadata["platforms"].array_view()) {
+			sf::Vector2<float> dim{};
+			sf::Vector2<float> pos{};
+			pos.x = entry["position"][0].as<int>();
+			pos.y = entry["position"][1].as<int>();
+			dim.x = entry["dimensions"][0].as<int>();
+			dim.y = entry["dimensions"][1].as<int>();
+			pos *= svc.constants.cell_size;
+			dim *= svc.constants.cell_size;
+			auto start = entry["start"].as<float>();
+			start = std::clamp(start, 0.f, 1.f);
+			auto type = entry["type"].as_string();
+			platforms.push_back(Platform(svc, pos, dim, entry["extent"].as<int>(), type, start, entry["style"].as<int>()));
 		}
 	}
 
-    //player
-    sf::Vector2<float> player_pos = svc::playerLocator.get().apparent_position - svc::cameraLocator.get().physics.position;
-    svc::playerLocator.get().render(win, svc::cameraLocator.get().physics.position);
-    
-    //enemies
-    for(auto& critter : critters) {
-        critter->render(win, cam);
-    }
+	// tiles
+	int layer_counter{};
+	for (auto& layer : layers) {
+		int cell_counter{};
+		layer.grid = Grid(dimensions);
+		for (auto& cell : tiles["layers"][layer_counter].array_view()) {
+			layer.grid.cells.at(cell_counter).value = cell.as<int>();
+			++cell_counter;
+		}
+		layer.grid.seed_vertices();
+		++layer_counter;
+	}
 
-    //foreground animators
-    for (auto& animator : animators) {
-        if (!animator.foreground) { animator.render(win, cam); }
-    }
-    
-    //level foreground
-    for(auto& layer : layers) {
-        if(layer.render_order >= 4) {
-            for(auto& cell : layer.grid.cells) {
-                if(cell.value > 0) {
-                    int cell_x = cell.bounding_box.position.x - cam.x;
-                    int cell_y = cell.bounding_box.position.y - cam.y;
-                    tileset.at(cell.value).setPosition(cell_x, cell_y);
-                    if (!svc::globalBitFlagsLocator.get().test(svc::global_flags::greyblock_state) || layer.render_order == 4) {
-                        if (svc::cameraLocator.get().within_frame(cell_x + CELL_SIZE, cell_y + CELL_SIZE)) {
-                            win.draw(tileset.at(cell.value));
-                            svc::counterLocator.get().at(svc::draw_calls)++;
-                        }
-                    }
-                    if(cell.collision_check && svc::globalBitFlagsLocator.get().test(svc::global_flags::greyblock_state)) {
-                        sf::RectangleShape box{};
-                        box.setPosition(cell.bounding_box.vertices[0].x - cam.x, cell.bounding_box.vertices[0].y - cam.y);
-                        box.setFillColor(sf::Color{100, 100, 130, 80});
-                        box.setOutlineColor(sf::Color(235, 232, 249, 140));
-                        box.setOutlineThickness(-1);
-                        box.setSize(sf::Vector2<float>{(float)cell.bounding_box.dimensions.x, (float)cell.bounding_box.dimensions.y});
-                        win.draw(box);
-                        svc::counterLocator.get().at(svc::draw_calls)++;
-                    }
-                }
-            }
-        }
-    }
+	generate_collidable_layer();
+	generate_layer_textures(svc);
 
-    if (real_dimensions.y < cam::screen_dimensions.y) {
-        float ydiff = (cam::screen_dimensions.y - real_dimensions.y) / 2;
-        borderbox.setFillColor(flcolor::black);
-        borderbox.setSize({ (float)cam::screen_dimensions.x, ydiff });
-        borderbox.setPosition(0.0f, 0.0f);
-        win.draw(borderbox);
-        svc::counterLocator.get().at(svc::draw_calls)++;
-        borderbox.setPosition(0.0f, real_dimensions.y + ydiff);
-        win.draw(borderbox);
-        svc::counterLocator.get().at(svc::draw_calls)++;
-    }
-    if (real_dimensions.x < cam::screen_dimensions.x) {
-        float xdiff = (cam::screen_dimensions.x - real_dimensions.x) / 2;
-        borderbox.setFillColor(flcolor::black);
-        borderbox.setSize({ xdiff, (float)cam::screen_dimensions.y });
-        borderbox.setPosition(0.0f, 0.0f);
-        win.draw(borderbox);
-        svc::counterLocator.get().at(svc::draw_calls)++;
-        borderbox.setPosition(real_dimensions.x + xdiff, 0.0f);
-        win.draw(borderbox);
-        svc::counterLocator.get().at(svc::draw_calls)++;
-    }
+	player->map_reset();
 
-    for (auto& portal : portals) {
-        portal.render(win, cam);
-    }
-    for (auto& inspectable : inspectables) {
-        inspectable.render(win, cam); //for debug
-    }
-    for(auto& animator : animators) {
-        if (animator.foreground) { animator.render(win, cam); }
-    }
-
-    //render minimap
-    if (show_minimap) {
-        win.setView(minimap);
-        for (auto& cell : layers.at(MIDDLEGROUND).grid.cells) {
-            minimap_tile.setPosition(cell.position.x - cam.x, cell.position.y - cam.y);
-            minimap_tile.setSize(sf::Vector2<float>{(float)cell.bounding_box.dimensions.x, (float)cell.bounding_box.dimensions.y});
-            if (cell.value > 0) {
-                minimap_tile.setFillColor(sf::Color{20, 240, 20, 120});
-                win.draw(minimap_tile);
-                svc::counterLocator.get().at(svc::draw_calls)++;
-            }
-            else {
-                minimap_tile.setFillColor(sf::Color{ 20, 20, 20, 120 });
-                win.draw(minimap_tile);
-                svc::counterLocator.get().at(svc::draw_calls)++;
-            }
-        }
-        minimap_tile.setPosition(svc::playerLocator.get().collider.physics.position.x - cam.x, svc::playerLocator.get().collider.physics.position.y - cam.y);
-        minimap_tile.setFillColor(sf::Color{ 240, 240, 240, 180 });
-        win.draw(minimap_tile);
-        svc::counterLocator.get().at(svc::draw_calls)++;
-        win.setView(sf::View(sf::FloatRect{ 0.f, 0.f, (float)cam::screen_dimensions.x, (float)cam::screen_dimensions.y }));
-    }
-
+	transition.fade_in = true;
+	minimap = sf::View(sf::FloatRect(0.0f, 0.0f, svc.constants.screen_dimensions.x * 2, svc.constants.screen_dimensions.y * 2));
+	minimap.setViewport(sf::FloatRect(0.75f, 0.75f, 0.2f, 0.2f));
+	loading.start(2);
 }
 
-void Map::render_background(sf::RenderWindow& win, std::vector<sf::Sprite>& tileset, sf::Vector2<float> cam) {
-    if (!svc::globalBitFlagsLocator.get().test(svc::global_flags::greyblock_state)) {
-        background->render(win, cam, real_dimensions);
-    }else {
-        sf::RectangleShape box{};
-        box.setPosition(0, 0);
-        box.setFillColor(flcolor::black);
-        box.setSize({ (float)cam::screen_dimensions.x, (float)cam::screen_dimensions.y });
-        win.draw(box);
-        svc::counterLocator.get().at(svc::draw_calls)++;
-        }
-    if (real_dimensions.y < cam::screen_dimensions.y) { svc::cameraLocator.get().fix_horizontally(real_dimensions); }
-    for(auto& layer : layers) {
-        if(layer.render_order < 4) {
-            for(auto& cell : layer.grid.cells) {
-                if(cell.value > 0) {
-                    int cell_x = cell.bounding_box.position.x - cam.x;
-                    int cell_y = cell.bounding_box.position.y - cam.y;
-                    tileset.at(cell.value).setPosition(cell_x, cell_y);
-                    if (!svc::globalBitFlagsLocator.get().test(svc::global_flags::greyblock_state)) {
-                        if (svc::cameraLocator.get().within_frame(cell_x + CELL_SIZE, cell_y + CELL_SIZE)) {
-                            win.draw(tileset.at(cell.value));
-                            svc::counterLocator.get().at(svc::draw_calls)++;
-                        }
-                    }
-                }
-            }
-        }
-    }
+void Map::update(automa::ServiceProvider& svc, gui::Console& console, gui::InventoryWindow& inventory_window) {
+	loading.update();
+	if (loading.running()) { generate_layer_textures(svc); } // band-aid fix for weird artifacting for 1x1 levels
+	flags.state.reset(LevelState::camera_shake);
+
+	if(flags.state.test(LevelState::spawn_enemy)) {
+		for (auto& spawn : enemy_spawns) {
+			enemy_catalog.push_enemy(*m_services, *this, *m_console, spawn.id);
+			enemy_catalog.enemies.back()->set_position(spawn.pos);
+			enemy_catalog.enemies.back()->get_collider().physics.zero();
+			effects.push_back(entity::Effect(*m_services, spawn.pos, {}, 0, 4));
+		}
+		enemy_spawns.clear();
+		flags.state.reset(LevelState::spawn_enemy);
+	}
+
+	console.update(svc);
+	inventory_window.update(svc, *player);
+
+	player->collider.reset();
+	for (auto& a : player->antennae) { a.collider.reset(); }
+	player->ledge_height = player->collider.detect_ledge_height(*this);
+	if (off_the_bottom(player->collider.physics.position)) { player->kill(); }
+
+	for (auto& grenade : active_grenades) {
+		if (player->shielding() && player->controller.get_shield().sensor.within_bounds(grenade.bounding_box)) {
+			player->controller.get_shield().damage();
+			grenade.physics.velocity *= -1.f;
+		}
+		if (grenade.detonated() && grenade.sensor.within_bounds(player->collider.hurtbox)) { player->hurt(grenade.get_damage()); }
+		for (auto& enemy : enemy_catalog.enemies) {
+			if (grenade.detonated() && grenade.sensor.within_bounds(enemy->get_collider().hurtbox)) {
+				enemy->hurt();
+				enemy->health.inflict(grenade.get_damage());
+				enemy->health_indicator.add(grenade.get_damage());
+				if (enemy->just_died() && enemy->spawn_loot()) {
+					active_loot.push_back(item::Loot(svc, enemy->get_attributes().drop_range, enemy->get_attributes().loot_multiplier, enemy->get_collider().bounding_box.position));
+					svc.soundboard.flags.frdog.set(audio::Frdog::death);
+				}
+			}
+		}
+	}
+
+	player->collider.detect_map_collision(*this);
+
+	// i need to refactor this...
+	for (auto& index : collidable_indeces) {
+		auto& cell = layers.at(MIDDLEGROUND).grid.cells.at(index);
+		// damage player if spikes
+		if (cell.is_spike() && player->collider.hurtbox.overlaps(cell.bounding_box)) { player->hurt(1); }
+		if (cell.is_death_spike() && player->collider.hurtbox.overlaps(cell.bounding_box)) { player->hurt(64); }
+
+		for (auto& grenade : active_grenades) {
+			for (auto& breakable : breakables) {
+				if (grenade.detonated() && grenade.sensor.within_bounds(breakable.get_bounding_box())) { breakable.destroy(); }
+			}
+		}
+		for (auto& proj : active_projectiles) {
+
+			// should be, simply:
+			// cell.update(svc, player, proj, *this);
+			// or something similar
+
+			if (!nearby(cell.bounding_box, proj.bounding_box)) {
+				continue;
+			} else {
+				cell.collision_check = true;
+				if ((proj.bounding_box.overlaps(cell.bounding_box) && cell.is_occupied())) {
+					if (!cell.is_collidable()) { continue; }
+					if (!proj.stats.transcendent) {
+						if (!proj.destruction_initiated()) {
+							effects.push_back(entity::Effect(svc, proj.destruction_point + proj.physics.position, {}, proj.effect_type(), 2));
+							if (proj.direction.lr == dir::LR::neutral) { effects.back().rotate(); }
+						}
+						proj.destroy(false);
+					}
+					if (proj.stats.spring && cell.is_hookable()) {
+						if (proj.hook.grapple_flags.test(arms::GrappleState::probing)) {
+							proj.hook.spring.set_anchor(cell.middle_point());
+							proj.hook.grapple_triggers.set(arms::GrappleTriggers::found);
+						}
+						handle_grappling_hook(svc, proj);
+					}
+				}
+			}
+		}
+	}
+
+	manage_projectiles(svc);
+
+	for (auto& proj : active_projectiles) {
+		if (proj.state.test(arms::ProjectileState::destruction_initiated)) { continue; }
+		for (auto& platform : platforms) { platform.on_hit(svc, *this, proj); }
+		for (auto& breakable : breakables) { breakable.on_hit(svc, *this, proj); }
+		for (auto& enemy : enemy_catalog.enemies) { enemy->on_hit(svc, *this, proj); }
+
+		if (player->shielding() && player->controller.get_shield().sensor.within_bounds(proj.bounding_box)) { player->controller.get_shield().damage(proj.stats.base_damage * player->player_stats.shield_dampen); }
+		if (proj.bounding_box.overlaps(player->collider.hurtbox) && proj.team != arms::TEAMS::NANI) {
+			player->hurt(proj.stats.base_damage);
+			proj.destroy(false);
+		}
+	}
+
+	for (auto& enemy : enemy_catalog.enemies) {
+		enemy->unique_update(svc, *this, *player);
+		enemy->handle_player_collision(*player);
+	}
+	enemy_catalog.update();
+
+	for (auto& loot : active_loot) { loot.update(svc, *this, *player); }
+	for (auto& grenade : active_grenades) { grenade.update(svc, *player, *this); }
+	for (auto& emitter : active_emitters) { emitter.update(svc, *this); }
+	for (auto& chest : chests) { chest.update(svc, *this, console, *player); }
+	for (auto& npc : npcs) { npc.update(svc, *this, console, *player); }
+	for (auto& portal : portals) { portal.handle_activation(svc, *player, room_id, transition.fade_out, transition.done); }
+	for (auto& inspectable : inspectables) { inspectable.update(svc, *player, console, inspectable_data); }
+	for (auto& animator : animators) { animator.update(*player); }
+	for (auto& effect : effects) { effect.update(svc, *this); }
+	for (auto& platform : platforms) { platform.update(svc, *player); }
+	for (auto& breakable : breakables) {
+		breakable.update(svc);
+		breakable.handle_collision(player->collider);
+	}
+	if (save_point.id != -1) { save_point.update(svc, *player, console); }
+
+	std::erase_if(effects, [](auto const& e) { return e.done(); });
+
+	player->collider.reset_ground_flags();
+	// check if player died
+	if (!player->is_dead() && !game_over) {
+		svc.soundboard.flags.player.set(audio::Player::death);
+		game_over = true;
+	}
+
+	if (game_over) {
+		transition.fade_out = true;
+		if (transition.done) {
+			player->start_over();
+			svc.state_controller.next_state = lookup::get_map_label.at(100); // temporary. later, we will load the last save
+			svc.state_controller.actions.set(automa::Actions::trigger);
+		}
+	}
+
+	if (svc.ticker.every_x_frames(1)) { transition.update(); }
+
+	console.clean_off_trigger();
+	inventory_window.clean_off_trigger();
+	inventory_window.info.clean_off_trigger();
 }
 
-void Map::render_console(sf::RenderWindow& win) {
-    if (svc::consoleLocator.get().flags.test(gui::ConsoleFlags::active)) {
-        svc::consoleLocator.get().render(win);
-        for (auto& inspectable : inspectables) {
-            if (inspectable.activated) {
-                svc::consoleLocator.get().write(win, inspectable.message);
-                //svc::consoleLocator.get().write(win, "ab?:-_()#`");
-            }
-        }
-    }
+void Map::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) {
+	// check for a switch to greyblock mode
+	if (svc.debug_flags.test(automa::DebugFlags::greyblock_trigger)) {
+		style_id = style_id == 20 ? native_style_id : 20;
+		generate_layer_textures(svc);
+		svc.debug_flags.reset(automa::DebugFlags::greyblock_trigger);
+	}
+
+	for (auto& chest : chests) { chest.render(svc, win, cam); }
+	for (auto& npc : npcs) { npc.render(svc, win, cam); }
+	for (auto& emitter : active_emitters) { emitter.render(svc, win, cam); }
+	for (auto& grenade : active_grenades) { grenade.render(svc, win, cam); }
+	player->render(svc, win, cam);
+	for (auto& enemy : enemy_catalog.enemies) { enemy->render(svc, win, cam); }
+	for (auto& enemy : enemy_catalog.enemies) { enemy->unique_render(svc, win, cam); }
+	for (auto& proj : active_projectiles) { proj.render(svc, *player, win, cam); }
+	for (auto& loot : active_loot) { loot.render(svc, win, cam); }
+	for (auto& platform : platforms) { platform.render(svc, win, cam); }
+	for (auto& breakable : breakables) { breakable.render(svc, win, cam); }
+
+	for (auto& animator : animators) {
+		if (!animator.foreground) { animator.render(svc, win, cam); }
+	}
+
+	if (save_point.id != -1) { save_point.render(svc, win, cam); }
+
+	// map foreground tiles
+	for (int i = 4; i < NUM_LAYERS; ++i) {
+		if (svc.greyblock_mode() && i != 4) { continue; }
+		layer_textures.at(i).display();
+		layer_sprite.setTexture(layer_textures.at(i).getTexture());
+		layer_sprite.setPosition(-cam);
+		win.draw(layer_sprite);
+	}
+
+	for (auto& effect : effects) { effect.render(svc, win, cam); }
+
+	player->render_indicators(svc, win, cam);
+	for (auto& enemy : enemy_catalog.enemies) { enemy->render_indicators(svc, win, cam); }
+	for (auto& enemy : enemy_catalog.enemies) { enemy->gui_render(svc, win, cam); }
+
+	if (svc.greyblock_mode()) {
+		for (auto& index : collidable_indeces) {
+			auto& cell = layers.at(MIDDLEGROUND).grid.cells.at(index);
+			cell.drawbox.setPosition(cell.position - cam);
+			win.draw(cell.drawbox);
+		}
+	}
+
+	if (real_dimensions.y < svc.constants.screen_dimensions.y) {
+		float ydiff = (svc.constants.screen_dimensions.y - real_dimensions.y) / 2;
+		borderbox.setFillColor(svc.styles.colors.ui_black);
+		borderbox.setSize({(float)svc.constants.screen_dimensions.x, ydiff});
+		borderbox.setPosition(0.0f, 0.0f);
+		win.draw(borderbox);
+
+		borderbox.setPosition(0.0f, real_dimensions.y + ydiff);
+		win.draw(borderbox);
+	}
+	if (real_dimensions.x < svc.constants.screen_dimensions.x) {
+		float xdiff = (svc.constants.screen_dimensions.x - real_dimensions.x) / 2;
+		borderbox.setFillColor(svc.styles.colors.ui_black);
+		borderbox.setSize({xdiff, (float)svc.constants.screen_dimensions.y});
+		borderbox.setPosition(0.0f, 0.0f);
+		win.draw(borderbox);
+
+		borderbox.setPosition(real_dimensions.x + xdiff, 0.0f);
+		win.draw(borderbox);
+	}
+
+	for (auto& portal : portals) { portal.render(win, cam); }
+
+	for (auto& animator : animators) {
+		if (animator.foreground) { animator.render(svc, win, cam); }
+	}
+
+	if (svc.greyblock_mode()) {
+		for (auto& inspectable : inspectables) { inspectable.render(win, cam); }
+	}
+
+	// render minimap
+	if (show_minimap) {
+		win.setView(minimap);
+		for (auto& cell : layers.at(MIDDLEGROUND).grid.cells) {
+			minimap_tile.setPosition(cell.position.x - cam.x, cell.position.y - cam.y);
+			minimap_tile.setSize(sf::Vector2<float>{(float)cell.bounding_box.dimensions.x, (float)cell.bounding_box.dimensions.y});
+			if (cell.value > 0) {
+				auto color = svc.styles.colors.ui_white;
+				color.a = 120;
+				minimap_tile.setFillColor(color);
+				win.draw(minimap_tile);
+
+			} else {
+				minimap_tile.setFillColor(sf::Color{20, 20, 20, 120});
+				win.draw(minimap_tile);
+			}
+		}
+		minimap_tile.setPosition(player->collider.physics.position.x - cam.x, player->collider.physics.position.y - cam.y);
+		minimap_tile.setFillColor(sf::Color{240, 240, 240, 180});
+		win.draw(minimap_tile);
+
+		win.setView(sf::View(sf::FloatRect{0.f, 0.f, (float)svc.constants.screen_dimensions.x, (float)svc.constants.screen_dimensions.y}));
+	}
 }
 
-void Map::spawn_projectile_at(sf::Vector2<float> pos) {
-    if(active_projectiles.size() < svc::playerLocator.get().loadout.get_equipped_weapon().attributes.rate) {
-        active_projectiles.push_back(svc::playerLocator.get().loadout.get_equipped_weapon().projectile);
-        active_projectiles.back().fired_point = svc::playerLocator.get().loadout.get_equipped_weapon().barrel_point;
-        active_projectiles.back().set_sprite();
-        active_projectiles.back().physics = components::PhysicsComponent({1.0f, 1.0f}, 1.0f);
-        active_projectiles.back().physics.position = pos;
-        active_projectiles.back().seed();
-        active_projectiles.back().update();
-        
-        active_emitters.push_back(svc::playerLocator.get().loadout.get_equipped_weapon().spray);
-        active_emitters.back().get_physics().acceleration += svc::playerLocator.get().collider.physics.acceleration;
-        active_emitters.back().set_position(pos.x, pos.y);
-        active_emitters.back().set_direction(svc::playerLocator.get().collider.physics.dir);
-        active_emitters.back().update();
-        
-        //temp, I should do this somewhere else
-        if(svc::playerLocator.get().loadout.get_equipped_weapon().type == arms::WEAPON_TYPE::PLASMER) {
-            svc::assetLocator.get().plasmer_shot.play();
-        } else if(svc::playerLocator.get().loadout.get_equipped_weapon().type == arms::WEAPON_TYPE::BRYNS_GUN) {
-            svc::assetLocator.get().bg_shot.play();
-        } else {
-            util::Random r{};
-            float randp = r.random_range_float(-0.3f, 0.3f);
-            svc::assetLocator.get().pop_mid.setPitch(1 + randp);
-            svc::assetLocator.get().pop_mid.play();
-        }
-        
-    }
+void Map::render_background(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) {
+	if (!svc.greyblock_mode()) {
+		background->render(svc, win, cam, real_dimensions);
+		for (int i = 0; i < 4; ++i) {
+			layer_textures.at(i).display();
+			layer_sprite.setTexture(layer_textures.at(i).getTexture());
+			layer_sprite.setPosition(-cam);
+			win.draw(layer_sprite);
+		}
+	} else {
+		sf::RectangleShape box{};
+		box.setPosition(0, 0);
+		box.setFillColor(flcolor::black);
+		box.setSize({(float)svc.constants.screen_dimensions.x, (float)svc.constants.screen_dimensions.y});
+		win.draw(box);
+	}
 }
 
-void Map::manage_projectiles() {
-    for(auto& proj : active_projectiles) {
-        proj.update();
-    }
-    for(auto& spray : active_emitters) {
-        spray.update();
-    }
-    
-    std::erase_if(active_projectiles,   [](auto const& p) { return p.state.test(arms::ProjectileState::destroyed);    });
-    std::erase_if(active_emitters, [](auto const& p) { return p.particles.empty();          });
-    std::erase_if(critters, [](auto const& c) { return c->condition.hp <= 0;                 });
-    
-    if (!svc::playerLocator.get().weapons_hotbar.empty()) {
-        if (svc::playerLocator.get().weapon_fired && !svc::playerLocator.get().start_cooldown) {
-            spawn_projectile_at(svc::playerLocator.get().loadout.get_equipped_weapon().barrel_point);
-        }
-    }
+void Map::render_console(automa::ServiceProvider& svc, gui::Console& console, sf::RenderWindow& win) {
+	if (console.flags.test(gui::ConsoleFlags::active)) { console.render(win); }
+	console.write(win, false);
 }
+
+void Map::spawn_projectile_at(automa::ServiceProvider& svc, arms::Weapon& weapon, sf::Vector2<float> pos) {
+	if (weapon.attributes.grenade) { active_grenades.push_back(arms::Grenade(svc, pos, weapon.firing_direction)); }
+	active_projectiles.push_back(weapon.projectile);
+	active_projectiles.back().set_sprite(svc);
+	active_projectiles.back().set_position(pos);
+	active_projectiles.back().seed(svc);
+	active_projectiles.back().update(svc, *player);
+	active_projectiles.back().sync_position();
+	if (active_projectiles.back().stats.boomerang) { active_projectiles.back().set_boomerang_speed(); }
+	if (active_projectiles.back().stats.spring) {
+		active_projectiles.back().set_hook_speed();
+		active_projectiles.back().hook.grapple_flags.set(arms::GrappleState::probing);
+	}
+
+	active_emitters.push_back(vfx::Emitter(svc, weapon.barrel_point, weapon.emitter_dimensions, weapon.emitter_type, weapon.emitter_color, weapon.firing_direction));
+}
+
+void Map::spawn_enemy(int id, sf::Vector2<float> pos) {
+	enemy_spawns.push_back({pos, id});
+	flags.state.set(LevelState::spawn_enemy);
+}
+
+void Map::manage_projectiles(automa::ServiceProvider& svc) {
+	for (auto& proj : active_projectiles) {
+		proj.update(svc, *player);
+		if (proj.whiffed() && !proj.poofed() && !proj.made_contact()) {
+			effects.push_back(entity::Effect(svc, proj.physics.position, proj.physics.velocity * 0.1f, proj.effect_type(), 8));
+			proj.state.set(arms::ProjectileState::poof);
+		}
+	}
+	for (auto& emitter : active_emitters) { emitter.update(svc, *this); }
+
+	std::erase_if(active_projectiles, [](auto const& p) { return p.state.test(arms::ProjectileState::destroyed); });
+	std::erase_if(active_grenades, [](auto const& g) { return g.detonated(); });
+	std::erase_if(active_emitters, [](auto const& p) { return p.done(); });
+
+	if (!player->arsenal.loadout.empty()) {
+		if (player->fire_weapon()) {
+			spawn_projectile_at(svc, player->equipped_weapon(), player->equipped_weapon().barrel_point);
+			++player->equipped_weapon().active_projectiles;
+			player->equipped_weapon().shoot();
+			if (!player->equipped_weapon().attributes.automatic) { player->controller.set_shot(false); }
+		}
+	}
+}
+
+void Map::generate_collidable_layer() {
+	layers.at(MIDDLEGROUND).grid.check_neighbors();
+	for (auto& cell : layers.at(MIDDLEGROUND).grid.cells) {
+		if ((!cell.surrounded && cell.is_occupied() && !cell.is_breakable())) { collidable_indeces.push_back(cell.one_d_index); }
+		if (cell.is_breakable()) { breakables.push_back(Breakable(*m_services, cell.position, styles.breakables)); }
+	}
+}
+
+void Map::generate_layer_textures(automa::ServiceProvider& svc) {
+	for (auto& layer : layers) {
+		layer_textures.at((int)layer.render_order).clear(sf::Color::Transparent);
+		layer_textures.at((int)layer.render_order).create(layer.grid.dimensions.x * svc.constants.cell_size, layer.grid.dimensions.y * svc.constants.cell_size);
+		for (auto& cell : layer.grid.cells) {
+			if (cell.is_occupied() && !cell.is_breakable()) {
+				int x_coord = (cell.value % svc.constants.tileset_scaled.x) * svc.constants.cell_size;
+				int y_coord = std::floor(cell.value / svc.constants.tileset_scaled.x) * svc.constants.cell_size;
+				tile_sprite.setTexture(svc.assets.tilesets.at(style_id));
+				tile_sprite.setTextureRect(sf::IntRect({x_coord, y_coord}, {(int)svc.constants.cell_size, (int)svc.constants.cell_size}));
+				tile_sprite.setPosition(cell.position);
+				layer_textures.at((int)layer.render_order).draw(tile_sprite);
+			}
+		}
+	}
+}
+
+bool Map::check_cell_collision(shape::Collider collider) {
+	for (auto& index : collidable_indeces) {
+		auto& cell = layers.at(MIDDLEGROUND).grid.cells.at(index);
+		if (!nearby(cell.bounding_box, collider.bounding_box)) {
+			continue;
+		} else {
+			// check vicinity so we can escape early
+			if (!collider.vicinity.overlaps(cell.bounding_box)) {
+				continue;
+			} else if (!cell.is_solid()) {
+				continue;
+			} else {
+				if (cell.value > 0 && collider.predictive_combined.SAT(cell.bounding_box)) { return true; }
+			}
+		}
+	}
+	return false;
+}
+
+void Map::handle_grappling_hook(automa::ServiceProvider& svc, arms::Projectile& proj) {
+	// do this first block once
+	if (proj.hook.grapple_triggers.test(arms::GrappleTriggers::found) && !proj.hook.grapple_flags.test(arms::GrappleState::anchored) && !proj.hook.grapple_flags.test(arms::GrappleState::snaking)) {
+		proj.hook.spring.set_bob(player->apparent_position);
+		proj.hook.grapple_triggers.reset(arms::GrappleTriggers::found);
+		proj.hook.grapple_flags.set(arms::GrappleState::anchored);
+		proj.hook.grapple_flags.reset(arms::GrappleState::probing);
+		proj.hook.spring.set_force(proj.stats.spring_constant);
+		proj.hook.spring.variables.physics.acceleration += player->collider.physics.acceleration;
+		proj.hook.spring.variables.physics.velocity += player->collider.physics.velocity;
+	}
+	if (player->controller.hook_held() && proj.hook.grapple_flags.test(arms::GrappleState::anchored)) {
+		proj.hook.spring.variables.physics.acceleration += player->collider.physics.acceleration;
+		proj.hook.spring.variables.physics.acceleration.x += player->controller.horizontal_movement();
+		proj.lock_to_anchor();
+		proj.hook.spring.update(svc);
+
+		// update rest length
+		auto next_length = proj.stats.spring_slack * abs(player->collider.physics.position.y - proj.hook.spring.get_anchor().y);
+		next_length = std::clamp(next_length, lookup::min_hook_length, lookup::max_hook_length);
+		proj.hook.spring.set_rest_length(next_length);
+
+		// break out if player is far away from bob. we don't want the player to teleport.
+		auto distance = util::magnitude(player->collider.physics.position - proj.hook.spring.get_bob());
+		if (distance > 32.f) { proj.hook.break_free(*player); }
+
+		// handle map collisions while anchored
+		player->collider.predictive_combined.set_position(proj.hook.spring.variables.physics.position);
+		if (check_cell_collision(player->collider)) {
+			player->collider.physics.zero();
+		} else {
+			player->collider.physics.position = proj.hook.spring.variables.physics.position - player->collider.dimensions / 2.f;
+		}
+		player->collider.sync_components();
+	} else if (proj.hook.grapple_flags.test(arms::GrappleState::anchored)) {
+		proj.hook.break_free(*player);
+	}
+
+	if (player->controller.released_hook() && !proj.hook.grapple_flags.test(arms::GrappleState::snaking)) { proj.hook.break_free(*player); }
+}
+
+void Map::shake_camera() { flags.state.set(LevelState::camera_shake); }
 
 sf::Vector2<float> Map::get_spawn_position(int portal_source_map_id) {
-    for (auto& portal : portals) {
-        if (portal.source_map_id == portal_source_map_id) {
-            return(portal.position);
-        }
-    }
-    return Vec(300.f, 390.f);
+	for (auto& portal : portals) {
+		if (portal.source_map_id == portal_source_map_id) { return (portal.position); }
+	}
+	return Vec(300.f, 390.f);
 }
 
-squid::Tile& Map::tile_at(const uint8_t i, const uint8_t j) {
-    //for checking tile value
-    if(i * j < layers.at(MIDDLEGROUND).grid.cells.size()) {
-        return layers.at(MIDDLEGROUND).grid.cells.at(i + j * layers.at(MIDDLEGROUND).grid.dimensions.x);
-    }
+bool Map::nearby(shape::Shape& first, shape::Shape& second) const {
+	return abs(first.position.x + first.dimensions.x * 0.5f - second.position.x) < lookup::unit_size_f * collision_barrier && abs(first.position.y - second.position.y) < lookup::unit_size_f * collision_barrier;
 }
 
-shape::Shape& Map::shape_at(const uint8_t i, const uint8_t j) {
-    //for testing collision
-    if(i * j < layers.at(MIDDLEGROUND).grid.cells.size()) {
-        return layers.at(MIDDLEGROUND).grid.cells.at(i + j * layers.at(MIDDLEGROUND).grid.dimensions.x).bounding_box;
-    }
-}
-
-}// End world
+} // namespace world

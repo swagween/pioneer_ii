@@ -20,14 +20,6 @@
 #include <sstream>
 #include <windows.h>
 
-//fornani includes
-#include "../../demo/src/level/Map.hpp"
-#include "../../demo/src/components/PhysicsComponent.hpp"
-#include "../../demo/src/entities/player/Player.hpp"
-#include "../../demo/src/setup/LookupTables.hpp"
-#include "../../demo/src/gui/HUD.hpp"
-#include "../../demo/src/graphics/Background.hpp"
-
 namespace pi {
 
     namespace automa {
@@ -177,7 +169,7 @@ namespace pi {
 		class Dojo : public GameState {
 		public:
 
-            Dojo();
+            Dojo(){};
 
             void init(const std::string& load_path);
             void setTilesetTexture(sf::Texture& new_tex);
@@ -186,13 +178,10 @@ namespace pi {
             void render(sf::RenderWindow& win);
             void gui_render(sf::RenderWindow& win);
 
-            ::world::Map map{};
             sf::Texture tileset{};
             std::vector<sf::Sprite> tileset_sprites{};
             bool show_colliders{ false };
             int x{ 0 };
-
-            ::gui::HUD hud{ {20, 20} };
 
 		};
 

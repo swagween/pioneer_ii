@@ -1,310 +1,440 @@
-//
-//  Projectile.cpp
-//  arms
-//
-//
 
 #include "Projectile.hpp"
-#include "../setup/ServiceLocator.hpp"
-#include "../setup/LookupTables.hpp"
+
+#include "../entities/player/Player.hpp"
+#include "../service/ServiceProvider.hpp"
 
 namespace arms {
 
-	Projectile::Projectile() {
-		physics = components::PhysicsComponent();
-		physics.velocity.x = stats.speed;
-		seed();
-	};
-	Projectile::Projectile(ProjectileStats s, components::PhysicsComponent p, ProjectileAnimation a, WEAPON_TYPE t, RENDER_TYPE rt, sf::Vector2<float> dim) : stats(s), physics(p), anim(a), type(t), render_type(rt) {
-		physics.velocity.x = stats.speed;
-		bounding_box.dimensions = dim;
-		max_dimensions = dim;
-		state.set(ProjectileState::initialized);
-		seed();
-		set_sprite();
+Projectile::Projectile() {
+	physics = components::PhysicsComponent({1.0f, 1.0f}, 1.0f);
+	physics.velocity.x = stats.speed;
+};
 
-		//set projectile colors
-		if (spray_color.at(t) == flcolor::periwinkle) {
-			colors.push_back(sf::Color{ 164, 133, 255 });
-			colors.push_back(sf::Color{ 206, 170, 255 });
-			colors.push_back(sf::Color{ 236, 201, 255 });
-			colors.push_back(sf::Color{ 243, 239, 255 });
+Projectile::Projectile(automa::ServiceProvider& svc, std::string_view label, int id) : label(label), id(id), sparkler(svc) {
+
+	auto const& in_data = svc.data.weapon["weapons"][id]["projectile"];
+
+	type = static_cast<WEAPON_TYPE>(id);
+
+	stats.base_damage = in_data["attributes"]["base_damage"].as<float>();
+	stats.range = in_data["attributes"]["range"].as<int>();
+	stats.speed = in_data["attributes"]["speed"].as<int>();
+	stats.variance = in_data["attributes"]["variance"].as<float>();
+	stats.stun_time = in_data["attributes"]["stun_time"].as<float>();
+	stats.knockback = in_data["attributes"]["knockback"].as<float>();
+	stats.boomerang = (bool)in_data["attributes"]["boomerang"].as_bool();
+	stats.persistent = (bool)in_data["attributes"]["persistent"].as_bool();
+	stats.transcendent = (bool)in_data["attributes"]["transcendent"].as_bool();
+	stats.constrained = (bool)in_data["attributes"]["constrained"].as_bool();
+	stats.spring = (bool)in_data["attributes"]["spring"].as_bool();
+	stats.range_variance = in_data["attributes"]["range_variance"].as<float>();
+	stats.acceleration_factor = in_data["attributes"]["acceleration_factor"].as<float>();
+	stats.dampen_factor = in_data["attributes"]["dampen_factor"].as<float>();
+	stats.gravitator_force = in_data["attributes"]["gravitator_force"].as<float>();
+	stats.gravitator_max_speed = in_data["attributes"]["gravitator_max_speed"].as<float>();
+	stats.gravitator_friction = in_data["attributes"]["gravitator_friction"].as<float>();
+	stats.spring_dampen = in_data["attributes"]["spring_dampen"].as<float>();
+	stats.spring_constant = in_data["attributes"]["spring_constant"].as<float>();
+	stats.spring_rest_length = in_data["attributes"]["spring_rest_length"].as<float>();
+	stats.spring_slack = in_data["attributes"]["spring_slack"].as<float>();
+
+	anim.num_sprites = in_data["animation"]["num_sprites"].as<int>();
+	anim.num_frames = in_data["animation"]["num_frames"].as<int>();
+	anim.framerate = in_data["animation"]["framerate"].as<int>();
+
+	visual.effect_type = in_data["visual"]["effect_type"].as<int>();
+
+	sf::Vector2<float> dim{};
+	dim.x = in_data["dimensions"]["x"].as<float>();
+	dim.y = in_data["dimensions"]["y"].as<float>();
+
+	if (svc.styles.spray_colors.contains(label)) { sparkler = vfx::Sparkler(svc, dim, svc.styles.spray_colors.at(label), in_data["sparkler_type"].as_string()); }
+
+	render_type = anim.num_sprites > 1 ? RENDER_TYPE::MULTI_SPRITE : RENDER_TYPE::SINGLE_SPRITE;
+
+	physics = components::PhysicsComponent({1.0f, 1.0f}, 1.0f);
+	physics.velocity.x = stats.speed;
+	if (stats.dampen_factor != 0.f) { physics.set_global_friction(stats.dampen_factor); }
+
+	// Gravitator
+	gravitator = vfx::Gravitator(physics.position, flcolor::goldenrod, stats.gravitator_force);
+	gravitator.collider.physics = components::PhysicsComponent(sf::Vector2<float>{stats.gravitator_friction, stats.gravitator_friction}, 1.0f);
+	gravitator.collider.physics.maximum_velocity = {stats.gravitator_max_speed, stats.gravitator_max_speed};
+
+	// spring
+	hook = GrapplingHook(svc);
+	hook.spring = vfx::Spring({stats.spring_dampen, stats.spring_constant, stats.spring_rest_length});
+
+	anim::Parameters params = {0, anim.num_frames, anim.framerate, -1};
+	animation.set_params(params);
+
+	bounding_box.dimensions = dim;
+	max_dimensions = dim;
+
+	state.set(ProjectileState::initialized);
+	cooldown.start(40);
+	seed(svc);
+	set_sprite(svc);
+}
+
+void Projectile::update(automa::ServiceProvider& svc, player::Player& player) {
+
+	// animation
+	animation.update();
+	sparkler.update(svc);
+	cooldown.update();
+
+	if (stats.spring) {
+		hook.update(svc, player);
+		if (hook.grapple_flags.test(arms::GrappleState::probing)) {
+			hook.spring.set_anchor(physics.position);
+			hook.spring.set_bob(player.apparent_position);
+			if (!player.controller.hook_held()) {
+				hook.grapple_flags.set(arms::GrappleState::snaking);
+				hook.grapple_flags.reset(arms::GrappleState::probing);
+			}
 		}
-		if (spray_color.at(t) == flcolor::fucshia) {
-			colors.push_back(sf::Color{ 191, 0, 105 });
-			colors.push_back(sf::Color{ 203, 39, 130 });
-			colors.push_back(sf::Color{ 227, 27, 116 });
-			colors.push_back(sf::Color{ 255, 0, 83 });
+		if (hook.grapple_flags.test(arms::GrappleState::anchored)) { lock_to_anchor(); }
+		if (hook.grapple_flags.test(arms::GrappleState::snaking)) {
+			physics.position = hook.spring.get_bob();
+			bounding_box.position = physics.position;
+			if (bounding_box.overlaps(player.collider.predictive_combined) && cooldown.is_complete()) {
+				destroy(true);
+				hook.grapple_flags = {};
+				hook.grapple_triggers = {};
+				hook.spring.reverse_anchor_and_bob();
+				hook.spring.set_rest_length(stats.spring_rest_length);
+				svc.soundboard.flags.weapon.set(audio::Weapon::tomahawk_catch);
+			} // destroy when player catches it
 		}
 	}
 
-	void Projectile::update() {
+	// tomahawk-specific stuff
+	if (stats.boomerang) {
+		gravitator.set_target_position(player.apparent_position);
+		gravitator.update(svc);
+		physics.position = gravitator.collider.physics.position;
+		bounding_box.set_position(physics.position);
 
-		physics.update_euler();
-		if (dir == FIRING_DIRECTION::LEFT) {
-			bounding_box.set_position(shape::Shape::Vec{ physics.position.x, physics.position.y - bounding_box.dimensions.y / 2 });
-		} else if (dir == FIRING_DIRECTION::RIGHT) {
-			bounding_box.set_position(shape::Shape::Vec{ physics.position.x - bounding_box.dimensions.x, physics.position.y - bounding_box.dimensions.y / 2 });
-		} else if (dir == FIRING_DIRECTION::UP) {
-			bounding_box.set_position(shape::Shape::Vec{ physics.position.x - bounding_box.dimensions.x / 2, physics.position.y });
-		} else if (dir == FIRING_DIRECTION::DOWN) {
-			bounding_box.set_position(shape::Shape::Vec{ physics.position.x - bounding_box.dimensions.x / 2, physics.position.y - bounding_box.dimensions.y });
+		svc.soundboard.flags.weapon.set(svc.soundboard.gun_sounds.at(label)); // repeat sound
+		// use predictive bounding box so player can "meet up" with the boomerang
+		if (bounding_box.overlaps(player.collider.predictive_combined) && cooldown.is_complete()) {
+			destroy(true);
+			svc.soundboard.flags.weapon.set(audio::Weapon::tomahawk_catch);
+		} // destroy when player catches it
+	}
+
+	constrain_hitbox_at_barrel();
+	if (state.test(ProjectileState::destruction_initiated)) { constrain_hitbox_at_destruction_point(); }
+	if (state.test(ProjectileState::destruction_initiated) && !stats.constrained) { destroy(true); }
+	
+	physics.update_euler(svc);
+
+	if (direction.lr == dir::LR::left) {
+		bounding_box.set_position(shape::Shape::Vec{physics.position.x, physics.position.y - bounding_box.dimensions.y / 2});
+	} else if (direction.lr == dir::LR::right) {
+		bounding_box.set_position(shape::Shape::Vec{physics.position.x - bounding_box.dimensions.x, physics.position.y - bounding_box.dimensions.y / 2});
+	} else if (direction.und == dir::UND::up) {
+		bounding_box.set_position(shape::Shape::Vec{physics.position.x - bounding_box.dimensions.x / 2, physics.position.y});
+	} else if (direction.und == dir::UND::down) {
+		bounding_box.set_position(shape::Shape::Vec{physics.position.x - bounding_box.dimensions.x / 2, physics.position.y - bounding_box.dimensions.y});
+	}
+
+	sparkler.set_position(bounding_box.position);
+	sparkler.set_dimensions(bounding_box.dimensions);
+
+	position_history.push_back(physics.position);
+	if (position_history.size() > history_limit) { position_history.pop_front(); }
+
+	if (direction.lr == dir::LR::left || direction.lr == dir::LR::right) {
+		if (abs(physics.position.x - fired_point.x) >= stats.range) {
+			state.set(ProjectileState::whiffed);
+			destroy(false, true);
 		}
-		position_history.push_back(physics.position);
-		if (position_history.size() > history_limit) {
-			position_history.pop_front();
+	} else {
+		if (abs(physics.position.y - fired_point.y) >= stats.range) {
+			state.set(ProjectileState::whiffed);
+			destroy(false, true);
+		}
+	}
+
+	if (state.test(arms::ProjectileState::destroyed)) { --player.extant_instances(id); }
+}
+
+void Projectile::render(automa::ServiceProvider& svc, player::Player& player, sf::RenderWindow& win, sf::Vector2<float>& campos) {
+
+	// this is the right idea but needs to be refactored and generalized
+	if (render_type == RENDER_TYPE::MULTI_SPRITE) {
+		int u = sprite_index * (int)max_dimensions.x;
+		int v = (int)(animation.get_frame() * max_dimensions.y);
+		sprite.setTextureRect(sf::IntRect({u, v}, {(int)max_dimensions.x, (int)max_dimensions.y}));
+		constrain_sprite_at_barrel(sprite, campos);
+		if (state.test(ProjectileState::destruction_initiated)) { constrain_sprite_at_destruction_point(sprite, campos); }
+		win.draw(sprite);
+
+		return;
+	}
+		// get UV coords (only one column of sprites is supported)
+		int u = 0;
+		int v = (int)(animation.get_frame() * max_dimensions.y);
+		sprite.setTextureRect(sf::IntRect({u, v}, {(int)max_dimensions.x, (int)max_dimensions.y}));
+
+		// unconstrained projectiles have to get sprites set here
+		if (stats.boomerang) { sprite.setPosition(gravitator.collider.physics.position - campos); }
+		if (stats.spring) { hook.render(svc, player, win, campos); }
+		if (stats.spring && hook.grapple_flags.test(GrappleState::snaking)) {
+			sprite.setPosition(hook.spring.get_bob() - campos);
+		} else if (stats.spring) {
+			sprite.setPosition(hook.spring.get_anchor() - campos);
 		}
 
-		dt = svc::clockLocator.get().tick_rate;
+		constrain_sprite_at_barrel(sprite, campos);
+		if (state.test(ProjectileState::destruction_initiated)) { constrain_sprite_at_destruction_point(sprite, campos); }
 
-		auto new_time = Clock::now();
-		Time frame_time = std::chrono::duration_cast<Time>(new_time - current_time);
-
-		if (frame_time.count() > svc::clockLocator.get().frame_limit) {
-			frame_time = Time{ svc::clockLocator.get().frame_limit };
-		}
-		current_time = new_time;
-		accumulator += frame_time;
-
-		int integrations = 0;
-		while (accumulator >= dt) {
-
-			//animation
-			if (curr_frame % anim.framerate == 0) {
-				anim_frame++;
-			}
-			if (anim_frame >= anim.num_frames) { anim_frame = 0; }
-			curr_frame++;
-
-			accumulator -= dt;
-			++integrations;
-		}
-
-		if (dir == FIRING_DIRECTION::LEFT || dir == FIRING_DIRECTION::RIGHT) {
-			if (abs(physics.position.x - fired_point.x) >= stats.range) { destroy(false); }
+		// proj bounding box for debug
+		box.setSize(bounding_box.dimensions);
+		if (state.test(ProjectileState::destruction_initiated)) {
+			box.setFillColor(sf::Color{255, 255, 60, 160});
 		} else {
-			if (abs(physics.position.y - fired_point.y) >= stats.range) { destroy(false); }
+			box.setFillColor(sf::Color{255, 255, 255, 160});
 		}
+		box.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y - campos.y);
 
-	}
-
-	void Projectile::render(sf::RenderWindow& win, sf::Vector2<float>& campos) {
-
-		//this is the right idea but needs to be refactored and generalized
-		if (render_type == RENDER_TYPE::MULTI_SPRITE) {
-			for (auto& sprite : sp_proj) {
-				constrain_at_barrel(sprite, campos);
-				win.draw(sprite);
-				svc::counterLocator.get().at(svc::draw_calls)++;
-			}
-
-		} else if (render_type == RENDER_TYPE::SINGLE_SPRITE) {
-			if (!sp_proj.empty()) {
-
-				constrain_at_barrel(sp_proj.at(0), campos);
-				if (state.test(ProjectileState::destruction_initiated)) {
-					constrain_at_destruction_point(sp_proj.at(0), campos);
-				}
-
-				//proj bounding box for debug
-				box.setSize(bounding_box.dimensions);
-				if (state.test(ProjectileState::destruction_initiated)) {
-					box.setFillColor(sf::Color{ 255, 255, 60, 160 });
-				} else {
-					box.setFillColor(sf::Color{ 255, 255, 255, 160 });
-				}
-				box.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y - campos.y);
-
-				if (svc::globalBitFlagsLocator.get().test(svc::global_flags::greyblock_state)) {
-					win.draw(box);
-					svc::counterLocator.get().at(svc::draw_calls)++;
-				} else {
-					win.draw(sp_proj.at(0));
-					svc::counterLocator.get().at(svc::draw_calls)++;
-				}
-			}
-		}
-
-
-	}
-
-	void Projectile::destroy(bool completely) {
-		//destruction_point = point;
-		if (completely) {
-			state.set(ProjectileState::destroyed);
-			return;
-		}
-
-		if (!state.test(ProjectileState::destruction_initiated)) {
-			if(dir == FIRING_DIRECTION::UP || dir == FIRING_DIRECTION::LEFT) { destruction_point = bounding_box.position; }
-			else { destruction_point = bounding_box.position + bounding_box.dimensions; }
-			state.set(ProjectileState::destruction_initiated);
-		}
-
-		stats.damage = 0;
-
-	}
-
-	void Projectile::seed() {
-		util::Random r{};
-		stats.range += r.random_range(-stats.range_variance, stats.range_variance);
-		float var = r.random_range_float(-stats.variance, stats.variance);
-		switch (dir) {
-		case FIRING_DIRECTION::LEFT:
-			physics.velocity = { -stats.speed + (var / 2), var };
-			physics.dir = components::DIRECTION::LEFT;
-			break;
-		case FIRING_DIRECTION::RIGHT:
-			physics.velocity = { stats.speed + (var / 2), var };
-			physics.dir = components::DIRECTION::RIGHT;
-			break;
-		case FIRING_DIRECTION::UP:
-			physics.velocity = { var, -stats.speed + (var / 2) };
-			physics.dir = components::DIRECTION::UP;
-			break;
-		case FIRING_DIRECTION::DOWN:
-			physics.velocity = { var, stats.speed + (var / 2) };
-			physics.dir = components::DIRECTION::DOWN;
-			break;
-		}
-	}
-
-	void Projectile::set_sprite() {
-
-
-		for (int i = 0; i < num_sprites; ++i) {
-			sp_proj.push_back(sf::Sprite());
-		}
-
-		for (auto& sprite : sp_proj) {
-
-			set_orientation(sprite);
-
-			if (type == WEAPON_TYPE::BRYNS_GUN) {
-				sprite.setTexture(svc::assetLocator.get().t_bryns_gun_projectile);
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { 28, 12 }));
-			}
-			if (type == WEAPON_TYPE::PLASMER) {
-				sprite.setTexture(svc::assetLocator.get().t_plasmer_projectile);
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { 38, 12 }));
-			}
-			if (type == WEAPON_TYPE::NOVA) {
-				sprite.setTexture(svc::assetLocator.get().t_nova_projectile);
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { 28, 12 }));
-			}
-
-			//sprite.setTexture(lookup::projectile_texture.at(WEAPON_TYPE::BRYNS_GUN));
-			sprite.setPosition(physics.position);
-		}
-		//sp_proj = svc::assetLocator.get().sp_bryns_gun_projectile;
-		//sp_proj = lookup::projectile_sprites.at(type);
-		if (anim.num_sprites < 2) { sprite_id = 0; return; }
-		util::Random r{};
-		sprite_id = r.random_range(0, anim.num_sprites - 1);
-	}
-
-	void Projectile::set_orientation(sf::Sprite& sprite) {
-		//assume right
-		sprite.setScale({ 1.0f, 1.0f });
-		sprite.setRotation(0.0f);
-		sprite.setOrigin(0, 0);
-
-		switch (dir) {
-
-		case FIRING_DIRECTION::LEFT:
-			sprite.scale({ -1.0f, 1.0f });
-			break;
-		case FIRING_DIRECTION::RIGHT:
-
-			//do nothing
-			break;
-		case FIRING_DIRECTION::UP:
-			sprite.rotate(-90);
-			break;
-		case FIRING_DIRECTION::DOWN:
-			sprite.rotate(90);
-			break;
-
-		}
-
-	}
-
-	void Projectile::constrain_at_barrel(sf::Sprite& sprite, sf::Vector2<float>& campos) {
-		if (dir == FIRING_DIRECTION::LEFT || dir == FIRING_DIRECTION::RIGHT) {
-			if (abs(physics.position.x - fired_point.x) < max_dimensions.x) {
-				int width = abs(physics.position.x - fired_point.x);
-				sprite.setTextureRect(sf::IntRect({ (int)(max_dimensions.x - width), 0 }, { width, (int)max_dimensions.y }));
-				bounding_box.dimensions.x = width;
-			} else {
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { (int)(bounding_box.dimensions.x), (int)(bounding_box.dimensions.y) }));
-				bounding_box.dimensions.x = max_dimensions.x;
-			}
-			if (dir == FIRING_DIRECTION::RIGHT) {
-				sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y - campos.y);
-			} else if (dir == FIRING_DIRECTION::LEFT) {
-				sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
-			}
-
+		if (svc.greyblock_mode()) {
+			gravitator.render(svc, win, campos);
+			win.draw(box);
 		} else {
-			bounding_box.dimensions.x = max_dimensions.y;
-			if (abs(physics.position.y - fired_point.y) < max_dimensions.x) {
-				int height = abs(physics.position.y - fired_point.y);
-				sprite.setTextureRect(sf::IntRect({ (int)(max_dimensions.x - height), 0 }, { height, (int)max_dimensions.y }));
-				bounding_box.dimensions.y = height;
-			} else {
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { (int)(max_dimensions.x), (int)(max_dimensions.y) }));
-				bounding_box.dimensions.y = max_dimensions.x;
-			}
-			if (dir == FIRING_DIRECTION::UP) {
-				sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y + bounding_box.dimensions.y - campos.y);
-			} else if (dir == FIRING_DIRECTION::DOWN) {
-				sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
-			}
+			win.draw(sprite);
 		}
+	
+}
+
+void Projectile::destroy(bool completely, bool whiffed) {
+
+	if (!whiffed) { state.set(ProjectileState::contact); }
+
+	if (completely) {
+		state.set(ProjectileState::destroyed);
+		return;
 	}
 
-	void Projectile::constrain_at_destruction_point(sf::Sprite& sprite, sf::Vector2<float>& campos) {
-		if (dir == FIRING_DIRECTION::LEFT || dir == FIRING_DIRECTION::RIGHT) {
-			if (dir == FIRING_DIRECTION::LEFT) {
-				float rear = bounding_box.dimensions.x + physics.position.x;
-				int width = abs(rear - destruction_point.x);
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { width, (int)max_dimensions.y }));
-				bounding_box.dimensions.x = width;
-				bounding_box.position.x = destruction_point.x;
-				sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
-				if (rear <= destruction_point.x) { destroy(true); }
-			} else {
-				float rear = physics.position.x - bounding_box.dimensions.x;
-				int width = abs(rear - destruction_point.x);
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { width, (int)max_dimensions.y }));
-				bounding_box.dimensions.x = width;
-				bounding_box.position.x = destruction_point.x - width;
-				sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y - campos.y);
-				if (rear >= destruction_point.x) { destroy(true); }
-			}
-
+	if (!state.test(ProjectileState::destruction_initiated)) {
+		if (direction.lr == dir::LR::left || direction.und == dir::UND::up) {
+			destruction_point = bounding_box.position;
 		} else {
-			if (dir == FIRING_DIRECTION::UP) {
-				float rear = bounding_box.dimensions.y + physics.position.y;
-				int height = abs(rear - destruction_point.y);
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { height, (int)max_dimensions.y }));
-				bounding_box.dimensions.y = height;
-				bounding_box.position.y = destruction_point.y;
-				sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y + bounding_box.dimensions.y - campos.y);
-				if (rear <= destruction_point.y) { destroy(true); }
-			} else {
-				float rear = physics.position.y - bounding_box.dimensions.y;
-				int height = abs(rear - destruction_point.y);
-				sprite.setTextureRect(sf::IntRect({ 0, 0 }, { height, (int)max_dimensions.y }));
-				bounding_box.dimensions.y = height;
-				bounding_box.position.y = destruction_point.y - height;
-				sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
-				if (rear >= destruction_point.y) { destroy(true); }
-			}
+			destruction_point = bounding_box.position + bounding_box.dimensions;
 		}
+		state.set(ProjectileState::destruction_initiated);
 	}
 
+	stats.base_damage = 0;
+}
 
-} // end arms
+void Projectile::seed(automa::ServiceProvider& svc) {
 
-/* Projectile_cpp */
+	float var = svc.random.random_range_float(-stats.variance, stats.variance);
+	if (stats.spring) {
+		physics.velocity = hook.probe_velocity(stats.speed);
+		return;
+	}
+	switch (direction.lr) {
+	case dir::LR::left: physics.velocity = {-stats.speed + (var / 2), var}; break;
+	case dir::LR::right: physics.velocity = {stats.speed + (var / 2), var}; break;
+	}
+	switch (direction.und) {
+	case dir::UND::up: physics.velocity = {var, -stats.speed + (var / 2)}; break;
+	case dir::UND::down: physics.velocity = {var, stats.speed + (var / 2)}; break;
+	}
+}
+
+void Projectile::set_sprite(automa::ServiceProvider& svc) {
+	set_orientation(sprite);
+	if (!svc.assets.projectile_textures.contains(label)) {
+		//std::cout << label.data() << " missing from AssetManager tables.\n";
+		return;
+	}
+	sprite.setTexture(svc.assets.projectile_textures.at(label));
+	sprite_index = svc.random.random_range(0, anim.num_sprites - 1);
+}
+
+void Projectile::set_orientation(sf::Sprite& sprite) {
+	// assume right
+	sprite.setScale({1.0f, 1.0f});
+	sprite.setRotation(0.0f);
+	sprite.setOrigin(0, 0);
+
+	switch (direction.lr) {
+	case dir::LR::left: sprite.scale({-1.0f, 1.0f}); break;
+	case dir::LR::right: break;
+	}
+	switch (direction.und) {
+	case dir::UND::up: sprite.rotate(-90); break;
+	case dir::UND::down: sprite.rotate(90); break;
+	}
+}
+
+void Projectile::set_position(sf::Vector2<float>& pos) {
+	physics.position = pos;
+	bounding_box.position = pos;
+	gravitator.set_position(pos);
+	fired_point = pos;
+}
+
+void Projectile::set_boomerang_speed() {
+	gravitator.collider.physics.velocity.x = direction.lr == dir::LR::left ? -stats.speed : (direction.lr == dir::LR::right ? stats.speed : 0.f);
+	gravitator.collider.physics.velocity.y = direction.und == dir::UND::up ? -stats.speed : (direction.und == dir::UND::down ? stats.speed : 0.f);
+}
+
+void Projectile::set_hook_speed() {
+	//hook.spring.variables.physics.velocity.x = direction.lr == dir::LR::left ? -stats.speed : (direction.lr == dir::LR::right ? stats.speed : 0.f);
+	//hook.spring.variables.physics.velocity.y = direction.und == dir::UND::up ? -stats.speed : (direction.und == dir::UND::down ? stats.speed : 0.f);
+}
+
+void Projectile::sync_position() { gravitator.collider.physics.position = fired_point; }
+
+void Projectile::constrain_sprite_at_barrel(sf::Sprite& sprite, sf::Vector2<float>& campos) {
+	if (!stats.constrained) { return; }
+	int u = (int)(sprite_index * max_dimensions.x);
+	int v = (int)(animation.get_frame() * max_dimensions.y);
+	if (direction.lr != dir::LR::neutral) {
+		if (abs(physics.position.x - fired_point.x) < max_dimensions.x) {
+			int width = abs(physics.position.x - fired_point.x);
+			sprite.setTextureRect(sf::IntRect({(int)(max_dimensions.x - width) + u, v}, {width, (int)max_dimensions.y}));
+			bounding_box.dimensions.x = width;
+		} else {
+			sprite.setTextureRect(sf::IntRect({u, v}, {(int)(bounding_box.dimensions.x), (int)(bounding_box.dimensions.y)}));
+			bounding_box.dimensions.x = max_dimensions.x;
+		}
+		if (direction.lr == dir::LR::right) {
+			sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y - campos.y);
+		} else if (direction.lr == dir::LR::left) {
+			sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
+		}
+
+	} else {
+		bounding_box.dimensions.x = max_dimensions.y;
+		if (abs(physics.position.y - fired_point.y) < max_dimensions.x) {
+			int height = abs(physics.position.y - fired_point.y);
+			sprite.setTextureRect(sf::IntRect({(int)(max_dimensions.x - height) + u, v}, {height, (int)max_dimensions.y}));
+			bounding_box.dimensions.y = height;
+		} else {
+			sprite.setTextureRect(sf::IntRect({u, v}, {(int)(max_dimensions.x), (int)(max_dimensions.y)}));
+			bounding_box.dimensions.y = max_dimensions.x;
+		}
+		if (direction.und == dir::UND::up) {
+			sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y + bounding_box.dimensions.y - campos.y);
+		} else if (direction.und == dir::UND::down) {
+			sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
+		}
+	}
+}
+
+void Projectile::constrain_sprite_at_destruction_point(sf::Sprite& sprite, sf::Vector2<float>& campos) {
+	if (!stats.constrained) { return; }
+	int u = (int)(sprite_index * max_dimensions.x);
+	int v = (int)(animation.get_frame() * max_dimensions.y);
+	if (direction.lr != dir::LR::neutral) {
+		if (direction.lr == dir::LR::left) {
+			float rear = bounding_box.dimensions.x + physics.position.x;
+			int width = abs(rear - destruction_point.x);
+			sprite.setTextureRect(sf::IntRect({u, v}, {width, (int)max_dimensions.y}));
+			bounding_box.dimensions.x = width;
+			bounding_box.position.x = destruction_point.x;
+			sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
+			if (rear <= destruction_point.x) { destroy(true); }
+		} else {
+			float rear = physics.position.x - bounding_box.dimensions.x;
+			int width = abs(rear - destruction_point.x);
+			sprite.setTextureRect(sf::IntRect({u, v}, {width, (int)max_dimensions.y}));
+			bounding_box.dimensions.x = width;
+			bounding_box.position.x = destruction_point.x - width;
+			sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y - campos.y);
+			if (rear >= destruction_point.x) { destroy(true); }
+		}
+
+	} else {
+		if (direction.und == dir::UND::up) {
+			float rear = bounding_box.dimensions.y + physics.position.y;
+			int height = abs(rear - destruction_point.y);
+			sprite.setTextureRect(sf::IntRect({u, v}, {height, (int)max_dimensions.y}));
+			bounding_box.dimensions.y = height;
+			bounding_box.position.y = destruction_point.y;
+			sprite.setPosition(bounding_box.position.x - campos.x, bounding_box.position.y + bounding_box.dimensions.y - campos.y);
+			if (rear <= destruction_point.y) { destroy(true); }
+		} else {
+			float rear = physics.position.y - bounding_box.dimensions.y;
+			int height = abs(rear - destruction_point.y);
+			sprite.setTextureRect(sf::IntRect({u, v}, {height, (int)max_dimensions.y}));
+			bounding_box.dimensions.y = height;
+			bounding_box.position.y = destruction_point.y - height;
+			sprite.setPosition(bounding_box.position.x + bounding_box.dimensions.x - campos.x, bounding_box.position.y - campos.y);
+			if (rear >= destruction_point.y) { destroy(true); }
+		}
+	}
+}
+
+void Projectile::constrain_hitbox_at_barrel() {
+	if (!stats.constrained) { return; }
+	if (direction.lr != dir::LR::neutral) {
+		if (abs(physics.position.x - fired_point.x) < max_dimensions.x) {
+			int width = abs(physics.position.x - fired_point.x);
+			bounding_box.dimensions.x = width;
+		} else {
+			bounding_box.dimensions.x = max_dimensions.x;
+		}
+		if (direction.lr == dir::LR::right) {
+		} else if (direction.lr == dir::LR::left) {
+		}
+
+	} else {
+		bounding_box.dimensions.x = max_dimensions.y;
+		if (abs(physics.position.y - fired_point.y) < max_dimensions.x) {
+			int height = abs(physics.position.y - fired_point.y);
+			bounding_box.dimensions.y = height;
+		} else {
+			bounding_box.dimensions.y = max_dimensions.x;
+		}
+	}
+}
+
+void Projectile::constrain_hitbox_at_destruction_point() {
+	if (!stats.constrained) { return; }
+	if (direction.lr != dir::LR::neutral) {
+		if (direction.lr == dir::LR::left) {
+			float rear = bounding_box.dimensions.x + physics.position.x;
+			int width = abs(rear - destruction_point.x);
+			bounding_box.dimensions.x = width;
+			bounding_box.position.x = destruction_point.x;
+			if (rear <= destruction_point.x) { destroy(true); }
+		} else {
+			float rear = physics.position.x - bounding_box.dimensions.x;
+			int width = abs(rear - destruction_point.x);
+			bounding_box.dimensions.x = width;
+			bounding_box.position.x = destruction_point.x - width;
+			if (rear >= destruction_point.x) { destroy(true); }
+		}
+
+	} else {
+		if (direction.und == dir::UND::up) {
+			float rear = bounding_box.dimensions.y + physics.position.y;
+			int height = abs(rear - destruction_point.y);
+			bounding_box.dimensions.y = height;
+			bounding_box.position.y = destruction_point.y;
+			if (rear <= destruction_point.y) { destroy(true); }
+		} else {
+			float rear = physics.position.y - bounding_box.dimensions.y;
+			int height = abs(rear - destruction_point.y);
+			bounding_box.dimensions.y = height;
+			bounding_box.position.y = destruction_point.y - height;
+			if (rear >= destruction_point.y) { destroy(true); }
+		}
+	}
+}
+
+void Projectile::lock_to_anchor() {
+	physics.position = hook.spring.get_anchor() - bounding_box.dimensions * 0.5f;
+	bounding_box.position = physics.position;
+}
+
+} // namespace arms

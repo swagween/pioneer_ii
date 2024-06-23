@@ -1,715 +1,555 @@
-//
-//  Player.cpp
-//  for_loop
-//
-//  Created by Alex Frasca on 10/12/18.
-//  Copyright © 2018 Western Forest Studios. All rights reserved.
-//
-
 #include "Player.hpp"
-#include "../../setup/ServiceLocator.hpp"
-#include "../../setup/LookupTables.hpp"
+#include "../../gui/Console.hpp"
+#include "../../gui/InventoryWindow.hpp"
+#include "../../service/ServiceProvider.hpp"
+#include "../item/Drop.hpp"
 
-Player::Player() {
-    
-    collider = shape::Collider(sf::Vector2<float>{ PLAYER_WIDTH, PLAYER_HEIGHT }, sf::Vector2<float>{ PLAYER_START_X, PLAYER_START_Y });
-    collider.physics = components::PhysicsComponent({ stats.PLAYER_GROUND_FRIC, stats.PLAYER_GROUND_FRIC }, stats.PLAYER_MASS);
-    anchor_point = { collider.physics.position.x + PLAYER_WIDTH/2, collider.physics.position.y + PLAYER_HEIGHT/2};
-    behavior.current_state = behavior::Behavior(behavior::idle);
-    behavior.facing_lr = behavior::DIR_LR::RIGHT;
-    
-    /*weapons_hotbar = {
-        arms::WEAPON_TYPE::BRYNS_GUN,
-        arms::WEAPON_TYPE::PLASMER,
-        arms::WEAPON_TYPE::CLOVER
-    };
-    loadout.equipped_weapon = weapons_hotbar.at(0);*/
-    
-    //sprites
-    assign_texture(svc::assetLocator.get().t_nani);
-    sprite.setTexture(svc::assetLocator.get().t_nani);
-    
+namespace player {
+
+Player::Player(automa::ServiceProvider& svc) : arsenal(svc), m_services(&svc), health_indicator(svc), orb_indicator(svc), controller(svc) {}
+
+void Player::init(automa::ServiceProvider& svc) {
+
+	m_services = &svc;
+
+	svc.data.load_player_params(*this);
+	arsenal = arms::Arsenal(svc);
+	health_indicator.init(svc, 0);
+	orb_indicator.init(svc, 1);
+
+	health.set_invincibility(400);
+
+	collider = shape::Collider(sf::Vector2<float>{PLAYER_WIDTH, PLAYER_HEIGHT}, sf::Vector2<float>{PLAYER_START_X, PLAYER_START_Y});
+	collider.physics = components::PhysicsComponent({physics_stats.ground_fric, physics_stats.ground_fric}, physics_stats.mass);
+
+	collider.physics.set_constant_friction({physics_stats.ground_fric, physics_stats.air_fric});
+
+	anchor_point = {collider.physics.position.x + PLAYER_WIDTH / 2, collider.physics.position.y + PLAYER_HEIGHT / 2};
+
+	antennae.push_back(vfx::Gravitator(collider.physics.position, svc.styles.colors.bright_orange, antenna_force));
+	antennae.push_back(vfx::Gravitator(collider.physics.position, svc.styles.colors.bright_orange, antenna_force, {2.f, 4.f}));
+
+	float back_fric{0.93f};
+
+	antennae[0].collider.physics = components::PhysicsComponent(sf::Vector2<float>{back_fric, back_fric}, 1.0f);
+	antennae[0].collider.physics.maximum_velocity = sf::Vector2<float>(antenna_speed, antenna_speed);
+	antennae[1].collider.physics = components::PhysicsComponent(sf::Vector2<float>{back_fric, back_fric}, 1.0f);
+	antennae[1].collider.physics.maximum_velocity = sf::Vector2<float>(antenna_speed, antenna_speed);
+
+	sprite_dimensions = {48.f, 48.f};
+
+	// sprites
+	sprite.setTexture(svc.assets.t_nani);
+
+	texture_updater.load_base_texture(svc.assets.t_nani);
+	texture_updater.load_pixel_map(svc.assets.t_palette_nani);
 }
 
-void Player::handle_events(sf::Event& event) {
-    if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::Left) {
-            flags.movement.set(Movement::move_left);
-            if(grounded()) {
-                if(behavior.facing == behavior::DIR::RIGHT) {
-                    behavior.turn();
-                    behavior.facing = behavior::DIR::LEFT;
-                    flags.movement.reset(Movement::is_wall_sliding);
-                } else {
-                    behavior.run();
-                }
-            } else if (!flags.input.test(Input::restricted)) {
-                if(!flags.movement.test(Movement::is_wall_sliding)) {
-                    behavior.air(collider.physics.velocity.y);
-                }
-            }
-            behavior.facing = behavior::DIR::LEFT;
-            behavior.facing_lr = behavior::DIR_LR::LEFT;
-        }
-        if (event.key.code == sf::Keyboard::Right) {
-            flags.movement.set(Movement::move_right);
-            if(grounded()) {
-                if(behavior.facing == behavior::DIR::LEFT) {
-                    behavior.turn();
-                    flags.movement.reset(Movement::is_wall_sliding);
-                } else {
-                    behavior.run();
-                }
-            } else if (!flags.input.test(Input::restricted)) {
-                if(!flags.movement.test(Movement::is_wall_sliding)) {
-                    behavior.air(collider.physics.velocity.y);
-                }
-            }
-            behavior.facing = behavior::DIR::RIGHT;
-            behavior.facing_lr = behavior::DIR_LR::RIGHT;
-        }
-        if (event.key.code == sf::Keyboard::Up) {
-            flags.movement.set(Movement::look_up);
-        }
-        if (event.key.code == sf::Keyboard::Down) {
-            flags.movement.set(Movement::look_down);
-        }
-    }
-    if (event.type == sf::Event::KeyReleased) {
-        if (!flags.movement.test(Movement::autonomous_walk)) {
-            if (event.key.code == sf::Keyboard::Left) {
-                flags.movement.reset(Movement::move_left);
-                collider.flags.reset(shape::State::has_left_collision);
-                if (!collider.flags.test(shape::State::has_right_collision)) {
-                    flags.movement.reset(Movement::is_wall_sliding);
-                }
-                flags.movement.set(Movement::stopping);
-                last_dir = behavior::DIR::LEFT;
-                flags.movement.set(Movement::left_released);
-                if (grounded()) {
-                    if (!flags.movement.test(Movement::move_right) && !behavior.restricted()) {
-                        behavior.reset();
-                    }
-                }
-                else {
-                    if (!behavior.restricted() && !flags.movement.test(Movement::is_wall_sliding)) {
-                        behavior.air(collider.physics.velocity.y);
-                    }
-                }
-                if (flags.movement.test(Movement::move_right)) { behavior.facing_lr = behavior::DIR_LR::RIGHT; }
-            }
-            if (event.key.code == sf::Keyboard::Right) {
-                flags.movement.reset(Movement::move_right);
-                collider.flags.reset(shape::State::has_right_collision);
-                if (!collider.flags.test(shape::State::has_left_collision)) {
-                    flags.movement.reset(Movement::is_wall_sliding);
-                }
-                flags.movement.set(Movement::stopping);
-                last_dir = behavior::DIR::RIGHT;
-                flags.movement.set(Movement::right_released);
-                if (grounded()) {
-                    if (!behavior.restricted()) {
-                        behavior.reset();
-                    }
-                }
-                else {
-                    if (!behavior.restricted() && !flags.movement.test(Movement::is_wall_sliding)) {
-                        behavior.air(collider.physics.velocity.y);
-                    }
-                }
-                if (flags.movement.test(Movement::move_left)) { behavior.facing_lr = behavior::DIR_LR::LEFT; }
-            }
-        }
-        if (event.key.code == sf::Keyboard::Up) {
-            flags.movement.reset(Movement::look_up);
-        }
-        if (event.key.code == sf::Keyboard::Down) {
-            flags.movement.reset(Movement::look_down);
-        }
-        if (event.key.code == sf::Keyboard::X) {
-            weapon_fired = false;
-        }
-    }
-    if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::Z && !flags.input.test(Input::restricted)) {
-            flags.jump.set(Jump::is_pressed);
-            jump_request = JUMP_BUFFER_TIME;
-            flags.jump.set(Jump::just_jumped);
-            flags.jump.set(Jump::trigger);
-        }
-    }
-    if (event.type == sf::Event::KeyReleased) {
-        if (event.key.code == sf::Keyboard::Z) {
-            if (flags.jump.test(Jump::just_jumped) || flags.jump.test(Jump::hold) || flags.jump.test(Jump::jumping) || jump_request > -1) {
-                flags.jump.set(Jump::is_released);
-            }
-            flags.jump.reset(Jump::is_pressed);
-            flags.jump.reset(Jump::hold);
-            if(!grounded()) { jump_request = -1; }
-            if(!behavior.restricted()) {
-                flags.jump.set(Jump::can_jump);
-            }
-        }
-    }
-    if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::X) {
-            weapon_fired = true;
-        }
-    }
-    if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::A) {
-            if(!weapons_hotbar.empty()) {
-                current_weapon--;
-                if(current_weapon < 0) { current_weapon = (int)weapons_hotbar.size() - 1; }
-                loadout.equipped_weapon = weapons_hotbar.at(current_weapon);
-                flags.sounds.set(Soundboard::weapon_swap);
-            }
-        }
-    }
-    if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::S) {
-            if(!weapons_hotbar.empty()) {
-                current_weapon++;
-                if(current_weapon > weapons_hotbar.size() - 1) { current_weapon = 0; }
-                loadout.equipped_weapon = weapons_hotbar.at(current_weapon);
-                flags.sounds.set(Soundboard::weapon_swap);
-            }
-        }
-    }
-    if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::Down) {
-            if (grounded()) {
-                flags.input.set(Input::inspecting_trigger);
-            }
-        }
-    }
+void Player::update(gui::Console& console, gui::InventoryWindow& inventory_window) {
+
+	invincible() ? collider.draw_hurtbox.setFillColor(m_services->styles.colors.red) : collider.draw_hurtbox.setFillColor(m_services->styles.colors.blue);
+
+	collider.flags.general.set(shape::General::complex);
+	update_sprite();
+	if (!catalog.categories.abilities.has_ability(Abilities::dash)) { controller.nullify_dash(); }
+
+	collider.physics.gravity = physics_stats.grav;
+	collider.physics.maximum_velocity = physics_stats.maximum_velocity;
+	collider.physics.ground_friction = {physics_stats.ground_fric, physics_stats.ground_fric};
+	collider.physics.air_friction = {physics_stats.air_fric, physics_stats.air_fric};
+
+	update_direction();
+	grounded() ? controller.ground() : controller.unground();
+	controller.update(*m_services);
+	update_transponder(console, inventory_window);
+
+	if (grounded()) { controller.reset_dash_count(); }
+
+	// do this elsehwere later
+	if (collider.flags.state.test(shape::State::just_landed)) { m_services->soundboard.flags.player.set(audio::Player::land); }
+	collider.flags.state.reset(shape::State::just_landed);
+
+	// player-controlled actions
+	arsenal.switch_weapon(*m_services, controller.arms_switch());
+	dash();
+	jump();
+	wallslide();
+	shield();
+	update_animation();
+
+	// check keystate
+	if (!controller.get_jump().jumpsquatting()) { walk(); }
+	if (!controller.moving() && (!force_cooldown.running() || collider.world_grounded())) { collider.physics.acceleration.x = 0.0f; }
+
+	// weapon
+	if (controller.shot() || controller.arms_switch()) { animation.idle_timer.start(); }
+	if (controller.shot() && !arsenal.loadout.empty()) {
+		if (controller.direction.und == dir::UND::down) { collider.physics.acceleration.y += -equipped_weapon().attributes.recoil / 80; }
+		if (controller.direction.und == dir::UND::up) { collider.physics.acceleration.y += equipped_weapon().attributes.recoil; }
+	}
+
+	for (auto& force : accumulated_forces) { collider.physics.apply_force(force); }
+	accumulated_forces.clear();
+	collider.physics.position += forced_momentum;
+	if (controller.moving() || collider.has_horizontal_collision() || collider.world_grounded()) { forced_momentum = {}; }
+
+	collider.update(*m_services);
+	health.update();
+	health_indicator.update(*m_services, collider.physics.position);
+	orb_indicator.update(*m_services, collider.physics.position);
+	update_invincibility();
+	update_weapon();
+	catalog.update(*m_services);
+	if (m_services->ticker.every_x_ticks(10)) { collider.collision_depths = {}; }
+	if (collider.crushed()) {
+		if (!just_died()) { health_indicator.add(-64); }
+		kill();
+	}
+
+	if (catalog.categories.abilities.has_ability(Abilities::dash)) {
+		if (!(animation.state == AnimState::dash) && !controller.dash_requested()) {
+			controller.stop_dashing();
+			controller.cancel_dash_request();
+			collider.flags.dash.reset(shape::Dash::dash_cancel_collision);
+		}
+	}
+
+	update_antennae();
 }
 
-void Player::update(Time dt) {
+void Player::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> campos) {
 
-    if (!flags.input.test(Input::no_anim)) {
-        update_animation();
-        update_sprite();
-    }
+	sf::Vector2<float> player_pos = apparent_position - campos;
+	calculate_sprite_offset();
+	force_cooldown.update();
 
-    if (!flags.input.test(Input::restricted)) {
+	// dashing effect
+	sprite.setPosition(sprite_position);
+	if (svc.ticker.every_x_frames(8) && animation.state == AnimState::dash) { sprite_history.update(sprite); }
+	if (svc.ticker.every_x_frames(8) && !(animation.state == AnimState::dash)) { sprite_history.flush(); }
+	sprite_history.drag(win, campos);
 
-        if (moving() || flags.movement.test(Movement::look_up) || jump_request > -1) {
-            flags.input.reset(Input::inspecting);
-            flags.input.reset(Input::inspecting_trigger);
-        }
+	// get UV coords
+	int u = (int)(animation.get_frame() / asset::NANI_SPRITESHEET_HEIGHT) * asset::NANI_SPRITE_WIDTH;
+	int v = (int)(animation.get_frame() % asset::NANI_SPRITESHEET_HEIGHT) * asset::NANI_SPRITE_WIDTH;
+	sprite.setTextureRect(sf::IntRect({u, v}, {asset::NANI_SPRITE_WIDTH, asset::NANI_SPRITE_WIDTH}));
+	sprite.setOrigin(asset::NANI_SPRITE_WIDTH / 2, asset::NANI_SPRITE_WIDTH / 2);
+	sprite.setPosition(sprite_position.x - campos.x, sprite_position.y - campos.y);
 
-        if (flags.input.test(Input::inspecting_trigger) && behavior.current_state.params.behavior_id == "inspecting" && behavior.current_state.params.done) {
-            flags.input.set(Input::inspecting);
-        }
+	if (!arsenal.loadout.empty()) {
 
-        //check if player requested jump
-        if (grounded() && jump_request > -1) {
-            flags.jump.set(Jump::hold);
-            if (flags.jump.test(Jump::just_jumped)) {
-                behavior.jump();
-            }
-        }
+		collider.flags.general.set(shape::General::complex);
+		equipped_weapon().sp_gun_back.setTexture(svc.assets.weapon_textures.at(equipped_weapon().label));
+		if (flags.state.test(State::show_weapon)) { equipped_weapon().render_back(svc, win, campos); }
+	}
 
-        //preset flags
-        if (grounded()) { flags.jump.reset(Jump::jumping); } //do this before jumping, otherwise it will trigger on the same frame
+	if (flags.state.test(State::alive)) {
+		if (svc.greyblock_mode()) {
+			collider.render(win, campos);
+		} else {
+			antennae[1].render(svc, win, campos, 1);
+			win.draw(sprite);
+			antennae[0].render(svc, win, campos, 1);
+		}
+	}
 
-        //jump!
-        if (jump_request > -1) {
-            if (!behavior.restricted()) { //once jumpsquat is over
-                jump_request--;
-                if (grounded()) {
-                    collider.physics.acceleration.y = -stats.JUMP_MAX / 1.3f;
-                    flags.jump.set(Jump::jumping);
-                    flags.jump.reset(Jump::can_jump);
-                    flags.jump.reset(Jump::trigger);
-                    behavior.rise();
-                    if (!flags.jump.test(Jump::trigger)) {
-                        flags.sounds.set(Soundboard::jump);
-                    }
-                }
-            }
-        }
+	if (!arsenal.loadout.empty()) {
+		equipped_weapon().sp_gun.setTexture(svc.assets.weapon_textures.at(equipped_weapon().label));
+		if (flags.state.test(State::show_weapon)) { equipped_weapon().render(svc, win, campos); }
+	}
 
-        //reset jump flags
-        if (!flags.jump.test(Jump::is_pressed)) { flags.jump.reset(Jump::hold); }
-        if (grounded() && jump_request == -1) { flags.jump.reset(Jump::is_released); }
-        if (flags.jump.test(Jump::is_released) && flags.jump.test(Jump::jumping)) { collider.physics.acceleration.y *= stats.JUMP_RELEASE_MULTIPLIER; flags.jump.reset(Jump::jumping); } //player lets go
-        if (flags.jump.test(Jump::is_released) && !grounded()) { flags.jump.reset(Jump::is_released); }
+	if (controller.get_shield().active() && catalog.categories.abilities.has_ability(Abilities::shield)) { controller.get_shield().render(*m_services, win, campos); }
 
-        //check keystate
-        if (!behavior.restricted()) {
-            walk();
-        }
-
-        //zero the player's horizontal acceleration if movement was not requested
-        if (!moving()) {
-            collider.physics.acceleration.x = 0.0f;
-            if (abs(collider.physics.velocity.x) > 0.4f && grounded()) { flags.movement.set(Movement::just_stopped); }
-        }
-
-        //weapon physics
-        if (weapon_fired && !weapons_hotbar.empty()) {
-            if (behavior.facing_strictly_right()) {
-                if (!collider.flags.test(shape::State::has_right_collision)) {
-                    collider.physics.acceleration.x += -loadout.get_equipped_weapon().attributes.recoil;
-                }
-            }
-            if (behavior.facing_strictly_left()) {
-                if (!collider.flags.test(shape::State::has_left_collision)) {
-                    collider.physics.acceleration.x += loadout.get_equipped_weapon().attributes.recoil;
-                }
-            }
-            if (behavior.facing_down()) {
-                collider.physics.acceleration.y += -loadout.get_equipped_weapon().attributes.recoil / 8;
-            }
-            if (behavior.facing_up()) {
-                collider.physics.acceleration.y += loadout.get_equipped_weapon().attributes.recoil;
-            }
-        }
-
-        if (flags.movement.test(Movement::move_left) && flags.movement.test(Movement::move_right)) {
-            collider.physics.acceleration.x = 0.0f;
-        }
-    }
-    
-    collider.physics.update_euler();
-    
-    collider.sync_components();
-    
-    //for parameter tweaking, remove later
-    collider.physics.friction = grounded() ? sf::Vector2<float>{stats.PLAYER_GROUND_FRIC, stats.PLAYER_GROUND_FRIC} : sf::Vector2<float>{stats.PLAYER_HORIZ_AIR_FRIC, stats.PLAYER_VERT_AIR_FRIC };
-    collider.update();
-    //hurt
-    if (is_invincible()) { collider.spike_trigger = false; flash_sprite(); }
-    else { sprite.setColor(sf::Color::White); }
-    just_hurt = collider.spike_trigger;
-    if (collider.spike_trigger && !is_invincible()) { collider.physics.acceleration.y = -stats.HURT_ACC; collider.spike_trigger = false; make_invincible(); flags.sounds.set(Soundboard::hurt); --player_stats.health; }
-    update_invincibility();
-    if (player_stats.health <= 0) { kill(); }
-
-    play_sounds();
-    update_behavior();
-    apparent_position.x = collider.physics.position.x + PLAYER_WIDTH/2;
-    apparent_position.y = collider.physics.position.y;
+	// texture updater debug
+	// texture_updater.debug_render(win, campos);
 }
 
-void Player::render(sf::RenderWindow& win, sf::Vector2<float>& campos) {
-    
-    sf::Vector2<float> player_pos = apparent_position - campos;
-    calculate_sprite_offset();
-    
-    //get UV coords
-    int u = (int)(behavior.get_frame() / NANI_SPRITESHEET_HEIGHT) * NANI_SPRITE_WIDTH;
-    int v = (int)(behavior.get_frame() % NANI_SPRITESHEET_HEIGHT) * NANI_SPRITE_WIDTH;
-    sprite.setTextureRect(sf::IntRect({u, v}, {NANI_SPRITE_WIDTH, NANI_SPRITE_WIDTH}));
-    sprite.setOrigin(NANI_SPRITE_WIDTH/2, NANI_SPRITE_WIDTH/2);
-    sprite.setPosition(player_pos.x, player_pos.y + sprite_offset.y);
-    
-    //flip the sprite based on the player's direction
-    sf::Vector2<float> right_scale = {1.0f, 1.0f};
-    sf::Vector2<float> left_scale = {-1.0f, 1.0f};
-    if(behavior.facing_lr == behavior::DIR_LR::LEFT && sprite.getScale() == right_scale) {
-        //loadout.get_equipped_weapon().sp_gun.scale(-1.0f, 1.0f);
-        sprite.scale(-1.0f, 1.0f);
-    }
-    if(behavior.facing_lr == behavior::DIR_LR::RIGHT && sprite.getScale() == left_scale) {
-        //loadout.get_equipped_weapon().sp_gun.scale(-1.0f, 1.0f);
-        sprite.scale(-1.0f, 1.0f);
-    }
-    if (flags.state.test(State::alive)) {
-        if (svc::globalBitFlagsLocator.get().test(svc::global_flags::greyblock_state)) {
-
-        } else {
-            win.draw(sprite);
-            svc::counterLocator.get().at(svc::draw_calls)++;
-        }
-    }
-
-    loadout.get_equipped_weapon().sp_gun.setTexture(lookup::weapon_texture.at(loadout.get_equipped_weapon().type));
-    loadout.get_equipped_weapon().render(win, campos);
-    
+void Player::render_indicators(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) {
+	if (orb_indicator.active()) { health_indicator.shift(); }
+	health_indicator.render(svc, win, cam);
+	orb_indicator.render(svc, win, cam);
 }
 
-void Player::assign_texture(sf::Texture& tex) {
-    sprite.setTexture(tex);
-}
+void Player::assign_texture(sf::Texture& tex) { sprite.setTexture(tex); }
 
 void Player::update_animation() {
-    behavior.end_loop();
-    behavior.current_state.update();
+
+	flags.state.set(State::show_weapon);
+
+	if (grounded()) {
+		if (controller.inspecting()) { animation.state = AnimState::inspect; }
+		if (!(animation.state == AnimState::jumpsquat || animation.state == AnimState::land || animation.state == AnimState::rise)) {
+			if (controller.inspecting()) { animation.state = AnimState::inspect; }
+			if (controller.nothing_pressed() && !controller.dashing() && !(animation.state == AnimState::inspect) && !(animation.state == AnimState::sit)) { animation.state = AnimState::idle; }
+			if (controller.moving() && !controller.dashing() && !controller.sprinting()) { animation.state = AnimState::run; }
+			if (controller.moving() && controller.sprinting() && !controller.dashing() && !(animation.state == AnimState::sharp_turn)) { animation.state = AnimState::sprint; }
+			if (abs(collider.physics.velocity.x) > thresholds.stop && !controller.moving()) { animation.state = AnimState::stop; }
+			handle_turning();
+		}
+	} else {
+		if (collider.physics.velocity.y > -thresholds.suspend && collider.physics.velocity.y < thresholds.suspend) { animation.state = AnimState::suspend; }
+	}
+
+	if (collider.physics.velocity.y > thresholds.suspend && !grounded()) { animation.state = AnimState::fall; }
+	if (collider.flags.animation.test(shape::Animation::just_landed)) {
+		collider.flags.animation.reset(shape::Animation::just_landed);
+		animation.state = AnimState::land;
+	}
+	if (collider.physics.velocity.y < -thresholds.suspend) { animation.state = AnimState::rise; }
+
+	if (catalog.categories.abilities.has_ability(Abilities::dash)) {
+		if (controller.dashing() && controller.can_dash()) { animation.state = AnimState::dash; }
+		if (controller.dash_requested()) {
+			animation.state = AnimState::dash;
+			flags.state.reset(State::show_weapon);
+		}
+	}
+	if (catalog.categories.abilities.has_ability(Abilities::wall_slide)) {
+		if (controller.get_wallslide().is_wallsliding()) { animation.state = AnimState::wallslide; }
+	}
+	if (catalog.categories.abilities.has_ability(Abilities::shield)) {
+		if (controller.get_shield().is_shielding() && grounded() && !(animation.state == AnimState::land) && !(animation.state == AnimState::fall)) {
+			animation.state = AnimState::shield;
+			controller.prevent_movement();
+			flags.state.reset(State::show_weapon);
+		}
+	}
+	if (animation.state == AnimState::sit) { flags.state.reset(State::show_weapon); }
+	if (hurt_cooldown.running()) { animation.state = AnimState::hurt; }
+
+	animation.update();
 }
 
 void Player::update_sprite() {
-    if(weapons_hotbar.empty()) {
-        sprite.setTexture(svc::assetLocator.get().t_nani_unarmed);
-    }
+
+	if (animation.triggers.test(AnimTriggers::flip)) {
+		sprite.scale(-1.0f, 1.0f);
+		animation.triggers.reset(AnimTriggers::flip);
+	}
+
+	flags.state.reset(State::dir_switch);
+	// flip the sprite based on the player's direction
+	sf::Vector2<float> right_scale = {1.0f, 1.0f};
+	sf::Vector2<float> left_scale = {-1.0f, 1.0f};
+	if (controller.facing_left() && sprite.getScale() == right_scale) { sprite.scale(-1.0f, 1.0f); }
+	if (controller.facing_right() && sprite.getScale() == left_scale) { sprite.scale(-1.0f, 1.0f); }
+
+	// check for quick turn
+	if (controller.quick_turn()) { flags.state.set(State::dir_switch); }
+
+	sprite.setTexture(texture_updater.get_dynamic_texture());
+}
+
+void Player::handle_turning() {
+	sf::Vector2<float> right_scale = {1.0f, 1.0f};
+	sf::Vector2<float> left_scale = {-1.0f, 1.0f};
+	if (controller.facing_left() && sprite.getScale() == right_scale) { animation.state = controller.quick_turn() ? AnimState::sharp_turn : AnimState::turn; }
+	if (controller.facing_right() && sprite.getScale() == left_scale) { animation.state = controller.quick_turn() ? AnimState::sharp_turn : AnimState::turn; }
+	if (quick_direction_switch()) { animation.state = controller.quick_turn() ? AnimState::sharp_turn : AnimState::turn; }
+}
+
+void Player::update_transponder(gui::Console& console, gui::InventoryWindow& inventory_window) {
+	if (inventory_window.active()) {
+		controller.prevent_movement();
+		if (controller.transponder_up()) { inventory_window.selector.go_up(); }
+		if (controller.transponder_down()) { inventory_window.selector.go_down(); }
+		if (controller.transponder_left()) { inventory_window.selector.go_left(); }
+		if (controller.transponder_right()) { inventory_window.selector.go_right(); }
+		transponder.update(*m_services, inventory_window);
+	}
+	if (console.active()) {
+		controller.prevent_movement();
+		if (controller.transponder_skip()) { transponder.skip_ahead(); }
+		if (controller.transponder_skip_released()) { transponder.enable_skip(); }
+		if (controller.transponder_next()) { transponder.next(); }
+		if (controller.transponder_exit()) { transponder.exit(); }
+		if (controller.transponder_up()) { transponder.go_up(); }
+		if (controller.transponder_down()) { transponder.go_down(); }
+		if (controller.transponder_select()) { transponder.select(); }
+		transponder.update(*m_services, console);
+		auto emotion = transponder.shipments.emotion.get_residue();
+		if (console.portrait.get_emotion() != emotion && emotion != 0) { console.portrait.set_emotion(emotion); }
+	}
+	transponder.end();
+	if (transponder.shipments.item.consume_pulse() > 0) { give_item(transponder.shipments.item.consume_pulse(), 1); }
 }
 
 void Player::flash_sprite() {
-    if ((counters.invincibility / 10) % 2 == 0) { sprite.setColor(flcolor::red); }
-    else { sprite.setColor(flcolor::blue); }
+	if ((health.invincibility.get_cooldown() / 30) % 2 == 0) {
+		sprite.setColor(flcolor::red);
+	} else {
+		sprite.setColor(flcolor::blue);
+	}
 }
 
 void Player::calculate_sprite_offset() {
-    if (!collider.on_ramp()) { sprite_offset.y = 0.0f; return; }
-    //sprite_offset.y = behavior.facing_lr == behavior::DIR_LR::RIGHT ? 10.f : 15.f;
-
+	sprite_offset.y = 0.f;
+	if (collider.flags.state.test(shape::State::on_ramp)) { sprite_offset.y = -2.f; }
+	sprite_position = {collider.physics.position.x + 9.f, collider.physics.position.y + sprite_offset.y + 1};
+	apparent_position = collider.physics.position + collider.dimensions / 2.f;
 }
 
-void Player::update_behavior() {
-    
-    
-    if(flags.jump.test(Jump::just_jumped) && !flags.movement.test(Movement::is_wall_sliding)) {
-        behavior.air(collider.physics.velocity.y);
-        flags.jump.reset(Jump::just_jumped);
-    }
-    
-    if(behavior.current_state.params.complete) {
-        if(grounded()) {
-            behavior.reset();
-        } else {
-            behavior.air(collider.physics.velocity.y);
-        }
-    }
-
-    
-    if(moving() && behavior.current_state.params.behavior_id == "idle") {
-        if(grounded()) {
-            behavior.run();
-        } else {
-            behavior.air(collider.physics.velocity.y);
-        }
-    }
-
-    if(flags.movement.test(Movement::just_stopped)) {
-        behavior.stop();
-    }
-
-    if(flags.input.test(Input::inspecting_trigger) && !(behavior.current_state.params.behavior_id == "inspecting")) {
-        behavior.inspect();
-    }
-    
-    if(collider.physics.velocity.y > behavior.suspension_threshold && !flags.movement.test(Movement::freefalling)) {
-        flags.movement.set(Movement::entered_freefall);
-    }
-    if(flags.movement.test(Movement::entered_freefall) && !flags.movement.test(Movement::freefalling) && !flags.movement.test(Movement::is_wall_sliding)) {
-        behavior.fall();
-        flags.movement.set(Movement::freefalling);
-        flags.movement.reset(Movement::entered_freefall);
-    }
-    
-    if(behavior.current_state.params.behavior_id == "suspended") {
-        if(grounded()) {
-            behavior.reset();
-        }
-    }
-    
-    
-    if(collider.flags.test(shape::State::just_landed) && jump_request == -1) {
-        behavior.land();
-        flags.sounds.set(Soundboard::land);
-        flags.movement.reset(Movement::freefalling);
-    }
-
-    if(just_hurt) {
-        behavior.hurt();
-    }
-    
-    if (flags.movement.test(Movement::wall_slide_trigger)) { flags.movement.set(Movement::is_wall_sliding); }
-    if(weapon_fired) { start_cooldown = true; }
-    
-
-    flags.movement.reset(Movement::stopping);
-    flags.movement.reset(Movement::just_stopped);
-    collider.flags.reset(shape::State::just_landed);
-    flags.movement.reset(Movement::left_released);
-    flags.movement.reset(Movement::right_released);
-    flags.movement.reset(Movement::wall_slide_trigger);
-    flags.movement.reset(Movement::release_wallslide);
-    if (!weapons_hotbar.empty()) {
-        if (!loadout.get_equipped_weapon().attributes.automatic) {
-            weapon_fired = false;
-        }
-        if (start_cooldown) {
-            loadout.get_equipped_weapon().current_cooldown--;
-            if (loadout.get_equipped_weapon().current_cooldown < 0) {
-                loadout.get_equipped_weapon().current_cooldown = loadout.get_equipped_weapon().attributes.cooldown_time;
-                start_cooldown = false;
-            }
-        }
-    }
-    
-    if(grounded() || (!collider.flags.test(shape::State::has_left_collision) && !collider.flags.test(shape::State::has_right_collision)) || abs(collider.physics.velocity.x) > 0.001f) {
-        flags.movement.reset(Movement::is_wall_sliding);
-    }
-    update_direction();
-    if (!weapons_hotbar.empty()) {
-        update_weapon();
-    }
-    
+void Player::jump() {
+	if (controller.get_jump().began()) {
+		collider.flags.movement.set(shape::Movement::jumping);
+	} else {
+		collider.flags.movement.reset(shape::Movement::jumping);
+	}
+	if (controller.get_jump().jumpsquat_trigger()) {
+		animation.state = AnimState::jumpsquat;
+		controller.get_jump().start_jumpsquat();
+		controller.get_jump().reset_jumpsquat_trigger();
+		collider.flags.movement.set(shape::Movement::jumping);
+	}
+	if (controller.get_jump().jumpsquatting() && !(animation.state == AnimState::jumpsquat)) {
+		controller.get_jump().stop_jumpsquatting();
+		controller.get_jump().start();
+		collider.physics.acceleration.y = -physics_stats.jump_velocity;
+		animation.state = AnimState::rise;
+		m_services->soundboard.flags.player.set(audio::Player::jump);
+		collider.flags.movement.set(shape::Movement::jumping);
+	} else if (controller.get_jump().released() && controller.get_jump().jumping() && !controller.get_jump().held() && collider.physics.velocity.y < 0) {
+		collider.physics.acceleration.y *= physics_stats.jump_release_multiplier;
+		controller.get_jump().reset();
+	}
+	if (collider.flags.state.test(shape::State::just_landed)) { controller.get_jump().reset_jumping(); }
 }
 
-void Player::set_position(sf::Vector2<float> new_pos) {
-    collider.physics.position = new_pos;
-    collider.sync_components();
+void Player::dash() {
+	if (!catalog.categories.abilities.has_ability(Abilities::dash)) { return; }
+	if (animation.state == AnimState::dash || controller.dash_requested()) {
+		collider.flags.movement.set(shape::Movement::dashing);
+		collider.physics.acceleration.y = controller.vertical_movement() * physics_stats.vertical_dash_multiplier;
+		collider.physics.velocity.y = controller.vertical_movement() * physics_stats.vertical_dash_multiplier;
+
+		if (!collider.flags.dash.test(shape::Dash::dash_cancel_collision)) {
+			collider.physics.acceleration.x += controller.dash_value() * physics_stats.dash_speed;
+			collider.physics.velocity.x += controller.dash_value() * physics_stats.dash_speed;
+		}
+		controller.dash();
+	}
+}
+
+void Player::wallslide() {
+	if (!catalog.categories.abilities.has_ability(Abilities::wall_slide)) { return; }
+	controller.get_wallslide().end();
+	if (!grounded() && collider.physics.velocity.y > thresholds.wallslide) {
+		if ((collider.has_left_wallslide_collision() && controller.moving_left()) || (collider.has_right_wallslide_collision() && controller.moving_right())) {
+			controller.get_wallslide().start();
+			collider.physics.acceleration.y = std::min(collider.physics.acceleration.y, physics_stats.wallslide_speed);
+		}
+	}
+}
+
+void Player::shield() {
+	if (!catalog.categories.abilities.has_ability(Abilities::shield)) {
+		controller.get_shield().flags = {};
+		return;
+	}
+	controller.get_shield().update(*m_services);
+	controller.get_shield().sensor.bounds.setPosition(collider.bounding_box.position + collider.bounding_box.dimensions * 0.5f);
+}
+
+void Player::set_position(sf::Vector2<float> new_pos, bool centered) {
+	sf::Vector2<float> offset{};
+	offset.x = centered ? collider.dimensions.x * 0.5f : 0.f;
+	collider.physics.position = new_pos - offset;
+	collider.sync_components();
+	update_direction();
+	sync_antennae();
+	health_indicator.set_position(new_pos);
+	orb_indicator.set_position(new_pos);
 }
 
 void Player::update_direction() {
-    behavior.facing = last_dir;
-    behavior.facing_und = behavior::DIR_UND::NEUTRAL;
-    if(behavior.facing_right()) {
-        behavior.facing = behavior::DIR::RIGHT;
-        if(flags.movement.test(Movement::look_up)) {
-            behavior.facing = behavior::DIR::UP_RIGHT;
-            behavior.facing_und = behavior::DIR_UND::UP;
-        }
-        if(flags.movement.test(Movement::look_down) && !grounded()) {
-            behavior.facing = behavior::DIR::DOWN_RIGHT;
-            behavior.facing_und = behavior::DIR_UND::DOWN;
-        }
-    }
-    if(behavior.facing_left()) {
-        behavior.facing = behavior::DIR::LEFT;
-        if(flags.movement.test(Movement::look_up)) {
-            behavior.facing = behavior::DIR::UP_LEFT;
-            behavior.facing_und = behavior::DIR_UND::UP;
-        }
-        if(flags.movement.test(Movement::look_down) && !grounded()) {
-            behavior.facing = behavior::DIR::DOWN_LEFT;
-            behavior.facing_und = behavior::DIR_UND::DOWN;
-        }
-    }
-    if(!moving() && flags.movement.test(Movement::look_up)) {
-        if(behavior.facing_strictly_left()) {
-            behavior.facing = behavior::DIR::UP_LEFT;
-            behavior.facing_und = behavior::DIR_UND::UP;
-        } else {
-            behavior.facing = behavior::DIR::UP_RIGHT;
-            behavior.facing_und = behavior::DIR_UND::UP;
-        }
-    }
-    if(!flags.movement.test(Movement::move_left) && !flags.movement.test(Movement::move_right) && flags.movement.test(Movement::look_down) && !grounded()) {
-        if(behavior.facing_strictly_left()) {
-            behavior.facing = behavior::DIR::DOWN_LEFT;
-            behavior.facing_und = behavior::DIR_UND::DOWN;
-        } else {
-            behavior.facing = behavior::DIR::DOWN_RIGHT;
-            behavior.facing_und = behavior::DIR_UND::DOWN;
-        }
-    }
-    if (behavior.facing_left()) {
-        anchor_point = { collider.physics.position.x + collider.bounding_box.dimensions.x / 2 - ANCHOR_BUFFER, collider.physics.position.y + collider.bounding_box.dimensions.y / 2 };
-    }
-    else if (behavior.facing_right()) {
-        anchor_point = { collider.physics.position.x + collider.bounding_box.dimensions.x / 2 + ANCHOR_BUFFER, collider.physics.position.y + collider.bounding_box.dimensions.y / 2 };
-    }
-    else {
-        anchor_point = { collider.physics.position.x + collider.bounding_box.dimensions.x / 2, collider.physics.position.y + collider.bounding_box.dimensions.y / 2 };
-    }
+	if (controller.facing_left()) {
+		anchor_point = {collider.physics.position.x + collider.bounding_box.dimensions.x / 2 - ANCHOR_BUFFER, collider.physics.position.y + collider.bounding_box.dimensions.y / 2};
+	} else if (controller.facing_right()) {
+		anchor_point = {collider.physics.position.x + collider.bounding_box.dimensions.x / 2 + ANCHOR_BUFFER, collider.physics.position.y + collider.bounding_box.dimensions.y / 2};
+	} else {
+		anchor_point = {collider.physics.position.x + collider.bounding_box.dimensions.x / 2, collider.physics.position.y + collider.bounding_box.dimensions.y / 2};
+	}
+
+	// set directions for grappling hook
+	equipped_weapon().projectile.hook.probe_direction = controller.direction;
 }
 
 void Player::update_weapon() {
-    switch(behavior.facing_lr) {
-        case behavior::DIR_LR::LEFT:
-            collider.physics.dir = components::DIRECTION::LEFT;
-            break;
-        case behavior::DIR_LR::RIGHT:
-            collider.physics.dir = components::DIRECTION::RIGHT;
-            break;
-    }
-    switch(behavior.facing) {
-        case behavior::DIR::NEUTRAL:
-            break;
-        case behavior::DIR::LEFT:
-            break;
-        case behavior::DIR::RIGHT:
-            break;
-        case behavior::DIR::UP:
-            collider.physics.dir = components::DIRECTION::UP;
-            break;
-        case behavior::DIR::DOWN:
-            collider.physics.dir = components::DIRECTION::DOWN;
-            break;
-        case behavior::DIR::UP_RIGHT:
-            collider.physics.dir = components::DIRECTION::UP;
-            break;
-        case behavior::DIR::UP_LEFT:
-            collider.physics.dir = components::DIRECTION::UP;
-            break;
-        case behavior::DIR::DOWN_RIGHT:
-            collider.physics.dir = components::DIRECTION::DOWN;
-            break;
-        case behavior::DIR::DOWN_LEFT:
-            collider.physics.dir = components::DIRECTION::DOWN;
-            break;
-    }
-
-    loadout.get_equipped_weapon().update();
-    loadout.get_equipped_weapon().set_orientation();
-    if(behavior.facing_right()) {
-        hand_position = {28, 36};
-    } else {
-        hand_position = {20, 36};
-    }
+	if (arsenal.armory.empty() || arsenal.loadout.empty()) { return; }
+	// clamp extant projectile instances to the weapon's rate
+	assert(arsenal.extant_projectile_instances.size() >= arsenal.armory.size());
+	for (std::size_t index = 0; index < arsenal.extant_projectile_instances.size(); ++index) {
+		auto& count = arsenal.extant_projectile_instances.at(index);
+		if (arsenal.armory.at(index)->attributes.rate < 0) { continue; }
+		count = std::clamp(count, 0, arsenal.armory.at(index)->attributes.rate);
+	}
+	// update all weapons in loadout to avoid unusual behavior upon fast weapon switching
+	for (auto& weapon : arsenal.loadout) {
+		weapon->active_projectiles = extant_instances(weapon->get_id());
+		weapon->firing_direction = controller.direction;
+		weapon->update(controller.direction);
+		sf::Vector2<float> p_pos = {apparent_position.x + weapon->gun_offset.x, apparent_position.y + sprite_offset.y + weapon->gun_offset.y - collider.dimensions.y / 2.f};
+		weapon->set_position(p_pos);
+	}
+	if (controller.facing_right()) {
+		hand_position = {28, 36};
+	} else {
+		hand_position = {20, 36};
+	}
 }
 
 void Player::walk() {
-    if (flags.movement.test(Movement::move_right) && !collider.flags.test(shape::State::has_right_collision)) {
-        collider.physics.acceleration.x = grounded() ? stats.X_ACC : (stats.X_ACC_AIR / stats.AIR_MULTIPLIER);
-    }
-    if (flags.movement.test(Movement::move_left) && !collider.flags.test(shape::State::has_left_collision)) {
-        collider.physics.acceleration.x = grounded() ? -stats.X_ACC : (-stats.X_ACC_AIR / stats.AIR_MULTIPLIER);
-    }
-    if (behavior.current_state.get_frame() == 44 || behavior.current_state.get_frame() == 46) {
-        if (behavior.current_state.params.frame_trigger) {
-            flags.sounds.set(Soundboard::step);
-        }
-    }
+	if (animation.state == AnimState::sharp_turn) { collider.physics.acceleration.x *= 0.1f; }
+	if (controller.moving_right() && !collider.has_right_collision()) {
+		collider.physics.acceleration.x = grounded() ? physics_stats.x_acc * controller.horizontal_movement() : (physics_stats.x_acc / physics_stats.air_multiplier) * controller.horizontal_movement();
+	}
+	if (controller.moving_left() && !collider.has_left_collision()) {
+		collider.physics.acceleration.x = grounded() ? physics_stats.x_acc * controller.horizontal_movement() : (physics_stats.x_acc / physics_stats.air_multiplier) * controller.horizontal_movement();
+	}
+	if (controller.sprinting()) { collider.physics.acceleration.x *= physics_stats.sprint_multiplier; }
+	if (animation.get_frame() == 44 || animation.get_frame() == 46 || animation.get_frame() == 10 || animation.get_frame() == 13) {
+		if (animation.animation.keyframe_over() && abs(collider.physics.velocity.x) > 2.5f) { m_services->soundboard.flags.player.set(audio::Player::step); }
+	}
 }
 
-void Player::autonomous_walk() {
-    collider.physics.acceleration.x = grounded() ? stats.X_ACC : (stats.X_ACC_AIR / stats.AIR_MULTIPLIER);
-    if (behavior.facing_lr == behavior::DIR_LR::LEFT) { collider.physics.acceleration.x *= -1.f; }
-    flags.movement.set(Movement::autonomous_walk);
-    if (behavior.current_state.get_frame() == 44 || behavior.current_state.get_frame() == 46) {
-        if (behavior.current_state.params.frame_trigger) {
-            flags.sounds.set(Soundboard::step);
-        }
-    }
+void Player::hurt(int amount = 1) {
+	if (!health.invincible()) {
+		if (shielding()) { return; }
+		m_services->ticker.slow_down(25);
+		health.inflict(amount);
+		health_indicator.add(-amount);
+		collider.physics.velocity.y = 0.0f;
+		collider.physics.acceleration.y = -physics_stats.hurt_acc;
+		force_cooldown.start(60);
+		collider.spike_trigger = false;
+		m_services->soundboard.flags.player.set(audio::Player::hurt);
+		hurt_cooldown.start(2);
+	}
+	if (health.is_dead()) { kill(); }
 }
 
-void Player::restrict_inputs() {
-
-    flags.input.set(Input::restricted);
-    flags.movement.reset(Movement::look_down);
-    flags.movement.reset(Movement::look_up);
-    flags.input.reset(Input::inspecting_trigger);
-    weapon_fired = false;
-
+void Player::update_antennae() {
+	int ctr{0};
+	for (auto& a : antennae) {
+		if (animation.get_frame() == 44 || animation.get_frame() == 46) {
+			antenna_offset.y = -15.f;
+		} else if (controller.sprinting()) {
+			antenna_offset.y = -9.f;
+		} else if (animation.get_frame() == 52) {
+			antenna_offset.y = -10.f;
+		} else if (animation.get_frame() == 53) {
+			antenna_offset.y = -7.f;
+		} else {
+			antenna_offset.y = -13.f;
+		}
+		if (animation.get_frame() == 57) { antenna_offset.y = -4.f; }
+		a.set_target_position(collider.physics.position + antenna_offset);
+		a.update(*m_services);
+		a.collider.sync_components();
+		if (controller.facing_right()) {
+			antenna_offset.x = ctr % 2 == 0 ? 18.0f : 7.f;
+		} else {
+			antenna_offset.x = ctr % 2 == 0 ? 2.f : 13.f;
+		}
+		if (animation.get_frame() == 82) { antenna_offset.x += controller.facing_right() ? 6.f : -6.f; }
+		++ctr;
+	}
 }
 
-void Player::unrestrict_inputs() {
-    flags.input.reset(Input::restricted);
-    flags.input.reset(Input::no_anim);
-    flags.movement.reset(Movement::autonomous_walk);
+void Player::sync_antennae() {
+	int ctr{0};
+	for (auto& a : antennae) {
+		a.set_position(collider.physics.position + antenna_offset);
+		a.update(*m_services);
+		a.collider.sync_components();
+		if (controller.facing_right()) {
+			antenna_offset.x = ctr % 2 == 0 ? 18.0f : 7.f;
+		} else {
+			antenna_offset.x = ctr % 2 == 0 ? 2.f : 13.f;
+		}
+		++ctr;
+	}
 }
 
-void Player::restrict_animation() {
-    flags.input.set(Input::no_anim);
-}
+bool Player::grounded() const { return collider.flags.state.test(shape::State::grounded); }
 
-void Player::no_move() {
-    flags.movement.reset(Movement::move_right);
-    flags.movement.reset(Movement::move_left);
-}
-
-bool Player::grounded() const {
-    return collider.flags.test(shape::State::grounded);
-}
-
-bool Player::moving() const {
-    return flags.movement.test(Movement::move_left) || flags.movement.test(Movement::move_right) || flags.movement.test(Movement::autonomous_walk);
-}
-
-bool Player::moving_at_all() const {
-    return flags.movement.test(Movement::move_left) || flags.movement.test(Movement::move_right) ||
-        flags.movement.test(Movement::autonomous_walk) || flags.movement.test(Movement::freefalling) || flags.movement.test(Movement::entered_freefall);
-}
-
-sf::Vector2<float> Player::get_fire_point() {
-    if(behavior.facing_strictly_left()) {
-        return apparent_position + hand_position + sf::Vector2<float>{static_cast<float>(-loadout.get_equipped_weapon().sprite_dimensions.x), 0.0f} - sf::Vector2<float>{NANI_SPRITE_WIDTH/2, NANI_SPRITE_WIDTH/2};
-    } else if(behavior.facing_strictly_right()) {
-        return apparent_position + hand_position + sf::Vector2<float>{static_cast<float>(loadout.get_equipped_weapon().sprite_dimensions.x), 0.0f} - sf::Vector2<float>{NANI_SPRITE_WIDTH/2, NANI_SPRITE_WIDTH/2};
-    } else if(behavior.facing_up()) {
-        return apparent_position + sf::Vector2<float>{PLAYER_WIDTH/2, 0.0f} - sf::Vector2<float>{NANI_SPRITE_WIDTH/2, NANI_SPRITE_WIDTH/2};
-    } else {
-        return apparent_position + sf::Vector2<float>{PLAYER_WIDTH/2, PLAYER_HEIGHT} - sf::Vector2<float>{NANI_SPRITE_WIDTH/2, NANI_SPRITE_WIDTH/2};
-    }
-}
-
-void Player::make_invincible() {
-    counters.invincibility = INVINCIBILITY_TIME;
+bool Player::fire_weapon() {
+	if (controller.shot() && equipped_weapon().can_shoot()) {
+		++extant_instances(equipped_weapon().get_id());
+		if (!m_services->soundboard.gun_sounds.contains(equipped_weapon().label)) {
+			m_services->soundboard.flags.weapon.set(audio::Weapon::bryns_gun);
+			return true;
+		}
+		m_services->soundboard.flags.weapon.set(m_services->soundboard.gun_sounds.at(equipped_weapon().label));
+		return true;
+	}
+	return false;
 }
 
 void Player::update_invincibility() {
-    dt = svc::clockLocator.get().tick_rate;
-
-    auto new_time = Clock::now();
-    Time frame_time = std::chrono::duration_cast<Time>(new_time - current_time);
-
-    if (frame_time.count() > svc::clockLocator.get().frame_limit) {
-        frame_time = Time{ svc::clockLocator.get().frame_limit };
-    }
-    current_time = new_time;
-    accumulator += frame_time;
-
-    int integrations = 0;
-    if (accumulator >= dt) {
-
-        --counters.invincibility;
-        if (counters.invincibility < 0) { counters.invincibility = 0; }
-
-        accumulator = Time::zero();
-        ++integrations;
-    }
-}
-
-bool Player::is_invincible() const {
-    return counters.invincibility > 0;
+	hurt_cooldown.update();
+	if (health.invincible()) {
+		flash_sprite();
+	} else {
+		sprite.setColor(sf::Color::White);
+	}
 }
 
 void Player::kill() {
-    flags.state.reset(State::alive);
+	flags.state.reset(State::alive);
+	flags.state.set(State::killed);
 }
 
 void Player::start_over() {
-    player_stats.health = player_stats.max_health;
-    flags.state.set(State::alive);
+	health.reset();
+	flags.state.set(State::alive);
+	collider.collision_depths = {};
 }
 
-behavior::DIR_LR Player::entered_from() {
-    return (collider.physics.position.x < lookup::SPACING * 8) ? behavior::DIR_LR::RIGHT : behavior::DIR_LR::LEFT;
+void Player::give_drop(item::DropType type, int value) {
+	if (type == item::DropType::heart) {
+		health.heal(value);
+		health_indicator.add(value);
+	}
+	if (type == item::DropType::orb) {
+		player_stats.orbs += value;
+		orb_indicator.add(value);
+	}
 }
 
-void Player::play_sounds() {
+void Player::give_item(int item_id, int amount) { catalog.add_item(*m_services, item_id, 1); }
 
-    if (flags.sounds.test(Soundboard::land)) { svc::assetLocator.get().landed.play(); }
-    if (flags.sounds.test(Soundboard::jump)) { svc::assetLocator.get().jump.play(); }
-    if (flags.sounds.test(Soundboard::step)) {
-            util::Random r{};
-            float randp = r.random_range_float(0.0f, 0.1f);
-            svc::assetLocator.get().step.setPitch(1.0f + randp);
+void Player::reset_flags() { flags = {}; }
 
-            svc::assetLocator.get().step.setVolume(60);
-            svc::assetLocator.get().step.play();
-    }
-    if (flags.sounds.test(Soundboard::weapon_swap)) { svc::assetLocator.get().arms_switch.play(); }
-    if (flags.sounds.test(Soundboard::hurt)) { svc::assetLocator.get().hurt.play(); }
-    flags.sounds = {};
+void Player::total_reset() {
+	start_over();
+	collider.physics.zero();
+	reset_flags();
+	arsenal.loadout.clear();
+	update_antennae();
+	flags.state.reset(State::killed);
+	animation.state = AnimState::idle;
 }
+
+void Player::map_reset() {
+	arsenal.extant_projectile_instances = {};
+	if (animation.state == AnimState::inspect) { animation.state = AnimState::idle; }
+	if (flags.state.test(State::killed)) { animation.state = AnimState::idle; }
+	flags.state.reset(State::killed);
+}
+
+arms::Weapon& Player::equipped_weapon() { return arsenal.get_current_weapon(); }
+
+int& Player::extant_instances(int index) { return arsenal.extant_projectile_instances.at(index); }
+
+dir::LR Player::entered_from() const { return (collider.physics.position.x < lookup::SPACING * 8) ? dir::LR::right : dir::LR::left; }
 
 std::string Player::print_direction(bool lr) {
-    if(lr) {
-        switch(behavior.facing_lr) {
-            case behavior::DIR_LR::LEFT:
-                return "LEFT";
-                break;
-            case behavior::DIR_LR::RIGHT:
-                return "RIGHT";
-                break;
-        }
-    }
-    switch(behavior.facing_und) {
-        case behavior::DIR_UND::NEUTRAL:
-            return "NEUTRAL";
-            break;
-        case behavior::DIR_UND::UP:
-            return "UP";
-            break;
-        case behavior::DIR_UND::DOWN:
-            return "DOWN";
-            break;
-    }
+	if (lr) {
+		if (controller.facing_left()) return "LEFT";
+		if (controller.facing_right()) return "RIGHT";
+	}
+	return "NULL";
 }
+
+} // namespace player
