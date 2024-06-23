@@ -17,7 +17,7 @@ class Game {
 	Game() = default;
 	Game(char** argv);
 	~Game() {}
-	void run();
+	void run(bool demo = false, std::string_view state = "", sf::Vector2<float> player_position = {});
 
   private:
 	void debug_window();

@@ -1,4 +1,5 @@
 #include "Game.hpp"
+#include <string_view>
 
 namespace fornani {
 
@@ -24,7 +25,6 @@ Game::Game(char** argv) : player(services) {
 	player.init(services);
 
 	// state manager
-
 	game_state.set_current_state(std::make_unique<automa::MainMenu>(services, player, "main"));
 	game_state.get_current_state().init(services);
 
@@ -45,7 +45,20 @@ Game::Game(char** argv) : player(services) {
 	ImGui::SFML::Init(window);
 }
 
-void Game::run() {
+void Game::run(bool demo, std::string_view state, sf::Vector2<float> player_position) {
+
+	// demo
+	if (demo) {
+		flags.set(GameFlags::in_game);
+		services.music.turn_off();
+		services.data.load_blank_save(player);
+		game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+		std::string level = state.data();
+		auto level_path = "/level/" + level;
+		game_state.get_current_state().init(services, level_path);
+		player.set_position(player_position);
+	}
+
 	while (window.isOpen()) {
 
 		if (services.state_controller.actions.test(automa::Actions::shutdown)) { return; }

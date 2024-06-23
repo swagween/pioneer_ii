@@ -58,8 +58,8 @@ void Canvas::load(const std::string& path) {
         for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
 
         auto style_value = meta["style"].as<int>();
-        style = pi::lookup::get_style.at(meta["style"].as<int>());
-        bg = pi::lookup::get_backdrop.at(meta["background"].as<int>());
+        style = static_cast<STYLE>(meta["style"].as<int>());
+		bg = static_cast<BACKDROP>(meta["background"].as<int>());
 
         for (auto& entry : data.meta["portals"].array_view()) {
             Portal p{};
@@ -180,8 +180,8 @@ bool Canvas::save(const std::string& path) {
     data.meta["meta"]["dimensions"][1] = dimensions.y;
     data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
     data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
-    data.meta["meta"]["style"] = pi::lookup::get_style_id.at(style);
-    data.meta["meta"]["background"] = pi::lookup::get_backdrop_id.at(bg);
+    data.meta["meta"]["style"] = static_cast<int>(style);
+    data.meta["meta"]["background"] = static_cast<int>(bg);
 
     int ctr{};
     for (auto& portal : portals) {

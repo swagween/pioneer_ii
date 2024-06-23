@@ -12,21 +12,6 @@
     "style": 6,
     "background": 3
   },
-  "animators": [
-    {
-      "id": 204,
-      "dimensions": [
-        1,
-        1
-      ],
-      "position": [
-        13,
-        8
-      ],
-      "automatic": false,
-      "foreground": true
-    }
-  ],
   "platforms": [
     {
       "position": [

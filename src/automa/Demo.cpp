@@ -6,6 +6,7 @@
 //
 
 #include "../util/Lookup.hpp"
+#include "GameState.hpp"
 
 namespace pi {
 
@@ -22,6 +23,7 @@ void Dojo::logic() {}
 void Dojo::render(sf::RenderWindow& win) {}
 
 void Dojo::gui_render(sf::RenderWindow& win) {}
+
 } // namespace automa
 
 } // namespace pi

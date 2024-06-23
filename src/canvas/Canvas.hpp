@@ -26,7 +26,6 @@ const int CHUNK_SIZE{16};
 const int num_critter_types{ 17 };
 
 enum class BACKDROP {
-    BG_NULL,
     BG_DUSK,
     BG_SUNRISE,
     BG_OPEN_SKY,

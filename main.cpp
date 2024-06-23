@@ -7,7 +7,6 @@
 #include "src/automa/StateManager.hpp"
 #include "src/util/Lookup.hpp"
 #include "src/util/ServiceLocator.hpp"
-#include "demo/src/setup/Game.hpp"
 #include <iostream>
 #include <chrono>
 
@@ -38,7 +37,6 @@ namespace {
 
 auto SM = pi::automa::StateManager{};
 auto window = sf::RenderWindow();
-auto demo_view = sf::View();
 
 sf::Color PIONEER_BLUE = sf::Color(85, 173, 232);
 
@@ -52,8 +50,6 @@ const int TIME_STEP_MILLI = 100;
 float G = 0.8f;
 
 void run(char** argv) {
-
-    fornani::Game game{argv};
     
     //load textures
     std::string resource_path = find_resources(argv[0]).string();
@@ -80,12 +76,6 @@ void run(char** argv) {
     window.setVerticalSyncEnabled(true);
     window.setKeyRepeatEnabled(false);
 
-    sf::Vector2<float> demo_view_dimensions{ 960.f, 540.f };
-    demo_view.reset(sf::FloatRect(0, 0, demo_view_dimensions.x, demo_view_dimensions.y));
-    demo_view.setViewport(sf::FloatRect(0.25f, 0.25f, 0.5f, 0.5f));
-    //demo_view.move(sf::Vector2<float>(pi::screen_dimensions.x / 2 - demo_view_dimensions.x / 2, pi::screen_dimensions.y / 2 - demo_view_dimensions.y / 2));
-    //demo_view.setCenter((float)pi::screen_dimensions.x * 0.5, (float)pi::screen_dimensions.y * 0.5);
-
     sf::RectangleShape background{};
     background.setSize(static_cast<sf::Vector2<float> >(pi::screen_dimensions));
     background.setPosition(0, 0);
@@ -96,7 +86,19 @@ void run(char** argv) {
     sf::Clock deltaClock{};
     auto start = Clock::now();
     int frame{};
-    while (window.isOpen()) {
+	while (window.isOpen()) {
+
+		if (SM.get_current_state().trigger_demo) {
+			auto ppos = static_cast<sf::Vector2<float>>(pi::svc::playerStartLocator.get()) * 32.f;
+			SM.get_current_state().launch_demo(SM.get_current_state().args, SM.get_current_state().room, ppos);
+			ImGui::SFML::Init(window);
+			std::string loaddir = SM.get_current_state().filepath;
+			SM.set_current_state(std::make_unique<pi::automa::Editor>());
+			SM.get_current_state().init(loaddir);
+			window.setView(window.getDefaultView());
+		}
+
+        SM.get_current_state().args = argv;
 
         frame++;
         auto now = Clock::now();
@@ -113,7 +115,9 @@ void run(char** argv) {
                     pi::lookup::get_state_string.clear();
                     return;
                 case sf::Event::KeyPressed:
-					if (event.key.code == sf::Keyboard::D) { game.run(); }
+					if (event.key.code == sf::Keyboard::D) {   
+                        debug_mode = !debug_mode;
+                    }
                     if (event.key.code == sf::Keyboard::R) {
                         
                     }
@@ -151,14 +155,6 @@ void run(char** argv) {
         
         //game logic and rendering
         SM.get_current_state().logic();
-        if (SM.get_current_state().trigger_demo) {
-            if (SM.get_current_state().state == pi::automa::STATE::EDITOR) {
-                std::string loaddir = SM.get_current_state().filepath;
-                SM.set_current_state(std::make_unique<pi::automa::Dojo>());
-                SM.get_current_state().init(loaddir);
-                window.setView(demo_view);
-            }
-        }
         
         //ImGui update
         ImGui::SFML::Update(window, deltaClock.restart());
@@ -178,7 +174,6 @@ void run(char** argv) {
         
         ImGui::SFML::Render(window);
         window.display();
-
     }
     
 }
