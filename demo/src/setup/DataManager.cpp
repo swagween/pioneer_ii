@@ -12,6 +12,8 @@ DataManager::DataManager(automa::ServiceProvider& svc) : m_services(&svc) {}
 void DataManager::load_data() {
 
 	std::cout << "loading json data...";
+	game_info = dj::Json::from_file((finder.resource_path + "/data/config/version.json").c_str());
+	assert(!game_info.is_null());
 	weapon = dj::Json::from_file((finder.resource_path + "/data/weapon/weapon_data.json").c_str());
 	assert(!weapon.is_null());
 	drop = dj::Json::from_file((finder.resource_path + "/data/item/drop.json").c_str());

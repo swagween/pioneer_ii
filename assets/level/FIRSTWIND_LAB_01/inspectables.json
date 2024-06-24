@@ -1,8 +1,8 @@
 {
-  "lab_shelf_01": {
+  "bookshelf": {
     "suite": [
       [
-
+        "You find a small diary sealed with a padlock. Would you like to take it?"
       ]
     ],
     "responses": [
@@ -11,10 +11,82 @@
       ]
     ]
   },
-  "lab_shelf_02": {
+  "computer": {
     "suite": [
       [
+        "It's just an unresponsive terminal prompt..."
+      ]
+    ],
+    "responses": [
+      [
 
+      ]
+    ]
+  },
+  "computer_on": {
+    "suite": [
+      [
+        "It's asking for a username and password."
+      ]
+    ],
+    "responses": [
+      [
+
+      ]
+    ]
+  },
+  "guest_shelf": {
+    "suite": [
+      [
+        "There's an old instruction manual for assembling airship propellers."
+      ]
+    ],
+    "responses": [
+      [
+
+      ]
+    ]
+  },
+  "comp3": {
+    "suite": [
+      [
+        "Just a blinking indicator..."
+      ]
+    ],
+    "responses": [
+      [
+
+      ]
+    ]
+  },
+  "book3": {
+    "suite": [
+      [
+        "You find an coffee-stained paper. It appears to be an acceptance letter to Grand Island University, whatever that is."
+      ]
+    ],
+    "responses": [
+      [
+
+      ]
+    ]
+  },
+  "open_book": {
+    "suite": [
+      [
+        "It's research about the ancient peoples of a floating island. Half the pages are torn out... and is that a blood stain?"
+      ]
+    ],
+    "responses": [
+      [
+
+      ]
+    ]
+  },
+  "open_book_2": {
+    "suite": [
+      [
+        "The writings of Jonathan Peckett, who was supposedly a revered pioneer who mysteriously disappeared decades ago."
       ]
     ],
     "responses": [

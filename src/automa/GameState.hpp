@@ -59,7 +59,7 @@ namespace pi {
             virtual void logic() {}
             virtual void render(sf::RenderWindow& win) {}
 			virtual void gui_render(sf::RenderWindow& win) {}
-			virtual void launch_demo(char** argv, std::string_view state, sf::Vector2<float> player_position);
+			virtual void launch_demo(char** argv, std::filesystem::path path, sf::Vector2<float> player_position);
 
             STATE state = STATE::NONE;
 			char** args{};
@@ -171,7 +171,8 @@ namespace pi {
             sf::RectangleShape gridbox{};
             sf::RectangleShape portalbox{};
             sf::RectangleShape inspbox{};
-            sf::RectangleShape platbox{};
+			sf::RectangleShape platbox{};
+			sf::RectangleShape platextent{};
             sf::RectangleShape target{};
             sf::RectangleShape backdrop{};
 

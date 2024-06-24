@@ -90,6 +90,7 @@ void run(char** argv) {
 
 		if (SM.get_current_state().trigger_demo) {
 			auto ppos = static_cast<sf::Vector2<float>>(pi::svc::playerStartLocator.get()) * 32.f;
+			std::cout << "Main path: " << SM.get_current_state().room.data() << "\n";
 			SM.get_current_state().launch_demo(SM.get_current_state().args, SM.get_current_state().room, ppos);
 			ImGui::SFML::Init(window);
 			std::string loaddir = SM.get_current_state().filepath;

@@ -66,9 +66,9 @@ void SavePoint::render(automa::ServiceProvider& svc, sf::RenderWindow& win, Vec 
 
 	sparkler.render(svc, win, campos);
 
-	sprite.setPosition((int)(position.x - 16.f - campos.x), (int)(position.y - 32.f - campos.y));
+	sprite.setPosition(position.x - 16.f - campos.x, position.y - 32.f - campos.y);
 	// get UV coords (only one row of sprites is supported)
-	int u = intensity * sprite_dimensions.x;
+	int u = (int)intensity * (int)sprite_dimensions.x;
 	int v = (int)(animation.get_frame() * sprite_dimensions.y);
 	sprite.setTextureRect(sf::IntRect({u, v}, {(int)sprite_dimensions.x, (int)sprite_dimensions.y}));
 

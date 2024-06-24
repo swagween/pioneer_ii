@@ -38,7 +38,7 @@
         6
       ],
       "activate_on_contact": false,
-      "key": "lab_shelf_01"
+      "key": "bookshelf"
     },
     {
       "dimensions": [
@@ -50,12 +50,69 @@
         12
       ],
       "activate_on_contact": false,
-      "key": "lab_shelf_02"
-    }
-  ],
-  "animators": [
+      "key": "computer"
+    },
     {
-      "id": 231,
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        14,
+        12
+      ],
+      "activate_on_contact": false,
+      "key": "computer_on"
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        27,
+        7
+      ],
+      "activate_on_contact": false,
+      "key": "guest_shelf"
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        11,
+        12
+      ],
+      "activate_on_contact": false,
+      "key": "comp3"
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        19,
+        7
+      ],
+      "activate_on_contact": false,
+      "key": "book3"
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        8,
+        12
+      ],
+      "activate_on_contact": false,
+      "key": "open_book"
+    },
+    {
       "dimensions": [
         1,
         1
@@ -64,11 +121,26 @@
         11,
         6
       ],
+      "activate_on_contact": false,
+      "key": "open_book_2"
+    }
+  ],
+  "animators": [
+    {
+      "id": 230,
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        15,
+        6
+      ],
       "automatic": false,
       "foreground": false
     },
     {
-      "id": 231,
+      "id": 230,
       "dimensions": [
         1,
         1

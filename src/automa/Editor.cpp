@@ -90,6 +90,10 @@ void Editor::init(std::string const& load_path) {
 	inspbox.setOutlineThickness(-1);
 	inspbox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
 
+	
+	platextent.setFillColor(sf::Color::Transparent);
+	platextent.setOutlineColor(sf::Color{240, 230, 55, 80});
+	platextent.setOutlineThickness(-2);
 	platbox.setFillColor(sf::Color{220, 120, 100, 128});
 	platbox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	platbox.setOutlineThickness(-4);
@@ -256,8 +260,13 @@ void Editor::render(sf::RenderWindow& win) {
 	}
 
 	for (auto& platform : map.platforms) {
+		auto f_extent = platform.extent * 32.f;
+		platextent.setSize({f_extent, f_extent});
+		platextent.setPosition((platform.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x + platform.dimensions.x * 16.f,
+							   (platform.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y + platform.dimensions.y * 16.f);
 		platbox.setSize({platform.dimensions.x * 32.f, platform.dimensions.y * 32.f});
 		platbox.setPosition((platform.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (platform.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		win.draw(platextent);
 		win.draw(platbox);
 	}
 
@@ -1078,10 +1087,11 @@ sf::Vector2<int> Editor::get_tile_coord(int lookup) {
 	return ret * 32;
 }
 
-void GameState::launch_demo(char** argv, std::string_view state, sf::Vector2<float> player_position) {
+void GameState::launch_demo(char** argv, std::filesystem::path path, sf::Vector2<float> player_position) {
 	ImGui::SFML::Shutdown();
 	fornani::Game demo{argv};
-	demo.run(true, state, player_position);
+	std::cout << "Editor path: " << path.string() << "\n";
+	demo.run(true, path, player_position);
 }
 
 } // namespace automa
