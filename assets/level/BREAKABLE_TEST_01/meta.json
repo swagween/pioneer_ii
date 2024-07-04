@@ -10,21 +10,12 @@
       1
     ],
     "style": 0,
-    "background": 5
+    "background": 5,
+    "styles": {
+      "breakables": 0
+    }
   },
   "inspectables": [
-    {
-      "dimensions": [
-        1,
-        1
-      ],
-      "position": [
-        4,
-        7
-      ],
-      "activate_on_contact": false,
-      "key": "bookshelf"
-    },
     {
       "dimensions": [
         1,

@@ -33,7 +33,8 @@ class Breakable {
 	void on_smash(automa::ServiceProvider& svc, world::Map& map, int power = 1);
 	void destroy() { state = 0; }
 	shape::Shape& get_bounding_box() { return collider.bounding_box; }
-	[[nodiscard]] auto destroyed() const -> bool { return state <= 0; }
+	shape::Shape& get_hurtbox() { return collider.hurtbox; }
+	[[nodiscard]] auto destroyed() const -> bool { return state <= 1; }
 
   private:
 	shape::Collider collider{};

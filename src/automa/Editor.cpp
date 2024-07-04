@@ -85,6 +85,16 @@ void Editor::init(std::string const& load_path) {
 	portalbox.setOutlineThickness(-1);
 	portalbox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
 
+	chestbox.setFillColor(sf::Color{220, 220, 80, 128});
+	chestbox.setOutlineColor(sf::Color{40, 30, 255, 180});
+	chestbox.setOutlineThickness(-3);
+	chestbox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+
+	savebox.setFillColor(sf::Color{220, 20, 220, 128});
+	savebox.setOutlineColor(sf::Color{240, 230, 255, 180});
+	savebox.setOutlineThickness(-1);
+	savebox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+
 	inspbox.setFillColor(sf::Color{220, 120, 100, 128});
 	inspbox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	inspbox.setOutlineThickness(-1);
@@ -258,6 +268,17 @@ void Editor::render(sf::RenderWindow& win) {
 		inspbox.setPosition((inspectable.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (inspectable.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
 		win.draw(inspbox);
 	}
+
+	for (auto& chest : map.chests) {
+		chestbox.setPosition((chest.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (chest.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		win.draw(chestbox);
+	}
+
+	if (map.save_point.placed) {
+		savebox.setPosition((map.save_point.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (map.save_point.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		win.draw(savebox);
+	}
+	
 
 	for (auto& platform : map.platforms) {
 		auto f_extent = platform.extent * 32.f;
@@ -772,6 +793,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			static int height{0};
 			static int destination{0};
 			static bool activate_on_contact{false};
+			static bool locked{false};
+			static int key_id{};
 
 			ImGui::InputInt("Width", &width);
 			ImGui::Separator();
@@ -793,11 +816,17 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::Separator();
 			ImGui::NewLine();
 
+			ImGui::Checkbox("Locked?", &locked);
+			ImGui::SameLine();
+			ImGui::InputInt("Key ID", &key_id);
+			ImGui::Separator();
+			ImGui::NewLine();
+
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
 				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
 				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::PORTAL;
-				svc::current_tool.get()->current_portal = canvas::Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, map.room_id, destination);
+				svc::current_tool.get()->current_portal = canvas::Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, map.room_id, destination, locked, key_id);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -884,6 +913,128 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
 			ImGui::EndPopup();
 		}
+		if (ImGui::Button("Chest")) { ImGui::OpenPopup("Chest Specifications"); }
+		if (ImGui::BeginPopupModal("Chest Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+			static int item_id{};
+			static int id{};
+			static int type{};
+			static int amount{};
+			static float rarity{};
+
+			ImGui::SameLine();
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Type", &type);
+			ImGui::SameLine();
+			help_marker("0 for gun, 1 for item, 2 for chest");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Amount", &amount);
+			ImGui::SameLine();
+			help_marker("Number of orbs to drop. Only for type == 2.");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputFloat("Rarity", &rarity);
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Item ID", &item_id);
+			ImGui::SameLine();
+			help_marker("For guns and items only.");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("ID", &id);
+			ImGui::SameLine();
+			help_marker("Currently not used, just put a random number.");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			if (ImGui::Button("Create")) {
+				// switch to entity tool, and store the specified portal for placement
+				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::CHEST;
+				svc::current_tool.get()->current_chest = canvas::Chest(id, item_id, type, rarity, amount);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::EndPopup();
+		}
+		if (ImGui::Button("Switch")) { ImGui::OpenPopup("Switch Specifications"); }
+		if (ImGui::BeginPopupModal("Switch Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+			static int button_id{};
+			static int type{};
+
+			ImGui::SameLine();
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Type", &type);
+			ImGui::SameLine();
+			help_marker("0 for toggler, 1 for permanent, 2 for movable");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("ID", &button_id);
+			ImGui::SameLine();
+			help_marker("To match with blocks");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			if (ImGui::Button("Create")) {
+				// switch to entity tool, and store the specified portal for placement
+				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::SWITCH_BUTTON;
+				svc::current_tool.get()->current_switch = canvas::SwitchButton(button_id, type);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::EndPopup();
+		}
+		if (ImGui::Button("Switch Block")) { ImGui::OpenPopup("Switch Block Specifications"); }
+		if (ImGui::BeginPopupModal("Switch Block Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+			static int button_id{};
+			static int type{};
+
+			ImGui::SameLine();
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Type", &type);
+			ImGui::SameLine();
+			help_marker("0 for toggler, 1 for permanent, 2 for movable");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("ID", &button_id);
+			ImGui::SameLine();
+			help_marker("To match with blocks");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			if (ImGui::Button("Create")) {
+				// switch to entity tool, and store the specified portal for placement
+				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::SWITCH_BLOCK;
+				svc::current_tool.get()->current_switch_block = canvas::SwitchBlock(button_id, type);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::EndPopup();
+		}
+		if (ImGui::Button("Save Point")) {
+			svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+			svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::SAVE_POINT;
+		}
 		if (ImGui::Button("Player Placer")) {
 			svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
 			svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::PLAYER_PLACER;
@@ -959,6 +1110,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		case tool::ENTITY_TYPE::CRITTER: ImGui::Text("Critter"); break;
 		case tool::ENTITY_TYPE::PLAYER_PLACER: ImGui::Text("Player Placer"); break;
 
+		case tool::ENTITY_TYPE::SAVE_POINT: ImGui::Text("Save Point"); break;
+		case tool::ENTITY_TYPE::CHEST: ImGui::Text("Chest"); break;
 		case tool::ENTITY_TYPE::ENTITY_EDITOR: ImGui::Text("Entity Editor"); break;
 		}
 
@@ -1040,6 +1193,11 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			map.inspectables.clear();
 			map.critters.clear();
 			map.animators.clear();
+			map.platforms.clear();
+			map.chests.clear();
+			map.switch_blocks.clear();
+			map.switch_buttons.clear();
+			map.save_point.placed = false;
 		}
 		prev_window_size = ImGui::GetWindowSize();
 		prev_window_pos = ImGui::GetWindowPos();

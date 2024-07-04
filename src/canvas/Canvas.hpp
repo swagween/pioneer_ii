@@ -106,7 +106,8 @@ struct Portal {
     bool activate_on_contact{};
     int source_map_id{};
     int destination_map_id{};
-
+    bool locked{};
+	int key_id{};
     sf::Vector2<uint32_t> position{};
 };
 
@@ -153,13 +154,35 @@ struct SpecialBlock {
 
 struct NPC {
     int id{};
+	bool background{};
     sf::Vector2<uint32_t> position{};
+	std::vector<std::vector<std::string>> suites{};
 };
 
 struct Chest {
     int id{};
     int item_id{};
+	int type{};
+	float rarity{};
+	int amount{};
     sf::Vector2<uint32_t> position{};
+};
+
+struct SwitchBlock {
+	int id{};
+	int type{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct SwitchButton {
+	int id{};
+	int type{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct SavePoint {
+	bool placed{};
+	sf::Vector2<uint32_t> position{};
 };
 
 struct Map {
@@ -202,7 +225,10 @@ public:
     std::vector<NPC> npcs{};
     std::vector<Chest> chests{};
     std::vector<SpecialBlock> special_blocks{};
-    std::vector<Platform> platforms{};
+	std::vector<Platform> platforms{};
+	std::vector<SwitchBlock> switch_blocks{};
+	std::vector<SwitchButton> switch_buttons{};
+	SavePoint save_point{};
 
     // read and write
     struct {

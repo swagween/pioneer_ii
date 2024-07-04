@@ -32,6 +32,10 @@ class AssetManager {
 	sf::Texture t_portraits{};
 	sf::Texture t_bryn{};
 	sf::Texture t_gobe{};
+	sf::Texture t_dr_go{};
+	sf::Texture t_mirin{};
+	sf::Texture t_carl{};
+	sf::Texture t_bit{};
 
 	//player palettes
 	sf::Texture t_palette_nani{};
@@ -46,6 +50,7 @@ class AssetManager {
 
 	//items
 	sf::Texture t_items{};
+	sf::Texture t_guns{};
 
 	// critters and bosses!
 	sf::Texture t_frdog{};
@@ -93,6 +98,10 @@ class AssetManager {
 	sf::Texture t_large_animators{};
 	sf::Texture t_small_animators{};
 	sf::Texture t_breakables{};
+	sf::Texture t_inspectable{};
+	sf::Texture t_switches{};
+	sf::Texture t_switch_blocks{};
+	sf::Texture t_fader{};
 
 	//vfx
 	sf::Texture t_huge_explosion{};

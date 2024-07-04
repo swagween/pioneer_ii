@@ -8,8 +8,16 @@ void AssetManager::import_textures() {
 	t_portraits.loadFromFile(finder.resource_path + "/image/character/portraits.png");
 	t_bryn.loadFromFile(finder.resource_path + "/image/character/bryn.png");
 	t_gobe.loadFromFile(finder.resource_path + "/image/character/gobe.png");
+	t_dr_go.loadFromFile(finder.resource_path + "/image/character/dr_go.png");
+	t_carl.loadFromFile(finder.resource_path + "/image/character/carl.png");
+	t_mirin.loadFromFile(finder.resource_path + "/image/character/mirin.png");
+	t_bit.loadFromFile(finder.resource_path + "/image/character/bit.png");
 	npcs.insert({"bryn", t_bryn});
 	npcs.insert({"gobe", t_gobe});
+	npcs.insert({"dr_go", t_dr_go});
+	npcs.insert({"carl", t_carl});
+	npcs.insert({"mirin", t_mirin});
+	npcs.insert({"bit", t_bit});
 
 	t_palette_nani.loadFromFile(finder.resource_path + "/image/character/nani_palette_default.png");
 	t_palette_nanidiv.loadFromFile(finder.resource_path + "/image/character/nani_palette_divine.png");
@@ -98,10 +106,13 @@ void AssetManager::import_textures() {
 	projectile_textures.insert({"gnat", t_gnat_projectile});
 
 	t_items.loadFromFile(finder.resource_path + "/image/item/items.png");
+	t_guns.loadFromFile(finder.resource_path + "/image/item/guns.png");
 	t_shield.loadFromFile(finder.resource_path + "/image/entity/shield.png");
 
 	t_heart.loadFromFile(finder.resource_path + "/image/item/hearts.png");
 	t_orb.loadFromFile(finder.resource_path + "/image/item/orbs.png");
+
+	t_fader.loadFromFile(finder.resource_path + "/image/vfx/fader.png");
 
 	t_twinkle.loadFromFile(finder.resource_path + "/image/vfx/twinkle.png");
 	t_small_flash.loadFromFile(finder.resource_path + "/image/vfx/small_flash.png");
@@ -118,6 +129,9 @@ void AssetManager::import_textures() {
 	platform_lookup.insert({2, t_platform_firstwind});
 
 	t_breakables.loadFromFile(finder.resource_path + "/image/tile/breakables.png");
+	t_inspectable.loadFromFile(finder.resource_path + "/image/entity/inspectable.png");
+	t_switches.loadFromFile(finder.resource_path + "/image/tile/switches.png");
+	t_switch_blocks.loadFromFile(finder.resource_path + "/image/tile/switch_blocks.png");
 
 	// backgrounds
 	t_bg_dusk.loadFromFile(finder.resource_path + "/image/background/dusk.png");

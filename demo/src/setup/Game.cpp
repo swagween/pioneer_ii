@@ -1,4 +1,5 @@
 #include "Game.hpp"
+#include <ctime>
 
 namespace fornani {
 
@@ -44,7 +45,7 @@ Game::Game(char** argv) : player(services) {
 	screencap.create(window.getSize().x, window.getSize().y);
 	background.setSize(static_cast<sf::Vector2<float>>(services.constants.screen_dimensions));
 	background.setPosition(0, 0);
-	background.setFillColor(flcolor::ui_black);
+	background.setFillColor(services.styles.colors.ui_black);
 
 	// some SFML variables for drawing a basic window + background
 	window.setVerticalSyncEnabled(true);
@@ -76,6 +77,7 @@ void Game::run(bool demo, std::filesystem::path levelpath, sf::Vector2<float> pl
 	while (window.isOpen()) {
 
 		if (services.state_controller.actions.test(automa::Actions::shutdown)) { return; }
+		if (services.death_mode()) { flags.reset(GameFlags::in_game); }
 
 		services.ticker.start_frame();
 
@@ -128,8 +130,8 @@ void Game::run(bool demo, std::filesystem::path levelpath, sf::Vector2<float> pl
 				if (event.key.code == sf::Keyboard::Slash) { valid_event = false; }
 				if (event.key.code == sf::Keyboard::Unknown) { valid_event = false; }
 				if (event.key.code == sf::Keyboard::D) {
-					//debug() ? services.debug_flags.reset(automa::DebugFlags::imgui_overlay) : services.debug_flags.set(automa::DebugFlags::imgui_overlay);
-					//services.assets.sharp_click.play();
+					debug() ? services.debug_flags.reset(automa::DebugFlags::imgui_overlay) : services.debug_flags.set(automa::DebugFlags::imgui_overlay);
+					services.assets.sharp_click.play();
 				}
 				if (event.key.code == sf::Keyboard::Q) {
 					//game_state.set_current_state(std::make_unique<automa::MainMenu>(services, player, "main"));
@@ -352,10 +354,12 @@ void Game::debug_window() {
 							ImGui::Text("Ledge Height: %i", player.ledge_height);
 							ImGui::Separator();
 							ImGui::Text("Collision Depths:");
-							ImGui::Text("Top Depth: %.4f", player.collider.collision_depths.top);
-							ImGui::Text("Bottom Depth: %.4f", player.collider.collision_depths.bottom);
-							ImGui::Text("Left Depth: %.4f", player.collider.collision_depths.left);
-							ImGui::Text("Right Depth: %.4f", player.collider.collision_depths.right);
+							if (player.collider.collision_depths) {
+								ImGui::Text("Top Depth: %.4f", player.collider.collision_depths.value().top_depth());
+								ImGui::Text("Bottom Depth: %.4f", player.collider.collision_depths.value().bottom_depth());
+								ImGui::Text("Left Depth: %.4f", player.collider.collision_depths.value().left_depth());
+								ImGui::Text("Right Depth: %.4f", player.collider.collision_depths.value().right_depth());
+							}
 							ImGui::Separator();
 							ImGui::Text("Right Collision: %s", player.collider.flags.collision.test(shape::Collision::has_right_collision) ? "Yes" : "No");
 							ImGui::Text("Left Collision: %s", player.collider.flags.collision.test(shape::Collision::has_left_collision) ? "Yes" : "No");
@@ -490,7 +494,7 @@ void Game::debug_window() {
 						}
 						if (ImGui::BeginTabItem("Misc")) {
 
-							ImGui::Text("Alive? %s", player.flags.state.test(player::State::alive) ? "Yes" : "No");
+							ImGui::Text("Alive? %s", player.alive() ? "Yes" : "No");
 
 							ImGui::Text("Invincibility Counter: %i", player.counters.invincibility);
 							ImGui::Text("Spike Trigger: %s", player.collider.spike_trigger ? "True" : "False");
@@ -505,15 +509,15 @@ void Game::debug_window() {
 				}
 				if (ImGui::BeginTabItem("Weapon")) {
 					if (ImGui::Button("Toggle Weapons")) {
-						if (player.arsenal.loadout.empty()) {
-							player.arsenal.push_to_loadout(0);
-							player.arsenal.push_to_loadout(1);
-							player.arsenal.push_to_loadout(2);
-							player.arsenal.push_to_loadout(3);
-							player.arsenal.push_to_loadout(4);
-							player.arsenal.push_to_loadout(5);
+						if (player.arsenal.value().empty()) {
+							player.arsenal.value().push_to_loadout(0);
+							player.arsenal.value().push_to_loadout(1);
+							player.arsenal.value().push_to_loadout(2);
+							player.arsenal.value().push_to_loadout(3);
+							player.arsenal.value().push_to_loadout(4);
+							player.arsenal.value().push_to_loadout(5);
 						} else {
-							player.arsenal.loadout.clear();
+							player.arsenal.value().clear();
 						}
 					}
 
@@ -522,14 +526,6 @@ void Game::debug_window() {
 					ImGui::Text("Hook held: %s", player.controller.hook_held() ? "Yes" : "No");
 					ImGui::Text("Direction: %s", player.equipped_weapon().projectile.hook.probe_direction.print_intermediate().c_str());
 
-					ImGui::Separator();
-					ImGui::Text("Extant Projectiles:");
-					ImGui::NewLine();
-					for (auto& weapon : player.arsenal.loadout) {
-						ImGui::Text("%s", weapon->label.data());
-						ImGui::SameLine();
-						ImGui::Text(": %i", player.extant_instances(weapon->get_id()));
-					}
 					ImGui::Separator();
 
 					ImGui::Text("Firing Direction %s", player.equipped_weapon().firing_direction.print_lr().c_str());
@@ -819,6 +815,7 @@ void Game::playtester_portal() {
 					ImGui::Text("Room: %s", game_state.get_current_state().target_folder.paths.room.string().c_str());
 					ImGui::Text(metadata.long_title().c_str());
 					ImGui::Text("demo mode: %s", services.demo_mode() ? "Enabled" : "Disabled");
+					if (ImGui::Button("Toggle Demo Mode")) { services.debug_flags.test(automa::DebugFlags::demo_mode) ? services.debug_flags.reset(automa::DebugFlags::demo_mode) : services.debug_flags.set(automa::DebugFlags::demo_mode); }
 					if (ImGui::Button("Toggle Greyblock Mode")) {
 						services.debug_flags.set(automa::DebugFlags::greyblock_trigger);
 						services.debug_flags.test(automa::DebugFlags::greyblock_mode) ? services.debug_flags.reset(automa::DebugFlags::greyblock_mode) : services.debug_flags.set(automa::DebugFlags::greyblock_mode);
@@ -878,11 +875,29 @@ void Game::playtester_portal() {
 							game_state.get_current_state().init(services, "/level/FIRSTWIND_DECK_01");
 							player.set_position({32 * 3, 32 * 8});
 						}
+						if (ImGui::Button("Hangar")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, "/level/FIRSTWIND_HANGAR_01");
+							player.set_position({32 * 2, 32 * 8});
+						}
 						if (ImGui::Button("Corridor 2")) {
 							services.assets.click.play();
 							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
 							game_state.get_current_state().init(services, "/level/FIRSTWIND_CORRIDOR_02");
 							player.set_position({7 * 32, 7 * 32});
+						}
+						if (ImGui::Button("Lab")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, "/level/FIRSTWIND_LAB_01");
+							player.set_position({7 * 32, 9 * 32});
+						}
+						if (ImGui::Button("CRUSH")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, "/level/CRUSH_TEST");
+							player.set_position({2 * 32, 9 * 32});
 						}
 						if (ImGui::Button("Abandoned Passage")) {
 							services.assets.click.play();
@@ -896,65 +911,40 @@ void Game::playtester_portal() {
 							game_state.get_current_state().init(services, "/level/BREAKABLE_TEST_01");
 							player.set_position({20 * 32, 8 * 32});
 						}
+						if (ImGui::Button("Test Lab")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, "/level/TESTLAB_01");
+							player.set_position({32 * 2, 32 * 10});
+						}
 						ImGui::EndTabItem();
 					}
 					if (ImGui::BeginTabItem("Player")) {
 						if (ImGui::BeginTabBar("PlayerTabBar", tab_bar_flags)) {
 							if (ImGui::BeginTabItem("Weapon")) {
-								ImGui::Text("Loadout Size: %i", player.arsenal.loadout.size());
+								ImGui::Text("Player has arsenal? %s", player.arsenal ? "Yes" : "No");
+								ImGui::Text("Loadout Size: %i", player.arsenal ? player.arsenal.value().size() : 0);
 								playtest_sync();
 								ImGui::Checkbox("Bryn's Gun", &playtest.weapons.bryn);
-								if (playtest.weapons.bryn && !player.arsenal.has(0)) {
-									player.arsenal.push_to_loadout(0);
-								} else if (!playtest.weapons.bryn && player.arsenal.has(0)) {
-									player.arsenal.pop_from_loadout(0);
-								}
+								toggle_weapon(playtest.weapons.bryn, 0);
 								ImGui::Checkbox("Plasmer", &playtest.weapons.plasmer);
-								if (playtest.weapons.plasmer && !player.arsenal.has(1)) {
-									player.arsenal.push_to_loadout(1);
-								} else if (!playtest.weapons.plasmer && player.arsenal.has(1)) {
-									player.arsenal.pop_from_loadout(1);
-								}
+								toggle_weapon(playtest.weapons.plasmer, 1);
 								ImGui::Checkbox("Tomahawk", &playtest.weapons.tomahawk);
-								if (playtest.weapons.tomahawk && !player.arsenal.has(3)) {
-									player.arsenal.push_to_loadout(3);
-								} else if (!playtest.weapons.tomahawk && player.arsenal.has(3)) {
-									player.arsenal.pop_from_loadout(3);
-								}
+								toggle_weapon(playtest.weapons.tomahawk, 3);
 								ImGui::Checkbox("Grappling Hook", &playtest.weapons.grapple);
-								if (playtest.weapons.grapple && !player.arsenal.has(4)) {
-									player.arsenal.push_to_loadout(4);
-								} else if (!playtest.weapons.grapple && player.arsenal.has(4)) {
-									player.arsenal.pop_from_loadout(4);
-								}
+								toggle_weapon(playtest.weapons.grapple, 4);
 								ImGui::Checkbox("Grenade Launcher", &playtest.weapons.grenade);
-								if (playtest.weapons.grenade && !player.arsenal.has(5)) {
-									player.arsenal.push_to_loadout(5);
-								} else if (!playtest.weapons.grenade && player.arsenal.has(5)) {
-									player.arsenal.pop_from_loadout(5);
-								}
+								toggle_weapon(playtest.weapons.grenade, 5);
 								ImGui::Checkbox("Staple Gun", &playtest.weapons.staple_gun);
-								if (playtest.weapons.staple_gun && !player.arsenal.has(8)) {
-									player.arsenal.push_to_loadout(8);
-								} else if (!playtest.weapons.staple_gun && player.arsenal.has(8)) {
-									player.arsenal.pop_from_loadout(8);
-								}
+								toggle_weapon(playtest.weapons.staple_gun, 8);
 								ImGui::Checkbox("Indie", &playtest.weapons.indie);
-								if (playtest.weapons.indie && !player.arsenal.has(9)) {
-									player.arsenal.push_to_loadout(9);
-								} else if (!playtest.weapons.indie && player.arsenal.has(9)) {
-									player.arsenal.pop_from_loadout(9);
-								}
+								toggle_weapon(playtest.weapons.indie, 9);
 								ImGui::Checkbox("Gnat", &playtest.weapons.gnat);
-								if (playtest.weapons.gnat && !player.arsenal.has(10)) {
-									player.arsenal.push_to_loadout(10);
-								} else if (!playtest.weapons.gnat && player.arsenal.has(10)) {
-									player.arsenal.pop_from_loadout(0);
-								}
+								toggle_weapon(playtest.weapons.gnat, 10);
 								ImGui::Separator();
 
 								if (ImGui::Button("Clear Loadout")) {
-									player.arsenal.loadout.clear();
+									if (player.arsenal) { player.arsenal = {}; }
 									playtest.weapons = {};
 								}
 								ImGui::EndTabItem();
@@ -1023,23 +1013,46 @@ void Game::playtester_portal() {
 
 void Game::take_screenshot() {
 	std::time_t const now = std::time(nullptr);
-	std::string filedate = std::asctime(std::localtime(&now));
-	std::erase_if(filedate, [](auto const& c) { return c == ':' || isspace(c); });
-	std::string filename = "screenshot_" + filedate + ".png";
+
+	std::time_t time = std::time({});
+	char time_string[std::size("yyyy-mm-ddThh:mm:ssZ")];
+	std::strftime(std::data(time_string), std::size(time_string), "%FT%TZ", std::gmtime(&time));
+	std::string time_str = time_string;
+
+	std::erase_if(time_str, [](auto const& c) { return c == ':' || isspace(c); });
+	std::string filename = "screenshot_" + time_str + ".png";
 	if (screencap.copyToImage().saveToFile(filename)) { std::cout << "screenshot saved to " << filename << std::endl; }
 }
 
 bool Game::debug() { return services.debug_flags.test(automa::DebugFlags::imgui_overlay); }
 
 void Game::playtest_sync() {
-	playtest.weapons.bryn = player.arsenal.has(0);
-	playtest.weapons.plasmer = player.arsenal.has(1);
-	playtest.weapons.tomahawk = player.arsenal.has(3);
-	playtest.weapons.grapple = player.arsenal.has(4);
-	playtest.weapons.grenade = player.arsenal.has(5);
-	playtest.weapons.staple_gun = player.arsenal.has(8);
-	playtest.weapons.indie = player.arsenal.has(9);
-	playtest.weapons.gnat = player.arsenal.has(10);
+	if (!player.arsenal) {
+		playtest.weapons = {};
+		return;
+	}
+	playtest.weapons.bryn = player.arsenal.value().has(0);
+	playtest.weapons.plasmer = player.arsenal.value().has(1);
+	playtest.weapons.tomahawk = player.arsenal.value().has(3);
+	playtest.weapons.grapple = player.arsenal.value().has(4);
+	playtest.weapons.grenade = player.arsenal.value().has(5);
+	playtest.weapons.staple_gun = player.arsenal.value().has(8);
+	playtest.weapons.indie = player.arsenal.value().has(9);
+	playtest.weapons.gnat = player.arsenal.value().has(10);
+}
+
+void Game::toggle_weapon(bool flag, int id) {
+	if (!player.arsenal && flag) {
+		player.push_to_loadout(id);
+		return;
+	}
+	if (player.arsenal) {
+		if (flag && !player.arsenal.value().has(id)) {
+			player.push_to_loadout(id);
+		} else if (!flag && player.arsenal.value().has(id)) {
+			player.pop_from_loadout(id);
+		}
+	}
 }
 
 } // namespace fornani

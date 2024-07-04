@@ -12,91 +12,38 @@
     "style": 0,
     "background": 5
   },
+  "portals": [
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        26,
+        8
+      ],
+      "source_id": 103,
+      "destination_id": 102,
+      "activate_on_contact": false,
+      "locked": false,
+      "key_id": 0
+    }
+  ],
+  "inspectables": [
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        17,
+        8
+      ],
+      "activate_on_contact": false,
+      "key": "comp2"
+    }
+  ],
   "platforms": [
-    {
-      "position": [
-        9,
-        3
-      ],
-      "dimensions": [
-        3,
-        3
-      ],
-      "extent": 3,
-      "style": 2,
-      "type": "standard_up_down",
-      "start": 0.000000
-    },
-    {
-      "position": [
-        15,
-        3
-      ],
-      "dimensions": [
-        3,
-        3
-      ],
-      "extent": 3,
-      "style": 2,
-      "type": "standard_up_down",
-      "start": 0.000000
-    },
-    {
-      "position": [
-        21,
-        3
-      ],
-      "dimensions": [
-        3,
-        3
-      ],
-      "extent": 3,
-      "style": 2,
-      "type": "standard_up_down",
-      "start": 0.000000
-    },
-    {
-      "position": [
-        21,
-        3
-      ],
-      "dimensions": [
-        3,
-        3
-      ],
-      "extent": 3,
-      "style": 2,
-      "type": "standard_up_down",
-      "start": 0.000000
-    },
-    {
-      "position": [
-        12,
-        3
-      ],
-      "dimensions": [
-        3,
-        1
-      ],
-      "extent": 5,
-      "style": 2,
-      "type": "standard_up_down",
-      "start": 0.400000
-    },
-    {
-      "position": [
-        18,
-        3
-      ],
-      "dimensions": [
-        3,
-        1
-      ],
-      "extent": 5,
-      "style": 2,
-      "type": "standard_up_down",
-      "start": 0.400000
-    },
     {
       "position": [
         3,
@@ -111,5 +58,52 @@
       "type": "standard_up_down",
       "start": 0.400000
     }
-  ]
+  ],
+  "npcs": [
+    {
+      "id": 17,
+      "position": [
+        28,
+        21
+      ],
+      "background": false,
+      "suites": [
+        [
+          "1",
+          "2"
+        ]
+      ]
+    }
+  ],
+  "chests": [
+    {
+      "id": 211,
+      "item_id": 0,
+      "type": 2,
+      "amount": 16,
+      "rarity": 3.000000,
+      "position": [
+        22,
+        11
+      ]
+    },
+    {
+      "id": 323,
+      "item_id": 8,
+      "type": 3,
+      "amount": 0,
+      "rarity": 0.000000,
+      "position": [
+        25,
+        21
+      ]
+    }
+  ],
+  "save_point": {
+    "id": 103,
+    "position": [
+      18,
+      8
+    ]
+  }
 }

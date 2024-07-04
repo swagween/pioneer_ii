@@ -11,9 +11,7 @@
     ],
     "style": 0,
     "background": 5,
-    "styles": {
-      "breakables": 0
-    }
+    "music": "dusken_cove"
   },
   "portals": [
     {
@@ -53,7 +51,9 @@
       ],
       "source_id": 108,
       "destination_id": 110,
-      "activate_on_contact": false
+      "activate_on_contact": false,
+      "locked": true,
+      "key_id": 11
     }
   ],
   "enemies": [

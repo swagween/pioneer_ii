@@ -79,11 +79,11 @@ void HUD::update(automa::ServiceProvider& svc, player::Player& player) {
 	if (shield.health.full()) { shield_discrepancy.set_position({(float)amount, 0.f}); }
 	shield_discrepancy.update(svc);
 
-	filled_hp_cells = ceil(player.health.get_hp());
+	filled_hp_cells = static_cast<int>(std::ceil(player.health.get_hp()));
 	num_orbs = player.player_stats.orbs;
-	total_hp_cells = player.health.get_max();
+	total_hp_cells = static_cast<int>(player.health.get_max());
 	max_orbs = player.player_stats.max_orbs;
-	if (!player.arsenal.loadout.empty()) { gun_name = player.equipped_weapon().label; }
+	if (player.arsenal) { gun_name = player.equipped_weapon().label; }
 }
 
 void HUD::render(player::Player& player, sf::RenderWindow& win) {
@@ -105,14 +105,14 @@ void HUD::render(player::Player& player, sf::RenderWindow& win) {
 	}
 
 	// GUN
-	if (!player.arsenal.loadout.empty()) {
-		int pointer_index{0};
-		int loadout_size = player.arsenal.loadout.size();
+	if (player.arsenal) {
+		auto pointer_index{0};
+		auto loadout_size = player.arsenal.value().size();
 		for (int i = 0; i < loadout_size; ++i) {
-			int gun_index = player.arsenal.loadout.at(i)->get_id();
+			auto gun_index = player.arsenal.value().get_weapon_at(i).get_id();
 			sp_guns.at(gun_index).setPosition(corner_pad.x + GUN_origin.x + pointer_dimensions.x + gun_pad_horiz, corner_pad.y + GUN_origin.y - i * gun_dimensions.y - i * gun_pad_vert);
 			sp_guns_shadow.at(gun_index).setPosition(corner_pad.x + GUN_origin.x + pointer_dimensions.x + gun_pad_horiz + 2, corner_pad.y + GUN_origin.y - i * gun_dimensions.y - i * gun_pad_vert);
-			if (i == player.arsenal.get_index()) {
+			if (i == player.arsenal.value().get_index()) {
 				win.draw(sp_guns_shadow.at(gun_index));
 
 				win.draw(sp_guns.at(gun_index));

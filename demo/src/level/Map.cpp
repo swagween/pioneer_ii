@@ -15,6 +15,11 @@ Map::Map(automa::ServiceProvider& svc, player::Player& player, gui::Console& con
 
 void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 
+	// for debugging
+	center_box.setSize(svc.constants.f_screen_dimensions * 0.5f);
+	flags.state.reset(LevelState::game_over);
+	svc.state_controller.actions.reset(automa::Actions::death_mode);
+
 	std::string room_str = svc.data.finder.resource_path + room.data();
 	metadata = dj::Json::from_file((room_str + "/meta.json").c_str());
 	assert(!metadata.is_null());
@@ -25,7 +30,7 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 	// get npc data
 	if (!metadata.is_null()) {
 		auto const& meta = metadata["meta"];
-		room_id = meta["id"].as<int>();
+		room_id = meta["room_id"].as<int>();
 		dimensions.x = meta["dimensions"][0].as<int>();
 		dimensions.y = meta["dimensions"][1].as<int>();
 		chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
@@ -35,7 +40,7 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 
 		if (meta["music"].is_string()) {
 			svc.music.load(meta["music"].as_string());
-			svc.music.play_looped(20);
+			svc.music.play_looped(10);
 		}
 
 		auto style_value = meta["style"].as<int>();
@@ -50,9 +55,12 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 			sf::Vector2<float> pos{};
 			pos.x = entry["position"][0].as<float>();
 			pos.y = entry["position"][1].as<float>();
-			npcs.push_back(npc::NPC(svc, entry["id"].as<int>()));
-			for (auto& convo : entry["suites"].array_view()) { npcs.back().push_conversation(convo.as_string()); }
+			auto id = entry["id"].as<int>();
+			npcs.push_back(npc::NPC(svc, id));
+			auto npc_state = svc.quest.get_progression(fornani::QuestType::npc, id);
+			for (auto& convo : entry["suites"][npc_state].array_view()) { npcs.back().push_conversation(convo.as_string()); }
 			npcs.back().set_position_from_scaled(pos);
+			if ((bool)entry["background"].as_bool()) { npcs.back().push_to_background(); }
 		}
 
 		for (auto& entry : metadata["portals"].array_view()) {
@@ -62,16 +70,18 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 			pos.y = entry["position"][1].as<int>();
 			dim.x = entry["dimensions"][0].as<int>();
 			dim.y = entry["dimensions"][1].as<int>();
-			portals.push_back(entity::Portal(dim, pos));
-			portals.back().source_map_id = entry["source_id"].as<int>();
-			portals.back().destination_map_id = entry["destination_id"].as<int>();
-			portals.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
-			portals.back().update();
+			auto src_id = entry["source_id"].as<int>();
+			auto dest_id = entry["destination_id"].as<int>();
+			auto aoc = (bool)entry["activate_on_contact"].as_bool();
+			auto locked = (bool)entry["locked"].as_bool();
+			auto key_id = entry["key_id"].as<int>();
+			portals.push_back(entity::Portal(svc, dim, pos, src_id, dest_id, aoc, locked, key_id));
+			portals.back().update(svc);
 		}
 
 		auto const& savept = metadata["save_point"];
-		auto id = savept["id"].as<int>();
-		save_point.id = id != 0 ? id : -1;
+		auto save_id = svc.state_controller.save_point_id;
+		save_point.id = savept.contains("position") ? room_id : -1;
 		save_point.scaled_position.x = savept["position"][0].as<int>();
 		save_point.scaled_position.y = savept["position"][1].as<int>();
 
@@ -79,9 +89,13 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 			sf::Vector2<float> pos{};
 			pos.x = entry["position"][0].as<float>();
 			pos.y = entry["position"][1].as<float>();
-			chests.push_back(entity::Chest(svc));
-			chests.back().set_id(entry["id"].as<int>());
+			chests.push_back(entity::Chest(svc, entry["id"].as<int>()));
 			chests.back().set_item(entry["item_id"].as<int>());
+			chests.back().set_amount(entry["amount"].as<int>());
+			chests.back().set_rarity(entry["rarity"].as<float>());
+			if (entry["type"].as<int>() == 1) { chests.back().set_type(entity::ChestType::gun); }
+			if (entry["type"].as<int>() == 2) { chests.back().set_type(entity::ChestType::orbs); }
+			if (entry["type"].as<int>() == 3) { chests.back().set_type(entity::ChestType::item); }
 			chests.back().set_position_from_scaled(pos);
 		}
 
@@ -108,7 +122,7 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 			pos.y = entry["position"][1].as<int>();
 			dim.x = entry["dimensions"][0].as<int>();
 			dim.y = entry["dimensions"][1].as<int>();
-			inspectables.push_back(entity::Inspectable(dim, pos, key));
+			inspectables.push_back(entity::Inspectable(svc, dim, pos, key));
 			inspectables.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
 		}
 
@@ -136,6 +150,24 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 			auto type = entry["type"].as_string();
 			platforms.push_back(Platform(svc, pos, dim, entry["extent"].as<float>(), type, start, entry["style"].as<int>()));
 		}
+		for (auto& entry : metadata["switch_blocks"].array_view()) {
+			sf::Vector2<float> pos{};
+			pos.x = entry["position"][0].as<float>();
+			pos.y = entry["position"][1].as<float>();
+			pos *= svc.constants.cell_size;
+			auto type = entry["type"].as<int>();
+			auto button_id = entry["button_id"].as<int>();
+			switch_blocks.push_back(SwitchBlock(svc, pos, button_id, type));
+		}
+		for (auto& entry : metadata["switches"].array_view()) {
+			sf::Vector2<float> pos{};
+			pos.x = entry["position"][0].as<float>();
+			pos.y = entry["position"][1].as<float>();
+			pos *= svc.constants.cell_size;
+			auto type = entry["type"].as<int>();
+			auto button_id = entry["button_id"].as<int>();
+			switch_buttons.push_back(std::make_unique<SwitchButton>(svc, pos, button_id, type));
+		}
 	}
 
 	// tiles
@@ -159,13 +191,15 @@ void Map::load(automa::ServiceProvider& svc, std::string_view room) {
 	transition.fade_in = true;
 	minimap = sf::View(sf::FloatRect(0.0f, 0.0f, svc.constants.screen_dimensions.x * 2.f, svc.constants.screen_dimensions.y * 2.f));
 	minimap.setViewport(sf::FloatRect(0.75f, 0.75f, 0.2f, 0.2f));
-	loading.start(2);
+	loading.start(4);
 }
 
 void Map::update(automa::ServiceProvider& svc, gui::Console& console, gui::InventoryWindow& inventory_window) {
 	loading.update();
 	if (loading.running()) { generate_layer_textures(svc); } // band-aid fix for weird artifacting for 1x1 levels
 	flags.state.reset(LevelState::camera_shake);
+
+	transition.update(*player);
 
 	if(flags.state.test(LevelState::spawn_enemy)) {
 		for (auto& spawn : enemy_spawns) {
@@ -184,7 +218,10 @@ void Map::update(automa::ServiceProvider& svc, gui::Console& console, gui::Inven
 	player->collider.reset();
 	for (auto& a : player->antennae) { a.collider.reset(); }
 	player->ledge_height = player->collider.detect_ledge_height(*this);
-	if (off_the_bottom(player->collider.physics.position)) { player->kill(); }
+	if (off_the_bottom(player->collider.physics.position) && loading.is_complete()) {
+		player->hurt(64.f);
+		player->freeze_position();
+	}
 
 	for (auto& grenade : active_grenades) {
 		if (player->shielding() && player->controller.get_shield().sensor.within_bounds(grenade.bounding_box)) {
@@ -204,8 +241,6 @@ void Map::update(automa::ServiceProvider& svc, gui::Console& console, gui::Inven
 			}
 		}
 	}
-
-	player->collider.detect_map_collision(*this);
 
 	// i need to refactor this...
 	for (auto& index : collidable_indeces) {
@@ -276,27 +311,37 @@ void Map::update(automa::ServiceProvider& svc, gui::Console& console, gui::Inven
 	for (auto& emitter : active_emitters) { emitter.update(svc, *this); }
 	for (auto& chest : chests) { chest.update(svc, *this, console, *player); }
 	for (auto& npc : npcs) { npc.update(svc, *this, console, *player); }
-	for (auto& portal : portals) { portal.handle_activation(svc, *player, room_id, transition.fade_out, transition.done); }
+	for (auto& portal : portals) { portal.handle_activation(svc, *player, console, room_id, transition.fade_out, transition.done); }
 	for (auto& inspectable : inspectables) { inspectable.update(svc, *player, console, inspectable_data); }
 	for (auto& animator : animators) { animator.update(*player); }
 	for (auto& effect : effects) { effect.update(svc, *this); }
-	for (auto& platform : platforms) { platform.update(svc, *player); }
+	for (auto& platform : platforms) { platform.update(svc, *this, *player); }
+	for (auto& switch_block : switch_blocks) { switch_block.update(svc, *this, *player); }
+	for (auto& switch_button : switch_buttons) { switch_button->update(svc, *this, *player); }
 	for (auto& breakable : breakables) {
 		breakable.update(svc);
 		breakable.handle_collision(player->collider);
 	}
+	player->collider.detect_map_collision(*this);
+	if (player->collider.collision_depths) { player->collider.collision_depths.value().update(); }
 	if (save_point.id != -1) { save_point.update(svc, *player, console); }
 
-	std::erase_if(effects, [](auto const& e) { return e.done(); });
+	std::erase_if(effects, [](auto& e) { return e.done(); });
 
 	player->collider.reset_ground_flags();
+
 	// check if player died
-	if (!player->is_dead() && !game_over) {
-		svc.soundboard.flags.player.set(audio::Player::death);
-		game_over = true;
+	if (!flags.state.test(LevelState::game_over) && player->death_animation_over() && svc.death_mode() && loading.is_complete()) {
+		std::cout << "Launch death console.\n";
+		console.set_source(svc.text.basic);
+		console.load_and_launch("death");
+		flags.state.set(LevelState::game_over);
+		svc.music.load("mortem");
+		svc.music.play_looped(10);
+		svc.soundboard.turn_off();
 	}
 
-	if (game_over) {
+	if (console.is_complete() && flags.state.test(LevelState::game_over)) {
 		transition.fade_out = true;
 		if (transition.done) {
 			player->start_over();
@@ -304,8 +349,6 @@ void Map::update(automa::ServiceProvider& svc, gui::Console& console, gui::Inven
 			svc.state_controller.actions.set(automa::Actions::trigger);
 		}
 	}
-
-	if (svc.ticker.every_x_frames(1)) { transition.update(); }
 
 	console.clean_off_trigger();
 	inventory_window.clean_off_trigger();
@@ -321,7 +364,9 @@ void Map::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector
 	}
 
 	for (auto& chest : chests) { chest.render(svc, win, cam); }
-	for (auto& npc : npcs) { npc.render(svc, win, cam); }
+	for (auto& npc : npcs) {
+		if (!npc.background()) { npc.render(svc, win, cam); }
+	}
 	for (auto& emitter : active_emitters) { emitter.render(svc, win, cam); }
 	for (auto& grenade : active_grenades) { grenade.render(svc, win, cam); }
 	player->render(svc, win, cam);
@@ -331,10 +376,8 @@ void Map::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector
 	for (auto& loot : active_loot) { loot.render(svc, win, cam); }
 	for (auto& platform : platforms) { platform.render(svc, win, cam); }
 	for (auto& breakable : breakables) { breakable.render(svc, win, cam); }
-
-	for (auto& animator : animators) {
-		if (!animator.foreground) { animator.render(svc, win, cam); }
-	}
+	for (auto& switch_block : switch_blocks) { switch_block.render(svc, win, cam); }
+	for (auto& switch_button : switch_buttons) { switch_button->render(svc, win, cam); }
 
 	if (save_point.id != -1) { save_point.render(svc, win, cam); }
 
@@ -357,6 +400,7 @@ void Map::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector
 		for (auto& index : collidable_indeces) {
 			auto& cell = layers.at(MIDDLEGROUND).grid.cells.at(index);
 			cell.drawbox.setPosition(cell.position - cam);
+			if (cell.ramp_adjacent()) { cell.drawbox.setOutlineColor(sf::Color::Red); }
 			win.draw(cell.drawbox);
 		}
 	}
@@ -382,15 +426,14 @@ void Map::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector
 		win.draw(borderbox);
 	}
 
-	for (auto& portal : portals) { portal.render(win, cam); }
+	for (auto& portal : portals) { portal.render(svc, win, cam); }
 
 	for (auto& animator : animators) {
 		if (animator.foreground) { animator.render(svc, win, cam); }
 	}
 
-	if (svc.greyblock_mode()) {
-		for (auto& inspectable : inspectables) { inspectable.render(win, cam); }
-	}
+	for (auto& inspectable : inspectables) { inspectable.render(svc, win, cam); }
+	
 
 	// render minimap
 	if (show_minimap) {
@@ -415,6 +458,19 @@ void Map::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector
 
 		win.setView(sf::View(sf::FloatRect{0.f, 0.f, (float)svc.constants.screen_dimensions.x, (float)svc.constants.screen_dimensions.y}));
 	}
+
+	if (svc.greyblock_mode()) {
+		center_box.setPosition(0.f, 0.f);
+		center_box.setFillColor(sf::Color(80, 80, 80, 60));
+		win.draw(center_box);
+		center_box.setPosition(svc.constants.f_screen_dimensions * 0.5f);
+		win.draw(center_box);
+		center_box.setFillColor(sf::Color(100, 100, 100, 60));
+		center_box.setPosition(svc.constants.f_screen_dimensions.x * 0.5f, 0.f);
+		win.draw(center_box);
+		center_box.setPosition(0.f, svc.constants.f_screen_dimensions.y * 0.5f);
+		win.draw(center_box);
+	}
 }
 
 void Map::render_background(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) {
@@ -425,13 +481,22 @@ void Map::render_background(automa::ServiceProvider& svc, sf::RenderWindow& win,
 			layer_sprite.setTexture(layer_textures.at(i).getTexture());
 			layer_sprite.setPosition(-cam);
 			win.draw(layer_sprite);
+			if (i == 0) {
+				for (auto& npc : npcs) {
+					if (npc.background()) { npc.render(svc, win, cam); }
+				}
+			}
 		}
+		for (auto& switch_block : switch_blocks) { switch_block.render(svc, win, cam, true); }
 	} else {
 		sf::RectangleShape box{};
 		box.setPosition(0, 0);
-		box.setFillColor(flcolor::black);
+		box.setFillColor(svc.styles.colors.black);
 		box.setSize({(float)svc.constants.screen_dimensions.x, (float)svc.constants.screen_dimensions.y});
 		win.draw(box);
+	}
+	for (auto& animator : animators) {
+		if (!animator.foreground) { animator.render(svc, win, cam); }
 	}
 }
 
@@ -475,8 +540,10 @@ void Map::manage_projectiles(automa::ServiceProvider& svc) {
 	std::erase_if(active_projectiles, [](auto const& p) { return p.state.test(arms::ProjectileState::destroyed); });
 	std::erase_if(active_grenades, [](auto const& g) { return g.detonated(); });
 	std::erase_if(active_emitters, [](auto const& p) { return p.done(); });
+	std::erase_if(breakables, [](auto const& b) { return b.destroyed(); });
+	std::erase_if(inspectables, [](auto const& i) { return i.destroyed(); });
 
-	if (!player->arsenal.loadout.empty()) {
+	if (player->arsenal) {
 		if (player->fire_weapon()) {
 			spawn_projectile_at(svc, player->equipped_weapon(), player->equipped_weapon().barrel_point);
 			++player->equipped_weapon().active_projectiles;
@@ -497,13 +564,13 @@ void Map::generate_collidable_layer() {
 void Map::generate_layer_textures(automa::ServiceProvider& svc) {
 	for (auto& layer : layers) {
 		layer_textures.at((int)layer.render_order).clear(sf::Color::Transparent);
-		layer_textures.at((int)layer.render_order).create(layer.grid.dimensions.x * svc.constants.cell_size, layer.grid.dimensions.y * svc.constants.cell_size);
+		layer_textures.at((int)layer.render_order).create(layer.grid.dimensions.x * svc.constants.i_cell_size, layer.grid.dimensions.y * svc.constants.i_cell_size);
 		for (auto& cell : layer.grid.cells) {
 			if (cell.is_occupied() && !cell.is_breakable()) {
-				int x_coord = (cell.value % svc.constants.tileset_scaled.x) * svc.constants.cell_size;
-				int y_coord = std::floor(cell.value / svc.constants.tileset_scaled.x) * svc.constants.cell_size;
+				auto x_coord = static_cast<int>((cell.value % svc.constants.tileset_scaled.x) * svc.constants.i_cell_size);
+				auto y_coord = static_cast<int>(std::floor(cell.value / svc.constants.tileset_scaled.x) * svc.constants.i_cell_size);
 				tile_sprite.setTexture(svc.assets.tilesets.at(style_id));
-				tile_sprite.setTextureRect(sf::IntRect({x_coord, y_coord}, {(int)svc.constants.cell_size, (int)svc.constants.cell_size}));
+				tile_sprite.setTextureRect(sf::IntRect({x_coord, y_coord}, {svc.constants.i_cell_size, svc.constants.i_cell_size}));
 				tile_sprite.setPosition(cell.position);
 				layer_textures.at((int)layer.render_order).draw(tile_sprite);
 			}
@@ -575,7 +642,7 @@ void Map::shake_camera() { flags.state.set(LevelState::camera_shake); }
 
 sf::Vector2<float> Map::get_spawn_position(int portal_source_map_id) {
 	for (auto& portal : portals) {
-		if (portal.source_map_id == portal_source_map_id) { return (portal.position); }
+		if (portal.get_source() == portal_source_map_id) { return (portal.position); }
 	}
 	return Vec(300.f, 390.f);
 }

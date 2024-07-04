@@ -24,7 +24,7 @@
       ],
       "extent": 3,
       "style": 1,
-      "type": "basic_activated",
+      "type": "standard_activated",
       "start": 0.000000
     },
     {
@@ -38,7 +38,7 @@
       ],
       "extent": 3,
       "style": 1,
-      "type": "basic_activated",
+      "type": "standard_activated",
       "start": 0.000000
     },
     {
@@ -48,11 +48,11 @@
       ],
       "dimensions": [
         2,
-        2
+        1
       ],
       "extent": 8,
       "style": 1,
-      "type": "basic_up_down",
+      "type": "standard_up_down",
       "start": 0.000000
     },
     {
@@ -62,11 +62,11 @@
       ],
       "dimensions": [
         2,
-        2
+        1
       ],
       "extent": 8,
       "style": 1,
-      "type": "basic_up_down",
+      "type": "standard_up_down",
       "start": 0.000000
     },
     {
@@ -80,7 +80,7 @@
       ],
       "extent": 8,
       "style": 1,
-      "type": "basic_up_down",
+      "type": "standard_up_down",
       "start": 0.500000
     },
     {

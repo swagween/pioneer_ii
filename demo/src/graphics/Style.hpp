@@ -7,6 +7,7 @@ namespace style {
 class Style {
   public:
 	struct {
+		sf::Color nani_white{234, 227, 255};
 		sf::Color white{235, 232, 249};
 		sf::Color ui_white{254, 252, 216};
 		sf::Color green{81, 186, 155};
@@ -25,6 +26,7 @@ class Style {
 		sf::Color night{19, 18, 16};
 		sf::Color ui_black{12, 12, 20};
 		sf::Color mythic_green{175, 227, 125};
+		sf::Color console_blue{24, 34, 67};
 	} colors{};
 
 	std::unordered_map<std::string_view, sf::Color> spray_colors{{"clover", colors.green},

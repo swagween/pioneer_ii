@@ -172,6 +172,8 @@ namespace pi {
             sf::RectangleShape portalbox{};
             sf::RectangleShape inspbox{};
 			sf::RectangleShape platbox{};
+			sf::RectangleShape chestbox{};
+			sf::RectangleShape savebox{};
 			sf::RectangleShape platextent{};
             sf::RectangleShape target{};
             sf::RectangleShape backdrop{};

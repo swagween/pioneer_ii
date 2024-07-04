@@ -2,12 +2,14 @@
   "bookshelf": {
     "suite": [
       [
-        "You find a small diary sealed with a padlock. Would you like to take it?"
-      ]
+        "You find a small diary sealed with a padlock. Would you like to take it?%0"
+      ],
+      [ "Bryn's Notebook added to inventory!$1^1" ],
+      ["That's probably the polite thing to do..."]
     ],
     "responses": [
       [
-
+        "Yes%0", "No%1"
       ]
     ]
   },
@@ -26,12 +28,12 @@
   "computer_on": {
     "suite": [
       [
-        "It's asking for a username and password."
+        "Enter your username and password:"
       ]
     ],
     "responses": [
       [
-
+ 
       ]
     ]
   },
@@ -62,7 +64,7 @@
   "book3": {
     "suite": [
       [
-        "You find an coffee-stained paper. It appears to be an acceptance letter to Grand Island University, whatever that is."
+        "You find a coffee-stained paper. It appears to be an acceptance letter to Grand Island University, whatever that is."
       ]
     ],
     "responses": [
@@ -86,7 +88,7 @@
   "open_book_2": {
     "suite": [
       [
-        "The writings of Jonathan Peckett, who was supposedly a revered pioneer who mysteriously disappeared decades ago."
+        "The writings of Jonathan Peckett, a revered pioneer who mysteriously disappeared decades ago."
       ]
     ],
     "responses": [

@@ -7,7 +7,9 @@
 #include <djson/json.hpp>
 #include <iostream>
 #include <string>
+#include <array>
 #include "ResourceFinder.hpp"
+#include "File.hpp"
 
 namespace automa {
 struct ServiceProvider;
@@ -32,10 +34,17 @@ class DataManager {
 	void save_progress(player::Player& player, int save_point_id);
 	std::string_view load_progress(player::Player& player, int const file, bool state_switch = false);
 	std::string_view load_blank_save(player::Player& player, bool state_switch = false);
+	dj::Json& get_save() { return files.at(current_save).save_data; }
+	fornani::File& get_file() { return files.at(current_save); }
 
 	// tweaking
 	void load_player_params(player::Player& player);
 	void save_player_params(player::Player& player);
+
+	void open_chest(int id);
+	void unlock_door(int id);
+	bool door_is_unlocked(int id) const;
+	bool chest_is_open(int id) const;
 
 	// support user-defined control mapping
 	void load_controls(config::ControllerMap& controller);
@@ -58,8 +67,9 @@ class DataManager {
 	dj::Json frdog{};
 	dj::Json hulmet{};
 
-	dj::Json save{};
 	int current_save{};
+	std::array<fornani::File, 3> files{};
+	fornani::File blank_file{};
 
 	dj::Json player_params{};
 	dj::Json menu{};
@@ -70,6 +80,10 @@ class DataManager {
 	ResourceFinder finder{};
 
 	automa::ServiceProvider* m_services;
+
+  private:
+	std::vector<int> opened_chests{};
+	std::vector<int> unlocked_doors{};
 };
 
 } // namespace data

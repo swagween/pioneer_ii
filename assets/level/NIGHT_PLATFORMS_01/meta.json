@@ -222,20 +222,6 @@
       "style": 0,
       "type": "standard_up_down",
       "start": 0.000000
-    },
-    {
-      "position": [
-        59,
-        36
-      ],
-      "dimensions": [
-        1,
-        1
-      ],
-      "extent": 8,
-      "style": 0,
-      "type": "standard_up_down",
-      "start": 0.000000
     }
   ]
 }

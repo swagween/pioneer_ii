@@ -8,7 +8,7 @@ namespace enemy {
 
 Minigus::Minigus(automa::ServiceProvider& svc, world::Map& map, gui::Console& console)
 	: Enemy(svc, "minigus"), gun(svc, "minigun", 6), soda(svc, "soda gun", 7), m_services(&svc), npc::NPC(svc, 7), m_map(&map), m_console(&console), health_bar(svc),
-	  sparkler(svc, Enemy::collider.vicinity.dimensions, flcolor::ui_white, "minigus") {
+	  sparkler(svc, Enemy::collider.vicinity.dimensions, svc.styles.colors.ui_white, "minigus") {
 	animation.set_params(idle);
 	gun.clip_cooldown_time = 360;
 	gun.get().projectile.team = arms::TEAMS::SKYCORPS;
@@ -95,7 +95,6 @@ Minigus::Minigus(automa::ServiceProvider& svc, world::Map& map, gui::Console& co
 }
 
 void Minigus::unique_update(automa::ServiceProvider& svc, world::Map& map, player::Player& player) {
-
 	sparkler.update(svc);
 	sparkler.set_position(Enemy::collider.vicinity.position);
 	health_bar.update(svc, health.get_normalized());
@@ -472,6 +471,7 @@ fsm::StateFunction Minigus::update_hurt() {
 fsm::StateFunction Minigus::update_jump() {
 	if (animation.just_started() && anim_debug) { std::cout << "jump\n"; }
 	if (animation.just_started()) { voice.woob.play(); }
+	//std::cout << animation.global_counter.get_count() << "\n";
 	cooldowns.jump.update();
 	if (animation.just_started()) { cooldowns.jump.start(); }
 	auto sign = Enemy::direction.lr == dir::LR::left ? -1.f : 1.f;
@@ -497,7 +497,6 @@ fsm::StateFunction Minigus::update_jump() {
 fsm::StateFunction Minigus::update_jump_shoot() {
 	if (animation.just_started() && anim_debug) { std::cout << "jump_shoot\n"; }
 	if (animation.just_started()) { voice.getit.play(); }
-	if (minigun.animation.complete() && minigun.flags.test(MinigunFlags::charging)) {}
 	if (change_state(MinigusState::struggle, struggle)) { return MINIGUS_BIND(update_struggle); }
 	if (cooldowns.pre_jump.get_cooldown() != -1) { cooldowns.pre_jump.update(); }
 	cooldowns.jump.update();
@@ -536,7 +535,7 @@ fsm::StateFunction Minigus::update_jump_shoot() {
 		if (change_state(MinigusState::turn, turn)) { return MINIGUS_BIND(update_turn); }
 
 		if (invincible()) {
-			state = MinigusState::shoot;
+			state = MinigusState::rush;
 			animation.set_params(rush);
 			return MINIGUS_BIND(update_rush);
 		}
@@ -783,9 +782,9 @@ fsm::StateFunction Minigus::update_snap() {
 	if (animation.complete()) {
 		for (int i{0}; i < 2; ++i) {
 			auto randx = m_services->random.random_range_float(-80.f, 80.f);
-			auto randy = m_services->random.random_range_float(-120.f, 40.f);
+			auto randy = m_services->random.random_range_float(-160.f, 0.f);
 			sf::Vector2<float> rand_vec{randx, randy};
-			sf::Vector2<float> spawn = Enemy::collider.physics.position + rand_vec;
+			sf::Vector2<float> spawn = Enemy::collider.get_center() + rand_vec;
 			m_map->spawn_enemy(5, spawn);
 		}
 		counters.snap.update();

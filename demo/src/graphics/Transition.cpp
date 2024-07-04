@@ -1,16 +1,18 @@
 
 #include "Transition.hpp"
 #include "../service/ServiceProvider.hpp"
+#include "../entities/player/Player.hpp"
 
 namespace flfx {
 
 Transition::Transition(automa::ServiceProvider& svc, int d) : duration(d) {
 	box.setPosition(0, 0);
-	box.setSize(sf::Vector2<float>(svc.constants.screen_dimensions.x, svc.constants.screen_dimensions.y));
+	box.setSize(sf::Vector2<float>(static_cast<float>(svc.constants.screen_dimensions.x), static_cast<float>(svc.constants.screen_dimensions.y)));
 	current_frame = 0;
 }
 
-void Transition::update() {
+void Transition::update(player::Player& player) {
+	if (fade_in || fade_out) { player.controller.prevent_movement(); }
 	if (fade_out) {
 		if (current_frame > 0) { current_frame -= rate; }
 		if (alpha < 255) { alpha += rate; }
@@ -28,6 +30,7 @@ void Transition::update() {
 		alpha = 255;
 	} else if (!(fade_in || fade_out)) {
 		alpha = 0;
+		player.controller.unrestrict();
 	}
 }
 

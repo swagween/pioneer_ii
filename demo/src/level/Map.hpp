@@ -10,7 +10,6 @@
 #include "../entities/world/SavePoint.hpp"
 #include "../graphics/Background.hpp"
 #include "../graphics/Transition.hpp"
-#include "../setup/MapLookups.hpp"
 #include "Grid.hpp"
 #include "../utils/Random.hpp"
 #include "../utils/Shape.hpp"
@@ -21,6 +20,7 @@
 #include "../entities/npc/NPC.hpp"
 #include "Platform.hpp"
 #include "Breakable.hpp"
+#include "SwitchBlock.hpp"
 #include "../weapon/Grenade.hpp"
 #include "../utils/Stopwatch.hpp"
 
@@ -128,6 +128,8 @@ class Map {
 	std::vector<npc::NPC> npcs{};
 	std::vector<Platform> platforms{};
 	std::vector<Breakable> breakables{};
+	std::vector<std::unique_ptr<SwitchButton>> switch_buttons{};
+	std::vector<SwitchBlock> switch_blocks{};
 	std::vector<EnemySpawn> enemy_spawns{};
 	entity::SavePoint save_point;
 
@@ -140,6 +142,7 @@ class Map {
 	sf::View minimap{};
 	sf::RectangleShape minimap_tile{};
 	sf::RectangleShape borderbox{};
+	sf::RectangleShape center_box{};
 
 	// layers
 	std::array<sf::RenderTexture, NUM_LAYERS> layer_textures{};

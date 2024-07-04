@@ -31,7 +31,7 @@ class MusicPlayer {
 	void switch_off();
 	void turn_off();
 	void turn_on();
-	void set_volume(int vol);
+	void set_volume(float vol);
 	[[nodiscard]] auto get_volume() const -> float { return song_first.getStatus() == sf::SoundSource::Status::Playing ? song_first.getVolume() : song_loop.getStatus() == sf::SoundSource::Status::Playing ? song_loop.getVolume() : 0.f; }
 	[[nodiscard]] auto global_off() const -> bool { return !flags.player.test(MusicPlayerState::on); }
 	[[nodiscard]] auto playing() const -> bool { return song_first.getStatus() == sf::SoundSource::Status::Playing || song_loop.getStatus() == sf::SoundSource::Status::Playing; }
@@ -62,7 +62,7 @@ class MusicPlayer {
 	sf::Time current_time{};
 	sf::Clock music_clock{};
 
-	std::string_view label{};
+	std::string label{};
 
 };
 

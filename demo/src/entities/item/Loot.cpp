@@ -12,8 +12,9 @@ Loot::Loot(automa::ServiceProvider& svc, sf::Vector2<int> drop_range, float prob
 
 	std::string_view key{};
 	for (int i = 0; i < drop_rate; ++i) {
-		if (svc.random.percent_chance(8)) {
+		if (svc.random.percent_chance(8) && !flags.test(LootState::heart_dropped)) {
 			key = "heart";
+			flags.set(LootState::heart_dropped);
 		} else {
 			key = "orb";
 		}
@@ -30,7 +31,7 @@ void Loot::update(automa::ServiceProvider& svc, world::Map& map, player::Player&
 	for (auto& drop : drops) {
 		drop.update(svc, map);
 		if (drop.get_collider().bounding_box.overlaps(player.collider.bounding_box) && !drop.is_inactive() && !drop.is_completely_gone()) {
-			player.give_drop(drop.get_type(), drop.get_value());
+			player.give_drop(drop.get_type(), static_cast<float>(drop.get_value()));
 			if (drop.get_type() == DropType::heart) {
 				svc.soundboard.flags.item.set(audio::Item::heal);
 			} else if(drop.get_rarity() == common) {

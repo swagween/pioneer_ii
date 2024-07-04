@@ -10,7 +10,8 @@
       1
     ],
     "style": 0,
-    "background": 5
+    "background": 5,
+    "music": "abandoned"
   },
   "portals": [
     {
@@ -152,5 +153,25 @@
       "automatic": false,
       "foreground": false
     }
-  ]
+  ],
+  "chests": [
+    {
+      "id": 377,
+      "item_id": 0,
+      "type": 0,
+      "amount": 0,
+      "rarity": 0.000000,
+      "position": [
+        9,
+        6
+      ]
+    }
+  ],
+  "save_point": {
+    "id": 110,
+    "position": [
+      5,
+      12
+    ]
+  }
 }

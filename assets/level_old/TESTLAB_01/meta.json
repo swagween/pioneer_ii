@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "room_id": 6600,
+    "dimensions": [
+      16,
+      16
+    ],
+    "chunk_dimensions": [
+      1,
+      1
+    ],
+    "style": 16,
+    "background": 5
+  },
+  "portals": [
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        11,
+        10
+      ],
+      "source_id": 6600,
+      "destination_id": 6601,
+      "activate_on_contact": false,
+      "locked": false,
+      "key_id": 0
+    }
+  ],
+  "platforms": [
+    {
+      "position": [
+        0,
+        7
+      ],
+      "dimensions": [
+        2,
+        1
+      ],
+      "extent": 3,
+      "style": 2,
+      "type": "standard_activated_up_down",
+      "start": 0.000000
+    }
+  ],
+  "chests": [
+    {
+      "id": 66,
+      "item_id": 66,
+      "type": 1,
+      "amount": 0,
+      "rarity": 0.000000,
+      "position": [
+        4,
+        10
+      ]
+    },
+    {
+      "id": 45345,
+      "item_id": 0,
+      "type": 2,
+      "amount": 16,
+      "rarity": 70.000000,
+      "position": [
+        9,
+        5
+      ]
+    }
+  ],
+  "save_point": {
+    "id": 6600,
+    "position": [
+      7,
+      10
+    ]
+  }
+}

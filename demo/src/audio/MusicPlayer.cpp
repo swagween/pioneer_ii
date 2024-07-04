@@ -8,7 +8,7 @@ namespace audio {
 
 void MusicPlayer::load(std::string_view song_name) {
 	if (global_off()) { return; }
-	if (label == song_name) { return; }
+	if (label == song_name && playing()) { return; }
 	label = song_name;
 	song_first.openFromFile(finder.resource_path + "/audio/songs/" + song_name.data() + "_first.wav");
 	song_loop.openFromFile(finder.resource_path + "/audio/songs/" + song_name.data() + "_loop.wav");
@@ -81,7 +81,7 @@ void MusicPlayer::turn_on() {
 	flags.player.set(MusicPlayerState::on);
 	pause();
 }
-void MusicPlayer::set_volume(int vol) {
+void MusicPlayer::set_volume(float vol) {
 	song_first.setVolume(vol);
 	song_loop.setVolume(vol);
 }
