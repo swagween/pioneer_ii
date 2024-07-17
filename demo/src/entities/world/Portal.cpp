@@ -78,6 +78,7 @@ void Portal::handle_activation(automa::ServiceProvider& svc, player::Player& pla
 				flags.state.reset(PortalState::locked);
 				flags.state.set(PortalState::unlocked);
 				console.load_and_launch("unlocked_door");
+				console.append(player.catalog.categories.inventory.get_item(meta.key_id).get_label());
 				console.display_item(meta.key_id);
 				svc.data.unlock_door(meta.key_id);
 			} else {
@@ -95,8 +96,8 @@ void Portal::change_states(automa::ServiceProvider& svc, int room_id, bool& fade
 	fade_out = true;
 	if (done) {
 		try {
-			svc.state_controller.next_state = svc.tables.get_map_label.at(meta.destination_map_id);
-		} catch (std::out_of_range) { svc.state_controller.next_state = svc.tables.get_map_label.at(room_id); }
+			svc.state_controller.next_state = meta.destination_map_id;
+		} catch (std::out_of_range) { svc.state_controller.next_state = room_id; }
 		svc.state_controller.actions.set(automa::Actions::trigger);
 		svc.state_controller.refresh(meta.source_map_id);
 	}

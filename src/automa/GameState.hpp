@@ -59,7 +59,7 @@ namespace pi {
             virtual void logic() {}
             virtual void render(sf::RenderWindow& win) {}
 			virtual void gui_render(sf::RenderWindow& win) {}
-			virtual void launch_demo(char** argv, std::filesystem::path path, sf::Vector2<float> player_position);
+			virtual void launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position);
 
             STATE state = STATE::NONE;
 			char** args{};
@@ -68,6 +68,7 @@ namespace pi {
 			std::string demopath{};
 			std::string folderpath{};
 			std::string room{};
+			int room_id{};
 
             bool trigger_demo{ false };
         };

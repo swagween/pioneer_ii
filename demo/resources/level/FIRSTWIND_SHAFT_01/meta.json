@@ -1,6 +1,10 @@
 {
   "meta": {
     "room_id": 107,
+    "metagrid": [
+      17,
+      -1
+    ],
     "dimensions": [
       16,
       96
@@ -10,7 +14,8 @@
       6
     ],
     "style": 0,
-    "background": 5
+    "background": 5,
+    "music": ""
   },
   "portals": [
     {
@@ -95,6 +100,50 @@
       ],
       "activate_on_contact": false,
       "key": "abandon"
+    }
+  ],
+  "animators": [
+    {
+      "id": 5,
+      "style": 0,
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        3,
+        94
+      ],
+      "automatic": true,
+      "foreground": false
+    },
+    {
+      "id": 1,
+      "style": 0,
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        2,
+        93
+      ],
+      "automatic": true,
+      "foreground": false
+    },
+    {
+      "id": 6,
+      "style": 0,
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        1,
+        94
+      ],
+      "automatic": true,
+      "foreground": false
     }
   ],
   "platforms": [
@@ -270,9 +319,9 @@
   "chests": [
     {
       "id": 56790,
-      "item_id": 0,
-      "type": 2,
-      "amount": 10,
+      "item_id": 16,
+      "type": 3,
+      "amount": 1,
       "rarity": 0.000000,
       "position": [
         14,
@@ -284,7 +333,7 @@
       "item_id": 0,
       "type": 2,
       "amount": 8,
-      "rarity": 4.000000,
+      "rarity": 8.000000,
       "position": [
         6,
         71

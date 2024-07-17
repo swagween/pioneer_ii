@@ -28,7 +28,7 @@
         },
         "attributes": {
           "base_damage": 6,
-          "range": 200,
+          "range": 210,
           "speed": 25.5,
           "variance": 0.1,
           "stun_time": 0.0,
@@ -588,7 +588,7 @@
           "y": 14.0
         },
         "attributes": {
-          "base_damage": 12,
+          "base_damage": 120,
           "range": 260,
           "speed": 17.5,
           "variance": 0.0,
@@ -649,8 +649,8 @@
           "y": 4.0
         },
         "attributes": {
-          "base_damage": 0.6,
-          "range": 160,
+          "base_damage": 1.0,
+          "range": 180,
           "speed": 24.5,
           "variance": 0.2,
           "stun_time": 0.0,

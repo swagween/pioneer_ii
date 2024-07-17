@@ -4,19 +4,20 @@
       [
         "You find a small diary sealed with a padlock. Would you like to take it?%0"
       ],
-      [ "Bryn's Notebook added to inventory!$1^1" ],
-      ["That's probably the polite thing to do..."]
+      [ "Bryn's Notebook added to inventory!$9#1#1#^1" ],
+      [ "That's probably the polite thing to do..." ]
     ],
     "responses": [
       [
-        "Yes%0", "No%1"
+        "Yes%0",
+        "No%1"
       ]
     ]
   },
   "computer": {
     "suite": [
       [
-        "It's just an unresponsive terminal prompt..."
+        "Bryn's Gun retrieved in: $63#1#1#"
       ]
     ],
     "responses": [
@@ -25,15 +26,42 @@
       ]
     ]
   },
-  "computer_on": {
+  "computer_on0": {
     "suite": [
       [
-        "Enter your username and password:"
-      ]
+        "Enter your username and password:%0"
+      ],
+      [ "Access denied." ]
     ],
     "responses": [
       [
- 
+        "(Try guessing...)%0"
+      ]
+    ]
+  },
+  "computer_on1": {
+    "suite": [
+      [
+        "Enter your username and password:%0"
+      ],
+      [ "Access denied." ]
+    ],
+    "responses": [
+      [
+        "(Try guessing the second input...)%0"
+      ]
+    ]
+  },
+  "computer_on2": {
+    "suite": [
+      [
+        "Enter your username and password:%0"
+      ],
+      [ "Access granted.$5#110#1#" ]
+    ],
+    "responses": [
+      [
+        "bfoster585 - carise7QQ4%0"
       ]
     ]
   },

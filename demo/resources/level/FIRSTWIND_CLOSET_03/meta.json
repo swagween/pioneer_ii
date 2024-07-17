@@ -1,6 +1,10 @@
 {
   "meta": {
     "room_id": 117,
+    "metagrid": [
+      14,
+      0
+    ],
     "dimensions": [
       16,
       16
@@ -25,7 +29,9 @@
       ],
       "source_id": 117,
       "destination_id": 106,
-      "activate_on_contact": false
+      "activate_on_contact": false,
+      "locked": false,
+      "key_id": 0
     }
   ],
   "inspectables": [
@@ -42,11 +48,49 @@
       "key": "firstwind_closet_3"
     }
   ],
+  "animators": [
+    {
+      "id": 6,
+      "style": 0,
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        4,
+        10
+      ],
+      "automatic": true,
+      "foreground": false
+    },
+    {
+      "id": 1,
+      "style": 0,
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        5,
+        10
+      ],
+      "automatic": true,
+      "foreground": false
+    }
+  ],
   "save_point": {
     "id": 117,
     "position": [
       6,
       7
     ]
-  }
+  },
+  "beds": [
+    {
+      "position": [
+        10,
+        7
+      ]
+    }
+  ]
 }

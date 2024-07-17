@@ -42,12 +42,6 @@ class AssetManager {
 	sf::Texture t_palette_nanidiv{};
 	sf::Texture t_palette_naninight{};
 
-	// portraits!
-	sf::Texture t_bryn_test{};
-	sf::Sprite sp_bryn_test{};
-	sf::Texture t_ui_test{};
-	sf::Sprite sp_ui_test{};
-
 	//items
 	sf::Texture t_items{};
 	sf::Texture t_guns{};
@@ -56,6 +50,7 @@ class AssetManager {
 	sf::Texture t_frdog{};
 	sf::Texture t_hulmet{};
 	sf::Texture t_tank{};
+	sf::Texture t_thug{};
 	sf::Texture t_eyebot{};
 	sf::Texture t_eyebit{};
 	sf::Texture t_minigus{};
@@ -77,6 +72,7 @@ class AssetManager {
 	sf::Texture t_hud_shield{};
 	sf::Texture t_selector{};
 	sf::Texture t_console_outline{};
+	sf::Texture t_indicator{};
 
 	sf::Texture t_alphabet{};
 	std::vector<sf::Sprite> sp_alphabet{};
@@ -87,6 +83,10 @@ class AssetManager {
 	sf::Texture t_platform_night{};
 	sf::Texture t_platform_abandoned{};
 	sf::Texture t_platform_firstwind{};
+	sf::Texture t_platform_overturned{};
+
+	//animators
+	sf::Texture t_automatic_animators_firstwind{};
 
 	//save
 	sf::Texture savepoint{};
@@ -175,7 +175,6 @@ class AssetManager {
 	sf::Texture t_indie_projectile{};
 	sf::Texture t_gnat{};
 	sf::Texture t_gnat_projectile{};
-	
 
 	//items
 	sf::Texture t_heart{};
@@ -196,6 +195,7 @@ class AssetManager {
 	sf::SoundBuffer menu_shift_buffer{};
 	sf::SoundBuffer menu_back_buffer{};
 	sf::SoundBuffer menu_next_buffer{};
+	sf::SoundBuffer menu_open_buffer{};
 
 	sf::SoundBuffer arms_switch_buffer{};
 	sf::SoundBuffer bg_shot_buffer{};
@@ -329,6 +329,7 @@ class AssetManager {
 	sf::Sound menu_back{};
 	sf::Sound sharp_click{};
 	sf::Sound menu_shift{};
+	sf::Sound menu_open{};
 
 	sf::Sound breakable_hit{};
 	sf::Sound breakable_shatter{};
@@ -342,6 +343,7 @@ class AssetManager {
 	std::unordered_map<int, sf::Texture&> background_lookup{};
 	std::unordered_map<int, sf::Texture&> effect_lookup{};
 	std::unordered_map<int, sf::Texture&> platform_lookup{};
+	std::unordered_map<int, sf::Texture&> animator_lookup{};
 	std::unordered_map<std::string_view, sf::Texture&> weapon_textures{};
 	std::unordered_map<std::string_view, sf::Texture&> particle_textures{};
 	std::unordered_map<std::string_view, sf::Texture&> npcs{};

@@ -3,9 +3,7 @@
     "suite": [
       [
         "- Cargo Room -"
-      ]
-    ],
-    "responses": [
+      ],
       [
 
       ]
@@ -15,11 +13,16 @@
     "suite": [
       [
         "entering safety mode..."
-      ]
-    ],
-    "responses": [
+      ],
       [
 
+      ]
+    ]
+  },
+  "brke": {
+    "suite": [
+      [
+        "test time"
       ]
     ]
   }

@@ -23,6 +23,7 @@ namespace tool {
 			switch (ent_type) {
 			case ENTITY_TYPE::PORTAL: canvas.portals.push_back(current_portal); break;
 			case ENTITY_TYPE::INSPECTABLE: canvas.inspectables.push_back(current_inspectable); break;
+			case ENTITY_TYPE::BED: canvas.beds.push_back(canvas::Bed(scaled_position)); break;
 			case ENTITY_TYPE::PLATFORM: canvas.platforms.push_back(current_platform); break;
 			case ENTITY_TYPE::PLAYER_PLACER: pi::svc::playerStartLocator.get() = scaled_position; break;
 			case ENTITY_TYPE::SAVE_POINT:
@@ -53,6 +54,7 @@ namespace tool {
 				std::erase_if(canvas.chests, [this](auto&& const c) { return c.position == scaled_position; });
 				std::erase_if(canvas.switch_blocks, [this](auto&& const c) { return c.position == scaled_position; });
 				std::erase_if(canvas.switch_buttons, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.beds, [this](auto&& const c) { return c.position == scaled_position; });
 				break;
 			}
 			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR && ent_type != ENTITY_TYPE::PLATFORM && ent_type != ENTITY_TYPE::SWITCH_BLOCK) { trigger_switch = true; }

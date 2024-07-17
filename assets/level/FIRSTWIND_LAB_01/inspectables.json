@@ -4,12 +4,15 @@
       [
         "You find a small diary sealed with a padlock. Would you like to take it?%0"
       ],
-      [ "Bryn's Notebook added to inventory!$1^1" ],
-      ["That's probably the polite thing to do..."]
-    ],
-    "responses": [
       [
-        "Yes%0", "No%1"
+        "Bryn's Notebook added to inventory!$9#1#1#^1"
+      ],
+      [
+        "That's probably the polite thing to do..."
+      ],
+      [
+        "Yes%0",
+        "No%1"
       ]
     ]
   },
@@ -17,23 +20,9 @@
     "suite": [
       [
         "It's just an unresponsive terminal prompt..."
-      ]
-    ],
-    "responses": [
+      ],
       [
 
-      ]
-    ]
-  },
-  "computer_on": {
-    "suite": [
-      [
-        "Enter your username and password:"
-      ]
-    ],
-    "responses": [
-      [
- 
       ]
     ]
   },
@@ -41,9 +30,7 @@
     "suite": [
       [
         "There's an old instruction manual for assembling airship propellers."
-      ]
-    ],
-    "responses": [
+      ],
       [
 
       ]
@@ -53,9 +40,7 @@
     "suite": [
       [
         "Just a blinking indicator..."
-      ]
-    ],
-    "responses": [
+      ],
       [
 
       ]
@@ -65,9 +50,7 @@
     "suite": [
       [
         "You find a coffee-stained paper. It appears to be an acceptance letter to Grand Island University, whatever that is."
-      ]
-    ],
-    "responses": [
+      ],
       [
 
       ]
@@ -77,9 +60,7 @@
     "suite": [
       [
         "It's research about the ancient peoples of a floating island. Half the pages are torn out... and is that a blood stain?"
-      ]
-    ],
-    "responses": [
+      ],
       [
 
       ]
@@ -89,9 +70,7 @@
     "suite": [
       [
         "The writings of Jonathan Peckett, a revered pioneer who mysteriously disappeared decades ago."
-      ]
-    ],
-    "responses": [
+      ],
       [
 
       ]

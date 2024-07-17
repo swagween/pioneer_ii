@@ -1,6 +1,10 @@
 {
   "meta": {
     "room_id": 112,
+    "metagrid": [
+      18,
+      1
+    ],
     "dimensions": [
       48,
       48
@@ -11,7 +15,7 @@
     ],
     "style": 0,
     "background": 5,
-    "music":  "dusken_cove"
+    "music": "dusken_cove"
   },
   "portals": [
     {
@@ -67,11 +71,12 @@
         1
       ],
       "position": [
-        14,
-        24
+        3,
+        9
       ],
       "activate_on_contact": false,
-      "key": "dropoff"
+      "key": "dropoffs",
+      "alternates": 0
     }
   ],
   "platforms": [
@@ -119,20 +124,6 @@
     },
     {
       "position": [
-        8,
-        7
-      ],
-      "dimensions": [
-        1,
-        1
-      ],
-      "extent": 8,
-      "style": 2,
-      "type": "standard_activated_up_down",
-      "start": 0.000000
-    },
-    {
-      "position": [
         26,
         30
       ],
@@ -171,6 +162,34 @@
       "extent": 6,
       "style": 2,
       "type": "standard_side_to_side",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        8,
+        7
+      ],
+      "dimensions": [
+        1,
+        1
+      ],
+      "extent": 6,
+      "style": 2,
+      "type": "standard_activated_up_down",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        36,
+        17
+      ],
+      "dimensions": [
+        2,
+        1
+      ],
+      "extent": 12,
+      "style": 2,
+      "type": "standard_up_down",
       "start": 0.000000
     }
   ],

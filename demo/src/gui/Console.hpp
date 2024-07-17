@@ -8,6 +8,7 @@
 #include "../graphics/TextWriter.hpp"
 #include "Portrait.hpp"
 #include "ItemWidget.hpp"
+#include "../utils/QuestCode.hpp"
 
 namespace gui {
 
@@ -43,12 +44,15 @@ class Console {
 	void display_item(int item_id);
 	void display_gun(int gun_id);
 	void write(sf::RenderWindow& win, bool instant = true);
+	void append(std::string_view key);
 	void end();
 	void end_tick();
 	void clean_off_trigger();
 	void include_portrait(int id);
 
 	void nine_slice(int corner_dim, int edge_dim);
+
+	std::string get_key();
 
 	[[nodiscard]] auto active() const -> bool { return flags.test(ConsoleFlags::active); }
 	[[nodiscard]] auto is_complete() const -> bool { return writer.empty(); }
@@ -68,11 +72,11 @@ class Console {
 	Portrait portrait;
 	Portrait nani_portrait;
 	ItemWidget item_widget;
-	
 
 	automa::ServiceProvider* m_services;
 
 	text::TextWriter writer;
+	std::string native_key{};
 
 	struct {
 		int out_voice{};

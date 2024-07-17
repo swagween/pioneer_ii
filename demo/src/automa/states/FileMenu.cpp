@@ -31,7 +31,7 @@ FileMenu::FileMenu(ServiceProvider& svc, player::Player& player, std::string_vie
 	right_dot.set_position(options.at(current_selection).right_offset);
 }
 
-void FileMenu::init(ServiceProvider& svc, std::string_view room) {}
+void FileMenu::init(ServiceProvider& svc, int room_number) {}
 
 void FileMenu::handle_events(ServiceProvider& svc, sf::Event& event) {
 	svc.controller_map.handle_mouse_events(event);
@@ -57,7 +57,7 @@ void FileMenu::handle_events(ServiceProvider& svc, sf::Event& event) {
 		svc.state_controller.actions.set(Actions::exit_submenu);
 		svc.soundboard.flags.menu.set(audio::Menu::backward_switch);
 	}
-	if (svc.controller_map.label_to_control.at("menu_forward").triggered()) {
+	if (svc.controller_map.label_to_control.at("menu_forward").triggered() || svc.controller_map.label_to_control.at("main_action").triggered()) {
 		constrain_selection();
 		svc.state_controller.next_state = svc.data.load_progress(*player, current_selection, true);
 		svc.state_controller.actions.set(Actions::trigger);

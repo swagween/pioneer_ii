@@ -115,10 +115,11 @@ struct Inspectable {
     sf::Vector2<uint32_t> dimensions{};
     bool activate_on_contact{};
     std::string key{};
-    std::string message{};
-    std::string response{};
+	std::vector<std::vector<std::string>> suites{};
+	std::vector<std::vector<std::string>> responses{};
 
     sf::Vector2<uint32_t> position{};
+	int alternates{};
 };
 
 struct Critter {
@@ -133,7 +134,12 @@ struct Animator {
     int id{};
     bool automatic{};
     bool foreground{};
-    sf::Vector2<uint32_t> position{};
+	int style{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct Bed {
+	sf::Vector2<uint32_t> position{};
 };
 
 struct Platform {
@@ -174,6 +180,11 @@ struct SwitchBlock {
 	sf::Vector2<uint32_t> position{};
 };
 
+struct Destroyer {
+	int id{};
+	sf::Vector2<uint32_t> position{};
+};
+
 struct SwitchButton {
 	int id{};
 	int type{};
@@ -206,8 +217,6 @@ public:
     void update_dimensions();
     void edit_tile_at(int i, int j, int new_val, int layer_index);
     int tile_val_at(int i, int j, int layer);
-    void render(sf::RenderWindow& win, std::vector<sf::Sprite>& tileset, sf::Vector2<float> cam);
-    canvas::Tile& tile_at(const uint8_t i, const uint8_t j);
     TILE_TYPE lookup_type(int idx);
     
     //layers
@@ -216,6 +225,7 @@ public:
     sf::Vector2<float> real_dimensions{};
     sf::Vector2<uint32_t> dimensions{};
     sf::Vector2<uint32_t> chunk_dimensions{};
+	sf::Vector2<int> metagrid_coordinates{};
 
     //entities
     std::vector<Portal> portals{};
@@ -228,7 +238,10 @@ public:
 	std::vector<Platform> platforms{};
 	std::vector<SwitchBlock> switch_blocks{};
 	std::vector<SwitchButton> switch_buttons{};
+	std::vector<Bed> beds{};
+	std::vector<Destroyer> destroyers{};
 	SavePoint save_point{};
+	std::string music{};
 
     // read and write
     struct {

@@ -23,11 +23,10 @@ void AssetManager::import_textures() {
 	t_palette_nanidiv.loadFromFile(finder.resource_path + "/image/character/nani_palette_divine.png");
 	t_palette_naninight.loadFromFile(finder.resource_path + "/image/character/nani_palette_night.png");
 
-	t_bryn_test.loadFromFile(finder.resource_path + "/image/portrait/bryn_test.png");
-
 	t_frdog.loadFromFile(finder.resource_path + "/image/critter/frdog.png");
 	t_hulmet.loadFromFile(finder.resource_path + "/image/critter/hulmet.png");
 	t_tank.loadFromFile(finder.resource_path + "/image/critter/tank.png");
+	t_thug.loadFromFile(finder.resource_path + "/image/critter/thug.png");
 	t_eyebot.loadFromFile(finder.resource_path + "/image/critter/eyebot.png");
 	t_eyebit.loadFromFile(finder.resource_path + "/image/critter/eyebit.png");
 	t_minigus.loadFromFile(finder.resource_path + "/image/boss/minigus.png");
@@ -37,6 +36,7 @@ void AssetManager::import_textures() {
 	texture_lookup.insert({"frdog", t_frdog});
 	texture_lookup.insert({"hulmet", t_hulmet});
 	texture_lookup.insert({"tank", t_tank});
+	texture_lookup.insert({"thug", t_thug});
 	texture_lookup.insert({"eyebot", t_eyebot});
 	texture_lookup.insert({"eyebit", t_eyebit});
 	texture_lookup.insert({"minigus", t_minigus});
@@ -124,14 +124,19 @@ void AssetManager::import_textures() {
 	t_platform_night.loadFromFile(finder.resource_path + "/image/tile/platform_night.png");
 	t_platform_abandoned.loadFromFile(finder.resource_path + "/image/tile/platform_abandoned.png");
 	t_platform_firstwind.loadFromFile(finder.resource_path + "/image/tile/platform_firstwind.png");
+	t_platform_overturned.loadFromFile(finder.resource_path + "/image/tile/platform_overturned.png");
 	platform_lookup.insert({0, t_platform_night});
 	platform_lookup.insert({1, t_platform_abandoned});
 	platform_lookup.insert({2, t_platform_firstwind});
+	platform_lookup.insert({3, t_platform_overturned});
+	t_automatic_animators_firstwind.loadFromFile(finder.resource_path + "/image/tile/automatic_animators_firstwind.png");
+	animator_lookup.insert({0, t_automatic_animators_firstwind});
 
 	t_breakables.loadFromFile(finder.resource_path + "/image/tile/breakables.png");
 	t_inspectable.loadFromFile(finder.resource_path + "/image/entity/inspectable.png");
 	t_switches.loadFromFile(finder.resource_path + "/image/tile/switches.png");
 	t_switch_blocks.loadFromFile(finder.resource_path + "/image/tile/switch_blocks.png");
+	t_indicator.loadFromFile(finder.resource_path + "/image/entity/arrow.png");
 
 	// backgrounds
 	t_bg_dusk.loadFromFile(finder.resource_path + "/image/background/dusk.png");
@@ -217,6 +222,8 @@ void AssetManager::load_audio() {
 	menu_back.setBuffer(menu_back_buffer);
 	menu_next_buffer.loadFromFile(finder.resource_path + "/audio/sfx/menu_shift_3.wav");
 	menu_next.setBuffer(menu_next_buffer);
+	menu_open_buffer.loadFromFile(finder.resource_path + "/audio/sfx/gui_upward_select.wav");
+	menu_open.setBuffer(menu_open_buffer);
 	sharp_click_buffer.loadFromFile(finder.resource_path + "/audio/sfx/click.wav");
 	sharp_click.setBuffer(sharp_click_buffer);
 	arms_switch_buffer.loadFromFile(finder.resource_path + "/audio/sfx/arms_switch.wav");

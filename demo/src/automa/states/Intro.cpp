@@ -9,7 +9,7 @@ Intro::Intro(ServiceProvider& svc, player::Player& player, std::string_view scen
 	title.setSize(static_cast<sf::Vector2f>(svc.constants.screen_dimensions));
 	title.setFillColor(svc.styles.colors.ui_black);
 	console = gui::Console(svc);
-	map.load(svc, "/level/INTRO");
+	map.load(svc, 0);
 	svc.music.load("respite");
 	svc.music.play_looped(20);
 	console.set_source(svc.text.basic);
@@ -19,7 +19,7 @@ Intro::Intro(ServiceProvider& svc, player::Player& player, std::string_view scen
 	player.set_position({300, 260});
 }
 
-void Intro::init(ServiceProvider& svc, std::string_view room) {}
+void Intro::init(ServiceProvider& svc, int room_number) {}
 
 void Intro::handle_events(ServiceProvider& svc, sf::Event& event) {
 	svc.controller_map.handle_mouse_events(event);
@@ -38,6 +38,11 @@ void Intro::tick_update(ServiceProvider& svc) {
 	if (console.is_complete()) {
 		svc.state_controller.actions.set(automa::Actions::intro_done);
 		svc.state_controller.actions.set(automa::Actions::trigger);
+		player->cooldowns.tutorial.start();
+		player->tutorial.current_state = text::TutorialFlags::jump;
+		player->tutorial.turn_on();
+		player->tutorial.trigger();
+		svc.ticker.in_game_seconds_passed = {};
 	}
 	map.debug_mode = debug_mode;
 

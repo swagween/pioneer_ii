@@ -18,9 +18,12 @@
 #include "../entities/item/Loot.hpp"
 #include "../entities/world/Chest.hpp"
 #include "../entities/npc/NPC.hpp"
+#include "../entities/world/Bed.hpp"
 #include "Platform.hpp"
 #include "Breakable.hpp"
+#include "Spike.hpp"
 #include "SwitchBlock.hpp"
+#include "BlockDestroyer.hpp"
 #include "../weapon/Grenade.hpp"
 #include "../utils/Stopwatch.hpp"
 
@@ -84,7 +87,7 @@ class Map {
 	~Map() {}
 
 	// methods
-	void load(automa::ServiceProvider& svc, std::string_view room);
+	void load(automa::ServiceProvider& svc, int room_number, bool soft = false);
 	void update(automa::ServiceProvider& svc, gui::Console& console, gui::InventoryWindow& inventory_window);
 	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam);
 	void render_background(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam);
@@ -92,11 +95,13 @@ class Map {
 	void spawn_projectile_at(automa::ServiceProvider& svc, arms::Weapon& weapon, sf::Vector2<float> pos);
 	void spawn_enemy(int id, sf::Vector2<float> pos);
 	void manage_projectiles(automa::ServiceProvider& svc);
-	void generate_collidable_layer();
+	void generate_collidable_layer(bool live = false);
 	void generate_layer_textures(automa::ServiceProvider& svc);
 	bool check_cell_collision(shape::Collider collider);
 	void handle_grappling_hook(automa::ServiceProvider& svc, arms::Projectile& proj);
 	void shake_camera();
+	void clear();
+	std::vector<Layer>& get_layers();
 	Vec get_spawn_position(int portal_source_map_id);
 
 	bool nearby(shape::Shape& first, shape::Shape& second) const;
@@ -104,15 +109,13 @@ class Map {
 	[[nodiscard]] auto camera_shake() const -> bool { return flags.state.test(LevelState::camera_shake); }
 
 	// layers
-	std::vector<Layer> layers{};
+	sf::Vector2<int> metagrid_coordinates{};
+	//std::vector<Layer> layers{};
 	std::vector<uint32_t> collidable_indeces{}; // generated on load to reduce collision checks in hot code
 	Vec real_dimensions{};						// pixel dimensions (maybe useless)
 	Vecu16 dimensions{};						// points on the 32x32-unit grid
 	Vecu16 chunk_dimensions{};					// how many chunks (16x16 squares) in the room
 
-	// json for data loading
-	dj::Json metadata{};
-	dj::Json tiles{};
 	dj::Json inspectable_data{};
 
 	// entities
@@ -121,6 +124,7 @@ class Map {
 	std::vector<vfx::Emitter> active_emitters{};
 	std::vector<entity::Portal> portals{};
 	std::vector<entity::Inspectable> inspectables{};
+	std::vector<entity::Bed> beds{};
 	std::vector<entity::Animator> animators{};
 	std::vector<entity::Effect> effects{};
 	std::vector<item::Loot> active_loot{};
@@ -128,8 +132,10 @@ class Map {
 	std::vector<npc::NPC> npcs{};
 	std::vector<Platform> platforms{};
 	std::vector<Breakable> breakables{};
+	std::vector<Spike> spikes{};
 	std::vector<std::unique_ptr<SwitchButton>> switch_buttons{};
 	std::vector<SwitchBlock> switch_blocks{};
+	std::vector<BlockDestroyer> destroyers{};
 	std::vector<EnemySpawn> enemy_spawns{};
 	entity::SavePoint save_point;
 
@@ -138,9 +144,7 @@ class Map {
 
 	enemy::EnemyCatalog enemy_catalog;
 
-	// minimap
-	sf::View minimap{};
-	sf::RectangleShape minimap_tile{};
+	sf::RectangleShape tile{};
 	sf::RectangleShape borderbox{};
 	sf::RectangleShape center_box{};
 
@@ -150,6 +154,7 @@ class Map {
 	sf::Sprite layer_sprite{};
 	std::string_view style_label{};
 
+	int room_lookup{};
 	int style_id{};
 	int native_style_id{};
 	struct {
@@ -172,6 +177,8 @@ class Map {
 
 	// debug
 	util::Stopwatch stopwatch{};
+
+	util::Cooldown end_demo{1600};
 
   private:
 	int abyss_distance{400};

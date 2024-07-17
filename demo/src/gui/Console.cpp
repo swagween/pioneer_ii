@@ -73,6 +73,7 @@ void Console::set_texture(sf::Texture& tex) {
 
 void Console::load_and_launch(std::string_view key) {
 	if (!flags.test(ConsoleFlags::loaded)) {
+		native_key = key;
 		writer.load_message(text_suite, key);
 		portrait.reset(*m_services);
 		nani_portrait.reset(*m_services);
@@ -97,6 +98,8 @@ void Console::write(sf::RenderWindow& win, bool instant) {
 	instant ? writer.write_instant_message(win) : writer.write_gradual_message(win);
 	writer.write_responses(win);
 }
+
+void Console::append(std::string_view key) { writer.append(key); }
 
 void Console::end() {
 	writer.flush_communicators();
@@ -141,5 +144,7 @@ void Console::nine_slice(int corner_dim, int edge_dim) {
 	sprites.at(7).setPosition(position.x + corner_dim, position.y + current_dimensions.y - corner_dim);
 	sprites.at(8).setPosition(position.x + current_dimensions.x - corner_dim, position.y + current_dimensions.y - corner_dim);
 }
+
+std::string Console::get_key() { return native_key; }
 
 } // namespace gui

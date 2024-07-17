@@ -1,13 +1,15 @@
 {
-  "comp2": {
+  "upstairs_computer": {
     "suite": [
       [
-        "Lab username: bfoster585"
+        "Days since last incident: 447"
       ]
-    ],
-    "responses": [
+    ]
+  },
+  "downstairs_computer": {
+    "suite": [
       [
-
+        "Laboratory username: bfoster585$1#110#1#"
       ]
     ]
   }

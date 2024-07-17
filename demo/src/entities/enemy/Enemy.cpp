@@ -152,6 +152,7 @@ void Enemy::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vect
 	sprite.setPosition(collider.physics.position + sprite_offset - cam + random_offset);
 	if (!flags.state.test(StateFlags::shaking)) { random_offset = {}; }
 	if (svc.greyblock_mode()) {
+		win.draw(sprite);
 		drawbox.setOrigin({0.f, 0.f});
 		drawbox.setSize({(float)collider.hurtbox.dimensions.x, (float)collider.hurtbox.dimensions.y});
 		drawbox.setOutlineColor(svc.styles.colors.ui_white);
@@ -166,6 +167,7 @@ void Enemy::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vect
 		drawbox.setOutlineColor(sf::Color{140, 30, 60, 110});
 		win.draw(drawbox);
 		collider.render(win, cam);
+		secondary_collider.render(win, cam);
 		health.render(svc, win, cam);
 	} else {
 		win.draw(sprite);
@@ -198,6 +200,7 @@ void Enemy::on_hit(automa::ServiceProvider& svc, world::Map& map, arms::Projecti
 		if (!flags.general.test(GeneralFlags::custom_sounds)) { sounds.hit.play(); }
 
 		if (just_died()) {
+			svc.stats.enemy.enemies_killed.update();
 			map.active_loot.push_back(item::Loot(svc, attributes.drop_range, attributes.loot_multiplier, collider.bounding_box.position));
 			svc.soundboard.flags.frdog.set(audio::Frdog::death);
 		}
@@ -207,5 +210,7 @@ void Enemy::on_hit(automa::ServiceProvider& svc, world::Map& map, arms::Projecti
 	}
 	if (!proj.stats.persistent && (!died() || just_died())) { proj.destroy(false); }
 }
+
+bool Enemy::player_behind(player::Player& player) const { return player.collider.physics.position.x + player.collider.bounding_box.dimensions.x * 0.5f < collider.physics.position.x + collider.dimensions.x * 0.5f; }
 
 } // namespace enemy

@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "../../utils/BitFlags.hpp"
 #include "../../utils/Shipment.hpp"
+#include "../../utils/QuestCode.hpp"
 
 namespace automa {
 struct ServiceProvider;
@@ -51,7 +52,9 @@ class Transponder {
 		util::Shipment quest{};
 		util::Shipment voice{};
 		util::Shipment emotion{};
+		util::Shipment reveal_item{};
 	} shipments{};
+	util::QuestKey out_quest{};
 
   private:
 	util::BitFlags<TransponderActions> actions{};

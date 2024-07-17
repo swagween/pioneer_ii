@@ -33,7 +33,8 @@ enum class ENTITY_TYPE {
     PLATFORM,
     SAVE_POINT,
     SWITCH_BUTTON,
-    SWITCH_BLOCK
+    SWITCH_BLOCK,
+    BED
 };
 
 

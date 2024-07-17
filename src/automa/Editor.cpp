@@ -25,6 +25,8 @@ void Editor::init(std::string const& load_path) {
 	std::filesystem::path room_dir = load_path;
 	room = room_dir.filename().string();
 	demopath = "../../../demo/resources/level/" + room;
+	std::cout << "\ndemopath: " << demopath;
+	room_id = map.room_id;
 
 	tool_texture.loadFromFile(load_path + "../../../gui/tools.png");
 	large_animator_textures.loadFromFile(load_path + "../../../animators/large_animators_01.png");
@@ -385,7 +387,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::Text("Activate on contact: %s", svc::current_tool.get()->current_portal.activate_on_contact ? "Yes" : "No");
 			ImGui::TextUnformatted("Press 'Q' to cancel.");
 		} else if (svc::current_tool.get()->ent_type == tool::ENTITY_TYPE::INSPECTABLE) {
-			ImGui::Text("Place an inspectable with message: %s", svc::current_tool.get()->current_inspectable.message.c_str());
+			if (!svc::current_tool.get()->current_inspectable.suites.empty()) {
+				if (!svc::current_tool.get()->current_inspectable.suites.back().empty()) { ImGui::Text("Place an inspectable with message: %s", svc::current_tool.get()->current_inspectable.suites.back().back().c_str()); }
+			}
 			ImGui::Text("and with key: %s", svc::current_tool.get()->current_inspectable.key.c_str());
 			ImGui::Text("Activate on contact: %s", svc::current_tool.get()->current_inspectable.activate_on_contact ? "Yes" : "No");
 			ImGui::TextUnformatted("Press 'Q' to cancel.");
@@ -457,6 +461,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					map.save(demopath);
 					map.load(filepath);
 					map.room_id = room_id;
+					std::filesystem::path room_dir = filepath;
+					room = room_dir.filename().string();
+					room_id = map.room_id;
+					demopath = "../../../demo/resources/level/" + room;
 					ImGui::CloseCurrentPopup();
 				}
 				ImGui::EndPopup();
@@ -483,6 +491,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					map.load(loaddir);
 					filepath = loaddir;
 					setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
+					std::filesystem::path room_dir = loaddir;
+					room = room_dir.filename().string();
+					room_id = map.room_id;
+					demopath = "../../../demo/resources/level/" + room;
 				} else {
 					switch (CommDlgExtendedError()) {
 					case CDERR_DIALOGFAILURE: std::cout << "CDERR_DIALOGFAILURE\n"; break;
@@ -786,6 +798,30 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	if (ImGui::Begin("Entities", debug, window_flags)) {
 		prev_window_size = ImGui::GetWindowSize();
 		prev_window_pos = ImGui::GetWindowPos();
+		if (ImGui::Button("Bed")) { 
+				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::BED;
+		}
+		if (ImGui::Button("Automatic Animators")) { ImGui::OpenPopup("Animator Specifications"); }
+		if (ImGui::BeginPopupModal("Animator Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+			static int id{};
+			static int style{};
+			static bool foreground{};
+			ImGui::InputInt("Texture Lookup", &id);
+			ImGui::InputInt("Style", &style);
+
+			if (ImGui::Button("Create")) {
+				// switch to entity tool, and store the specified portal for placement
+				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
+				svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, id, true, false, style);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::EndPopup();
+		}
 		if (ImGui::Button("Portal")) { ImGui::OpenPopup("Portal Dimensions"); }
 		if (ImGui::BeginPopupModal("Portal Dimensions", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 
@@ -857,7 +893,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				// switch to entity tool, and store the specified portal for placement
 				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
 				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::INSPECTABLE;
-				svc::current_tool.get()->current_inspectable = canvas::Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer, msgbuffer);
+				svc::current_tool.get()->current_inspectable = canvas::Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer);
+				svc::current_tool.get()->current_inspectable.suites.push_back(std::vector<std::string>{msgbuffer}); 
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -1245,11 +1282,11 @@ sf::Vector2<int> Editor::get_tile_coord(int lookup) {
 	return ret * 32;
 }
 
-void GameState::launch_demo(char** argv, std::filesystem::path path, sf::Vector2<float> player_position) {
+void GameState::launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position) {
 	ImGui::SFML::Shutdown();
 	fornani::Game demo{argv};
 	std::cout << "Editor path: " << path.string() << "\n";
-	demo.run(true, path, player_position);
+	demo.run(true, room_id, path, player_position);
 }
 
 } // namespace automa

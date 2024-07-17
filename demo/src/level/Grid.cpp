@@ -12,6 +12,7 @@ Grid::Grid(sf::Vector2<uint32_t> d) : dimensions(d) {
 		auto ypos = yidx * spacing;
 		cells.push_back(Tile({xidx, yidx}, {xpos, ypos}, 0));
 		cells.back().position = sf::Vector2<float>(xpos, ypos);
+		cells.back().scaled_position = sf::Vector2<int>(xidx, yidx); 
 		cells.back().bounding_box.set_position(sf::Vector2<float>(xpos, ypos));
 		cells.back().one_d_index = i;
 	}
@@ -26,12 +27,12 @@ void Grid::check_neighbors() {
 			// right neighbor
 			if (!(i == cells.size() - 1)) {
 				if (!cells.at(i + 1).is_solid()) { surrounded = false; }
-				if (cells.at(i + 1).is_big_ramp() && !cells.at(i).is_ramp()) { cells.at(i).flags.set(TileState::ramp_adjacent); }
+				if (cells.at(i + 1).is_big_ramp() && cells.at(i + 1).is_ground_ramp() && !cells.at(i).is_ramp()) { cells.at(i).flags.set(TileState::ramp_adjacent); }
 			}
 			// left neighbor
 			if (!(i == 0)) {
 				if (!cells.at(i - 1).is_solid()) { surrounded = false; }
-				if (cells.at(i - 1).is_big_ramp() && !cells.at(i).is_ramp()) { cells.at(i).flags.set(TileState::ramp_adjacent); }
+				if (cells.at(i - 1).is_big_ramp() && cells.at(i - 1).is_ground_ramp() && !cells.at(i).is_ramp()) { cells.at(i).flags.set(TileState::ramp_adjacent); }
 			}
 			// top neighbor
 			if (!(ui < dimensions.x)) {
@@ -200,6 +201,12 @@ void Grid::seed_vertices() {
 			tile.bounding_box.edges[i].y = tile.bounding_box.vertices[(i + 1) % tile.bounding_box.vertices.size()].y - tile.bounding_box.vertices[i].y;
 			tile.bounding_box.normals[i] = tile.bounding_box.perp(tile.bounding_box.edges[i]);
 		}
+	}
+}
+
+void Grid::destroy_cell(sf::Vector2<int> pos) {
+	for(auto& cell : cells) {
+		if (cell.scaled_position == pos) { cell.value = 0; }
 	}
 }
 

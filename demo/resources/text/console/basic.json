@@ -5,9 +5,16 @@
     ],
     "responses": [ [] ]
   },
+  "bed": {
+    "suite": [
+      [ "Would you like to sleep?%0" ],
+      [ "Getting cozy...$88#1#1#", "...", "You awaken feeling well-rested." ]
+    ],
+    "responses": [ [ "Yes%0", "No%1" ] ]
+  },
   "chest": {
     "suite": [
-      [ "You open the chest to find an item..." ]
+      [ "Obtained $199#2#1" ]
     ],
     "responses": [ [] ]
   },
@@ -25,17 +32,22 @@
   },
   "unlocked_door": {
     "suite": [
-      [ "You used a key to unlock the door." ]
+      [ "Used $200#1#1" ]
     ],
     "responses": [ [] ]
   },
   "death": {
     "suite": [
-      [ "You died.", "Would you like to retry?%0" ],
-      [ "Loading last save...$4" ],
-      [ "Returning to Main Menu..." ]
+      [ "You died.", "Would you like to retry?%0" ]
     ],
-    "responses": [ [ "Yes%0", "No%1"] ]
+    "responses": [ [ "Yes$27#1#1#", "No%1" ] ]
+  },
+  "menu_return": {
+    "suite": [
+      [ "You will lose unsaved progress. Are you sure?%0" ],
+      [ "Returning to Main Menu...$89#1#1#" ]
+    ],
+    "responses": [ [ "Yes%0", "No%1" ] ]
   },
   "test_selector": {
     "suite": [
@@ -64,6 +76,12 @@
   "intro": {
     "suite": [
       [ "You are lost and you are cold.", "There is not much you remember from the last days, but you know well that they were filled with anguish.", "You awaken now after a slumber of unknown length. The world shakes around you.", "...", "You are looking for your brother." ]
+    ],
+    "responses": [ [] ]
+  },
+  "end_demo": {
+    "suite": [
+      [ "Congratulations on completing the playtester edition of Fornani!", "Printing results...$69#1#1#" ]
     ],
     "responses": [ [] ]
   }

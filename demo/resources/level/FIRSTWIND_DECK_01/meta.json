@@ -1,6 +1,10 @@
 {
   "meta": {
     "room_id": 115,
+    "metagrid": [
+      21,
+      3
+    ],
     "dimensions": [
       80,
       16
@@ -10,7 +14,8 @@
       1
     ],
     "style": 0,
-    "background": 5
+    "background": 5,
+    "music": "dusken_cove"
   },
   "portals": [
     {
@@ -27,6 +32,21 @@
       "activate_on_contact": false,
       "locked": false,
       "key_id": 0
+    },
+    {
+      "dimensions": [
+        26,
+        1
+      ],
+      "position": [
+        42,
+        15
+      ],
+      "source_id": 115,
+      "destination_id": 122,
+      "activate_on_contact": true,
+      "locked": false,
+      "key_id": 0
     }
   ],
   "enemies": [
@@ -35,6 +55,22 @@
       "position": [
         60,
         10
+      ]
+    }
+  ],
+  "save_point": {
+    "id": 115,
+    "position": [
+      14,
+      3
+    ]
+  },
+  "destroyers": [
+    {
+      "quest_id": 115,
+      "position": [
+        47,
+        13
       ]
     }
   ]

@@ -1,6 +1,10 @@
 {
   "meta": {
     "room_id": 108,
+    "metagrid": [
+      12,
+      4
+    ],
     "dimensions": [
       64,
       16
@@ -25,7 +29,9 @@
       ],
       "source_id": 108,
       "destination_id": 116,
-      "activate_on_contact": false
+      "activate_on_contact": false,
+      "locked": false,
+      "key_id": 0
     },
     {
       "dimensions": [
@@ -38,7 +44,9 @@
       ],
       "source_id": 108,
       "destination_id": 109,
-      "activate_on_contact": false
+      "activate_on_contact": false,
+      "locked": false,
+      "key_id": 0
     },
     {
       "dimensions": [

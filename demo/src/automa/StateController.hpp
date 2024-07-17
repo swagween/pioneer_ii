@@ -7,14 +7,14 @@
 namespace automa {
 
 enum class menu_type { main, file_select, options, settings, credits, controls, tutorial };
-enum class Actions { trigger_submenu, save_loaded, exit_submenu, trigger, shutdown, player_death, intro_done, retry, death_mode };
+enum class Actions { trigger_submenu, save_loaded, exit_submenu, trigger, shutdown, player_death, intro_done, retry, death_mode, console_transition, main_menu, print_stats, screenshot };
 
 class StateController {
 
   public:
 	inline void refresh(int id) { source_id = id; }
-	std::string next_state{};
-	std::string demo_level{};
+	int next_state{};
+	int demo_level{};
 	int source_id{};
 	int save_point_id{};
 	menu_type submenu{};

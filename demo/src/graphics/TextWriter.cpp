@@ -13,6 +13,9 @@ TextWriter::TextWriter(automa::ServiceProvider& svc) : m_services(&svc) {
 	special_characters.insert({Codes::item, '^'});
 	special_characters.insert({Codes::voice, '&'});
 	special_characters.insert({Codes::emotion, '@'});
+	special_characters.insert({Codes::hash, '#'});
+	help_marker.set_color(svc.styles.colors.ui_white);
+	help_marker.set_alpha(0);
 }
 
 void TextWriter::start() {
@@ -135,8 +138,15 @@ void TextWriter::load_message(dj::Json& source, std::string_view key) {
 		}
 		responses.push_back(this_set);
 	}
-
 	working_message = suite.at(iterators.current_suite_set).front().data;
+	help_marker.init(*m_services, "Press [", "main_action", "] to continue.");
+}
+
+void TextWriter::append(std::string_view content) {
+	if (suite.empty()) { return; }
+	if (suite.back().empty()) { return; }
+	auto msg = suite.back().back().data.getString();
+	suite.back().back().data.setString(msg + content.data());
 }
 
 void TextWriter::stylize(sf::Text& msg, bool is_suite) const {
@@ -150,8 +160,7 @@ void TextWriter::stylize(sf::Text& msg, bool is_suite) const {
 		msg.setPosition(response_position);
 	}
 }
-
-void TextWriter::write_instant_message(sf::RenderWindow& win) {
+	void TextWriter::write_instant_message(sf::RenderWindow& win) {
 	if (iterators.current_suite_set >= suite.size()) { return; }
 	if (suite.at(iterators.current_suite_set).empty()) { return; }
 	win.draw(suite.at(iterators.current_suite_set).front().data);
@@ -162,9 +171,11 @@ void TextWriter::write_gradual_message(sf::RenderWindow& win) {
 	if (suite.at(iterators.current_suite_set).empty()) { return; }
 	if (!writing()) {
 		win.draw(suite.at(iterators.current_suite_set).front().data);
+		if (!selection_mode()) { help_marker.render(win); }
 		flags.set(MessageState::done_writing);
 		return;
 	}
+	help_marker.start();
 	win.draw(working_message);
 }
 
@@ -184,6 +195,7 @@ void TextWriter::write_responses(sf::RenderWindow& win) {
 
 void TextWriter::reset() {
 	writing_speed = default_writing_speed;
+	help_marker.reset();
 	glyph_count = 0;
 	tick_count = 0;
 	working_message = {};
@@ -209,14 +221,13 @@ void TextWriter::request_next() {
 		reset();
 		return;
 	}
-
 	if (suite.at(iterators.current_suite_set).front().prompt) {
-		flags.set(MessageState::selection_mode);
+		flags.set(MessageState::selection_mode);// check for response events
 		if (iterators.current_response_set >= responses.size()) { return; }
 		for (auto& res : responses.at(iterators.current_response_set)) {
-			check_for_event(res, Codes::item);
-			check_for_event(res, Codes::quest);
-			check_for_event(res, Codes::prompt);
+			check_for_event(res, Codes::item, true);
+			check_for_event(res, Codes::quest, true);
+			check_for_event(res, Codes::prompt, true);
 		}
 		return;
 	} else {
@@ -231,7 +242,7 @@ void TextWriter::request_next() {
 	}
 }
 
-void TextWriter::check_for_event(Message& msg, Codes code) {
+void TextWriter::check_for_event(Message& msg, Codes code, bool response) {
 	auto index = msg.data.getString().find(special_characters.at(code));
 	if (index == std::string::npos) { return; }
 
@@ -267,7 +278,24 @@ void TextWriter::check_for_event(Message& msg, Codes code) {
 	if (code == Codes::quest) {
 		std::string cue = msg.data.getString().substring(index + 1, index + 1);
 		communicators.out_quest.set(std::stoi(cue));
+
+		std::string hash = msg.data.getString().substring(index + 1, msg.data.getString().getSize() - 1);
+		//std::cout << "Quest key read: " << hash << "\n";
+
+		auto push = decoder.decode(hash, '#');
+		if (push.size() == 3) { out_quest = util::QuestKey{push[0], push[1], push[2]}; }
+		if (push.size() == 4) { out_quest = util::QuestKey{push[0], push[1], push[2], push[3]}; } // progression amount provided
+		if (push.size() == 5) { out_quest = util::QuestKey{push[0], push[1], push[2], push[3], push[4]}; } // hard set provided
+		//std::cout << "Decoded: " << out_quest.type << ", " << out_quest.id << ", " << out_quest.source_id << ", " << out_quest.amount << ", " << out_quest.hard_set << "\n";
+		if(response) {
+		} else {
+			process_quest();
+		}
+
 		msg.data.setString(msg.data.getString().substring(0, index));
+		if (out_quest.type == 63) { msg.data.setString(msg.data.getString() + std::to_string(m_services->stats.time_trials.bryns_gun)); } // fetch text
+		if (!response) { out_quest = {}; }
+
 		return;
 	}
 }
@@ -286,10 +314,26 @@ void TextWriter::process_selection() {
 	if (iterators.current_response_set >= responses.size()) { return; }
 	if (iterators.current_selection >= responses.at(iterators.current_response_set).size()) { return; }
 
+	// check for response events
+	auto ctr{0};
+	for (auto& res : responses.at(iterators.current_response_set)) {
+		if (ctr == get_current_selection()) {
+			process_quest();
+			out_quest = {};
+		}
+		++ctr;
+	}
 	// flush the suite until we reach the target determined by the selection
 	for (auto i = 0; i <= responses.at(iterators.current_response_set).at(iterators.current_selection).target; ++i) {
-		if (suite.empty()) { return; }
+		if (suite.empty()) {
+			return;
+		}
 		suite.pop_front();
+		if (suite.empty()) {
+			m_services->soundboard.flags.console.set(audio::Console::done);
+			shutdown();
+			return;
+		}
 	}
 	responses.pop_front();
 
@@ -299,6 +343,17 @@ void TextWriter::process_selection() {
 	reset();
 	activate();
 	start();
+}
+
+void TextWriter::process_quest() {
+	m_services->quest.process(out_quest);
+	m_services->data.push_quest(out_quest);
+	if (out_quest.type == 27) { m_services->state_controller.actions.set(automa::Actions::retry); }
+	if (out_quest.type == 33) { communicators.reveal_item.set(out_quest.id); }
+	if (out_quest.type == 88) { m_services->state_controller.actions.set(automa::Actions::console_transition); }
+	if (out_quest.type == 89) { m_services->state_controller.actions.set(automa::Actions::main_menu); }
+	if (out_quest.type == 69) { m_services->state_controller.actions.set(automa::Actions::print_stats); }
+	//std::cout << "Processed: " << out_quest.type << ", " << out_quest.id << ", " << out_quest.source_id << ", " << out_quest.amount << ", " << out_quest.hard_set << "\n";
 }
 
 void TextWriter::shutdown() {

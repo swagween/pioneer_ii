@@ -10,6 +10,7 @@
 #include "../../utils/BitFlags.hpp"
 #include "../../utils/QuestCode.hpp"
 #include "../../utils/Collider.hpp"
+#include "../../graphics/Tutorial.hpp"
 #include "../../weapon/Arsenal.hpp"
 #include "../packages/Health.hpp"
 #include "Catalog.hpp"
@@ -37,8 +38,8 @@ enum class DropType;
 
 namespace player {
 
-float const PLAYER_WIDTH = 18.0f;
-float const PLAYER_HEIGHT = 24.0f;
+float const PLAYER_WIDTH = 20.0f;
+float const PLAYER_HEIGHT = 20.0f;
 float const head_height{8.f};
 float const PLAYER_START_X = 100.0f;
 float const PLAYER_START_Y = 100.0f;
@@ -53,7 +54,7 @@ int const ANCHOR_BUFFER = 50;
 int const num_sprites{220};
 
 constexpr inline float antenna_force{0.18f};
-constexpr inline float antenna_speed{136.f};
+constexpr inline float antenna_speed{336.f};
 
 struct PlayerStats {
 	int orbs{};
@@ -117,14 +118,16 @@ class Player {
 	[[nodiscard]] auto just_died() const -> bool { return flags.state.test(State::killed); }
 	[[nodiscard]] auto height() const -> float { return collider.dimensions.y; }
 	[[nodiscard]] auto width() const -> float { return collider.dimensions.x; }
+	[[nodiscard]] auto arsenal_size() const -> size_t { return arsenal ? arsenal.value().size() : 0; }
 	[[nodiscard]] auto quick_direction_switch() const -> bool { return flags.state.test(State::dir_switch); }
 	[[nodiscard]] auto shielding() -> bool { return controller.get_shield().is_shielding(); }
 	[[nodiscard]] auto has_shield() const -> bool { return catalog.categories.abilities.has_ability(Abilities::shield); }
 	[[nodiscard]] auto has_item(int id) const -> bool { return catalog.categories.inventory.has_item(id); }
 	[[nodiscard]] auto invincible() const -> bool { return health.invincible(); }
+	[[nodiscard]] auto has_map() const -> bool { return catalog.categories.inventory.has_item(16); }
 
 	// moves
-	void jump();
+	void jump(world::Map& map);
 	void dash();
 	void wallslide();
 	void shield();
@@ -166,10 +169,13 @@ class Player {
 	PlayerController controller;
 	Transponder transponder{};
 	shape::Collider collider{};
+	shape::Shape hurtbox{};
 	PlayerAnimation animation;
 	entity::Health health{};
 	Indicator health_indicator;
 	Indicator orb_indicator;
+
+	text::Tutorial tutorial{};
 
 	// weapons
 	std::optional<arms::Arsenal> arsenal{};
@@ -177,18 +183,22 @@ class Player {
 	sf::Vector2<float> apparent_position{};
 	sf::Vector2<float> anchor_point{};
 	sf::Vector2<float> hand_position{};
-	sf::Vector2<float> sprite_offset{9.f, 1.f};
+	sf::Vector2<float> sprite_offset{9.f, -3.f};
 	sf::Vector2<float> sprite_dimensions{};
 	sf::Vector2<float> sprite_position{};
 
 	std::vector<vfx::Gravitator> antennae{};
-	sf::Vector2<float> antenna_offset{4.f, -13.f};
+	sf::Vector2<float> antenna_offset{4.f, -17.f};
 
 	PlayerStats player_stats{0, 99999, 0.06f};
 	PhysicsStats physics_stats{};
 	PlayerFlags flags{};
 	util::Cooldown hurt_cooldown{}; //for animation
 	util::Cooldown force_cooldown{}; //for player hurt forces
+	struct {
+		util::Cooldown tutorial{400};
+		util::Cooldown sprint_tutorial{800};
+	} cooldowns{};
 	Counters counters{};
 	std::vector<sf::Vector2<float>> accumulated_forces{};
 	sf::Vector2<float> forced_momentum{};

@@ -9,7 +9,7 @@ OptionsMenu::OptionsMenu(ServiceProvider& svc, player::Player& player, std::stri
 	right_dot.set_position(options.at(current_selection).right_offset);
 }
 
-void OptionsMenu::init(ServiceProvider& svc, std::string_view room) {}
+void OptionsMenu::init(ServiceProvider& svc, int room_number) {}
 
 void OptionsMenu::handle_events(ServiceProvider& svc, sf::Event& event) {
 	svc.controller_map.handle_mouse_events(event);
@@ -39,7 +39,7 @@ void OptionsMenu::handle_events(ServiceProvider& svc, sf::Event& event) {
 		svc.state_controller.actions.set(Actions::trigger_submenu);
 		svc.soundboard.flags.menu.set(audio::Menu::forward_switch);
 	}
-	if (svc.controller_map.label_to_control.at("menu_forward").triggered() || svc.controller_map.label_to_control.at("right").triggered()) {
+	if (svc.controller_map.label_to_control.at("menu_forward").triggered() || svc.controller_map.label_to_control.at("right").triggered() || svc.controller_map.label_to_control.at("main_action").triggered()) {
 		if (current_selection == menu_selection_id.at(MenuSelection::controls)) {
 			svc.state_controller.submenu = menu_type::controls;
 			svc.state_controller.actions.set(Actions::trigger_submenu);

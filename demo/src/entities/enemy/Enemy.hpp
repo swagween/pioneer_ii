@@ -18,6 +18,10 @@ namespace player {
 class Player;
 }
 
+namespace world {
+class Map;
+}
+
 namespace arns {
 class Projectile;
 }
@@ -67,6 +71,7 @@ class Enemy : public entity::Entity {
 	[[nodiscard]] auto gone() const -> bool { return post_death.is_complete(); }
 	[[nodiscard]] auto player_collision() const -> bool { return flags.general.test(GeneralFlags::player_collision); }
 	[[nodiscard]] auto spawn_loot() const -> bool { return !flags.general.test(GeneralFlags::no_loot); }
+	[[nodiscard]] bool player_behind(player::Player& player) const;
 	void set_position(sf::Vector2<float> pos) {
 		collider.physics.position = pos;
 		collider.sync_components();
@@ -79,6 +84,11 @@ class Enemy : public entity::Entity {
 	entity::Health health{};
 	player::Indicator health_indicator{};
 	anim::Animation animation{};
+	struct {
+		dir::Direction actual{};
+		dir::Direction desired{};
+		dir::Direction movement{};
+	} directions{};
 
   protected:
 	std::string_view label{};

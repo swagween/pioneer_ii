@@ -35,8 +35,6 @@ void Canvas::load(const std::string& path) {
     //init map_states
     map_states.push_back(Map());
     clear();
-
-    /* begin overhaul */
     
     std::string filepath = path + "/meta.json";
 
@@ -50,6 +48,8 @@ void Canvas::load(const std::string& path) {
     if (!data.meta.is_null()) {
         auto const& meta = data.meta["meta"];
         room_id = meta["room_id"].as<int>();
+		metagrid_coordinates.x = meta["metagrid"][0].as<int>();
+		metagrid_coordinates.y = meta["metagrid"][1].as<int>();
         dimensions.x = meta["dimensions"][0].as<int>();
         dimensions.y = meta["dimensions"][1].as<int>();
         chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
@@ -60,6 +60,7 @@ void Canvas::load(const std::string& path) {
         auto style_value = meta["style"].as<int>();
         style = static_cast<STYLE>(meta["style"].as<int>());
 		bg = static_cast<BACKDROP>(meta["background"].as<int>());
+		music = meta["music"].as_string();
 
 		for (auto& entry : data.meta["chests"].array_view()) {
 			Chest c{};
@@ -114,11 +115,13 @@ void Canvas::load(const std::string& path) {
             a.position.y = entry["position"][1].as<int>();
             a.dimensions.x = entry["dimensions"][0].as<int>();
             a.dimensions.y = entry["dimensions"][1].as<int>();
-            a.id = entry["id"].as<int>();
+			a.id = entry["id"].as<int>();
+			a.style = entry["style"].as<int>();
             a.automatic = (bool)entry["automatic"].as_bool();
             a.foreground = (bool)entry["foreground"].as_bool();
             animators.push_back(a);
 		}
+		for (auto& entry : data.meta["beds"].array_view()) { beds.push_back(Bed{{entry["position"][0].as<uint32_t>(), entry["position"][1].as<uint32_t>()}}); }
 		for (auto& entry : data.meta["switch_blocks"].array_view()) {
 			SwitchBlock s{};
 			s.position.x = entry["position"][0].as<int>();
@@ -134,6 +137,13 @@ void Canvas::load(const std::string& path) {
 			s.id = entry["button_id"].as<int>();
 			s.type = entry["type"].as<int>();
 			switch_buttons.push_back(s);
+		}
+		for (auto& entry : data.meta["destroyers"].array_view()) {
+			Destroyer d{};
+			d.position.x = entry["position"][0].as<int>();
+			d.position.y = entry["position"][1].as<int>();
+			d.id = entry["quest_id"].as<int>();
+			destroyers.push_back(d);
 		}
         for (auto& entry : data.meta["platforms"].array_view()) {
             Platform p{};
@@ -154,13 +164,23 @@ void Canvas::load(const std::string& path) {
             i.position.x = entry["position"][0].as<int>();
             i.position.y = entry["position"][1].as<int>();
             i.dimensions.x = entry["dimensions"][0].as<int>();
-            i.dimensions.y = entry["dimensions"][1].as<int>();
+			i.dimensions.y = entry["dimensions"][1].as<int>();
+			i.alternates = entry["alternates"].as<int>();
             inspectables.push_back(i);
             inspectables.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
         }
         for (auto& inspectable : inspectables) {
-            inspectable.message = data.inspectables[inspectable.key]["suite"][0][0].as_string();
-            inspectable.response = data.inspectables[inspectable.key]["responses"][0][0].as_string();
+			auto entry = data.inspectables[inspectable.key];
+			for (auto& suite : entry["suite"].array_view()) {
+				std::vector<std::string> in_set{};
+				for (auto& set : suite.array_view()) { in_set.push_back(set.as_string().data()); }
+				inspectable.suites.push_back(in_set);
+			}
+			for (auto& response : entry["responses"].array_view()) {
+				std::vector<std::string> in_set{};
+				for (auto& set : response.array_view()) { in_set.push_back(set.as_string().data()); }
+				inspectable.suites.push_back(in_set);
+			}
 		}
         for (auto& entry : data.meta["enemies"].array_view()) {
             Critter e{};
@@ -202,13 +222,16 @@ bool Canvas::save(const std::string& path) {
     auto const wipe = dj::Json::parse(empty_array);
 
     //data.meta
-    data.meta["meta"]["room_id"] = room_id;
+	data.meta["meta"]["room_id"] = room_id;
+	data.meta["meta"]["metagrid"][0] = metagrid_coordinates.x;
+	data.meta["meta"]["metagrid"][1] = metagrid_coordinates.y; 
     data.meta["meta"]["dimensions"][0] = dimensions.x;
     data.meta["meta"]["dimensions"][1] = dimensions.y;
     data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
     data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
     data.meta["meta"]["style"] = static_cast<int>(style);
     data.meta["meta"]["background"] = static_cast<int>(bg);
+	data.meta["meta"]["music"] = music;
 
     int ctr{};
     for (auto& portal : portals) {
@@ -232,21 +255,25 @@ bool Canvas::save(const std::string& path) {
         data.meta["inspectables"][ctr]["position"][0] = inspectable.position.x;
         data.meta["inspectables"][ctr]["position"][1] = inspectable.position.y;
         data.meta["inspectables"][ctr]["activate_on_contact"] = (dj::Boolean)(inspectable.activate_on_contact);
-        data.meta["inspectables"][ctr]["key"] = inspectable.key;
-        data.inspectables[inspectable.key]["suite"].push_back(wipe);
-        if (!inspectable.message.empty()) {
-            data.inspectables[inspectable.key]["suite"][0].push_back(inspectable.message);
-        }
-        data.inspectables[inspectable.key]["responses"].push_back(wipe);
-        if (!inspectable.response.empty()) {
-            data.inspectables[inspectable.key]["responses"][0].push_back(inspectable.response);
-        }
+		data.meta["inspectables"][ctr]["key"] = inspectable.key;
+		data.meta["inspectables"][ctr]["alternates"] = inspectable.alternates;
+		for (auto& suite : inspectable.suites) {
+			auto out_set = wipe;
+			for (auto& message : suite) { out_set.push_back(message); }
+			data.inspectables[inspectable.key]["suite"].push_back(out_set);
+		}
+		for (auto& response : inspectable.responses) {
+			auto out_set = wipe;
+			for (auto& message : response) { out_set.push_back(message); }
+			data.inspectables[inspectable.key]["responses"].push_back(out_set);
+		}
         ++ctr;
     }
     ctr = 0;
     for (auto& animator : animators) {
         data.meta["animators"].push_back(wipe);
-        data.meta["animators"][ctr]["id"] = animator.id;
+		data.meta["animators"][ctr]["id"] = animator.id;
+		data.meta["animators"][ctr]["style"] = animator.style;
         data.meta["animators"][ctr]["dimensions"][0] = animator.dimensions.x;
         data.meta["animators"][ctr]["dimensions"][1] = animator.dimensions.y;
         data.meta["animators"][ctr]["position"][0] = animator.position.x;
@@ -267,7 +294,22 @@ bool Canvas::save(const std::string& path) {
         data.meta["platforms"][ctr]["type"] = plat.type;
         data.meta["platforms"][ctr]["start"] = plat.start;
         ++ctr;
-    }
+	}
+	ctr = 0;
+	for (auto& bed : beds) {
+		data.meta["beds"].push_back(wipe);
+		data.meta["beds"][ctr]["position"][0] = bed.position.x;
+		data.meta["beds"][ctr]["position"][1] = bed.position.y;
+		++ctr;
+	}
+	ctr = 0;
+	for (auto& destroyer : destroyers) {
+		data.meta["destroyers"].push_back(wipe);
+		data.meta["destroyers"][ctr]["quest_id"] = destroyer.id;
+		data.meta["destroyers"][ctr]["position"][0] = destroyer.position.x;
+		data.meta["destroyers"][ctr]["position"][1] = destroyer.position.y;
+		++ctr;
+	}
     ctr = 0;
     for (auto& critter : critters) {
         data.meta["enemies"].push_back(wipe);
@@ -364,6 +406,8 @@ void Canvas::clear() {
         npcs.clear();
         switch_blocks.clear();
 		switch_buttons.clear();
+		beds.clear();
+		destroyers.clear();
 		save_point.placed = false;
     }
 }

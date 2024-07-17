@@ -10,6 +10,8 @@ MainMenu::MainMenu(ServiceProvider& svc, player::Player& player, std::string_vie
 	flags.set(GameStateFlags::playtest);
 	// playtester edition
 
+	svc.state_controller.actions.reset(Actions::intro_done);
+
 	left_dot.set_position(options.at(current_selection).left_offset);
 	right_dot.set_position(options.at(current_selection).right_offset);
 
@@ -40,8 +42,7 @@ MainMenu::MainMenu(ServiceProvider& svc, player::Player& player, std::string_vie
 	svc.music.play_looped(20);
 };
 
-void MainMenu::init(ServiceProvider& svc, std::string_view room) {
-}
+void MainMenu::init(ServiceProvider& svc, int room_number) {}
 
 void MainMenu::handle_events(ServiceProvider& svc, sf::Event& event) {
 	svc.controller_map.handle_mouse_events(event);
@@ -59,7 +60,7 @@ void MainMenu::handle_events(ServiceProvider& svc, sf::Event& event) {
 		constrain_selection();
 		svc.soundboard.flags.menu.set(audio::Menu::shift);
 	}
-	if (svc.controller_map.label_to_control.at("menu_forward").triggered()) {
+	if (svc.controller_map.label_to_control.at("menu_forward").triggered() || svc.controller_map.label_to_control.at("main_action").triggered()) {
 		if (current_selection == menu_selection_id.at(MenuSelection::play)) {
 			svc.state_controller.submenu = menu_type::file_select;
 			svc.state_controller.actions.set(Actions::trigger_submenu);
@@ -99,7 +100,7 @@ void MainMenu::frame_update(ServiceProvider& svc) {}
 void MainMenu::render(ServiceProvider& svc, sf::RenderWindow& win) {
 	win.draw(title);
 	win.draw(subtitle);
-	win.draw(instruction);
+	//win.draw(instruction);
 	for (auto& option : options) { win.draw(option.label); }
 
 	left_dot.render(svc, win, {0, 0});
