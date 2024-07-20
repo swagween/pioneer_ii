@@ -33,97 +33,6 @@ namespace pi {
             {tool::TOOL_TYPE::ENTITY_PLACER, "Entity Placer" }
         };
 
-        inline std::unordered_map<int, canvas::STYLE> get_style{
-            {0,     canvas::STYLE::FIRSTWIND    },
-            {1,     canvas::STYLE::OVERTURNED   },
-            {2,     canvas::STYLE::GRUB         },
-            {3,     canvas::STYLE::TOXIC        },
-            {4,     canvas::STYLE::BASE         },
-            {5,     canvas::STYLE::FROZEN       },
-            {6,     canvas::STYLE::NIGHT        },
-            {7,     canvas::STYLE::WORM         },
-            {8,     canvas::STYLE::SKY          },
-            {9,     canvas::STYLE::ASH          },
-            {10,    canvas::STYLE::GREATWING    },
-            {11,    canvas::STYLE::ICE          },
-            {12,    canvas::STYLE::SNOW         },
-            {13,    canvas::STYLE::STONE        },
-            {14,    canvas::STYLE::ABANDONED    },
-            {15,    canvas::STYLE::ANCIENT      },
-            {16,    canvas::STYLE::FACTORY      },
-            {17,    canvas::STYLE::SHADOW       },
-            {18,    canvas::STYLE::HOARDER      },
-            {19,    canvas::STYLE::MANSION      }
-        };
-
-        inline std::unordered_map<int, canvas::BACKDROP> get_backdrop{
-            {-1,    canvas::BACKDROP::BG_NULL       },
-            {0,     canvas::BACKDROP::BG_DUSK       },
-            {1,     canvas::BACKDROP::BG_SUNRISE    },
-            {2,     canvas::BACKDROP::BG_OPEN_SKY   },
-            {3,     canvas::BACKDROP::BG_ROSY_HAZE  },
-            {4,     canvas::BACKDROP::BG_DAWN       },
-            {5,     canvas::BACKDROP::BG_NIGHT      },
-            {6,     canvas::BACKDROP::BG_OVERCAST   },
-
-            {7,     canvas::BACKDROP::BG_SLIME      },
-            {8,     canvas::BACKDROP::BG_BLACK      },
-            {9,     canvas::BACKDROP::BG_NAVY       },
-            {10,    canvas::BACKDROP::BG_DIRT       },
-            {11,    canvas::BACKDROP::BG_GEAR       },
-            {12,    canvas::BACKDROP::BG_LIBRARY    },
-            {13,    canvas::BACKDROP::BG_GRANITE    },
-            {14,    canvas::BACKDROP::BG_RUINS      },
-            {15,    canvas::BACKDROP::BG_CREVASSE   },
-            {16,    canvas::BACKDROP::BG_DEEP       },
-            {17,    canvas::BACKDROP::BG_GROVE      }
-        };
-
-        inline std::unordered_map<canvas::STYLE, int> get_style_id{
-            {canvas::STYLE::FIRSTWIND, 0    },
-            {canvas::STYLE::OVERTURNED, 1   },
-            {canvas::STYLE::GRUB, 2         },
-            {canvas::STYLE::TOXIC, 3        },
-            {canvas::STYLE::BASE, 4         },
-            {canvas::STYLE::FROZEN, 5       },
-            {canvas::STYLE::NIGHT, 6        },
-            {canvas::STYLE::WORM, 7         },
-            {canvas::STYLE::SKY, 8          },
-            {canvas::STYLE::ASH, 9          },
-            {canvas::STYLE::GREATWING, 10   },
-            {canvas::STYLE::ICE, 11         },
-            {canvas::STYLE::SNOW, 12        },
-            {canvas::STYLE::STONE, 13       },
-            {canvas::STYLE::ABANDONED, 14   },
-            {canvas::STYLE::ANCIENT, 15     },
-            {canvas::STYLE::FACTORY, 16     },
-            {canvas::STYLE::SHADOW, 17      },
-            {canvas::STYLE::HOARDER, 18     },
-            {canvas::STYLE::MANSION, 19     }
-        };
-
-        inline std::unordered_map<canvas::BACKDROP, int> get_backdrop_id{
-            {canvas::BACKDROP::BG_NULL, -1      },
-            {canvas::BACKDROP::BG_DUSK, 0       },
-            {canvas::BACKDROP::BG_SUNRISE, 1    },
-            {canvas::BACKDROP::BG_OPEN_SKY, 2   },
-            {canvas::BACKDROP::BG_ROSY_HAZE, 3  },
-            {canvas::BACKDROP::BG_DAWN, 4       },
-            {canvas::BACKDROP::BG_NIGHT, 5      },
-            {canvas::BACKDROP::BG_OVERCAST, 6   },
-            {canvas::BACKDROP::BG_SLIME, 7      },
-            {canvas::BACKDROP::BG_BLACK, 8      },
-            {canvas::BACKDROP::BG_NAVY, 9       },
-            {canvas::BACKDROP::BG_DIRT, 10      },
-            {canvas::BACKDROP::BG_GEAR, 11      },
-            {canvas::BACKDROP::BG_LIBRARY, 12   },
-            {canvas::BACKDROP::BG_GRANITE, 13   },
-            {canvas::BACKDROP::BG_RUINS, 14     },
-            {canvas::BACKDROP::BG_CREVASSE, 15  },
-            {canvas::BACKDROP::BG_DEEP, 16      },
-            {canvas::BACKDROP::BG_GROVE, 17     }
-        };
-
         inline std::unordered_map<canvas::STYLE, const char*> get_style_string{
             {canvas::STYLE::FIRSTWIND,  "firstwind"     },
             {canvas::STYLE::OVERTURNED, "overturned"    },
@@ -148,7 +57,6 @@ namespace pi {
         };
 
         inline std::unordered_map<canvas::BACKDROP, const char*> get_backdrop_string{
-            {canvas::BACKDROP::BG_NULL, "NULL"          },
             {canvas::BACKDROP::BG_DUSK, "DUSK"          },
             {canvas::BACKDROP::BG_SUNRISE, "SUNRISE"    },
             {canvas::BACKDROP::BG_OPEN_SKY, "OPEN_SKY"  },
@@ -167,26 +75,6 @@ namespace pi {
             {canvas::BACKDROP::BG_CREVASSE, "CREVASSE"  },
             {canvas::BACKDROP::BG_DEEP, "DEEP"          },
             {canvas::BACKDROP::BG_GROVE, "GROVE"        }
-        };
-
-        inline std::unordered_map<int, canvas::CRITTER_TYPE> get_critter_type{
-            {0, canvas::CRITTER_TYPE::hulmet},
-            {1, canvas::CRITTER_TYPE::tank},
-            {2, canvas::CRITTER_TYPE::bunker},
-            {3, canvas::CRITTER_TYPE::thug},
-            {4, canvas::CRITTER_TYPE::worker},
-            {5, canvas::CRITTER_TYPE::frdog},
-            {6, canvas::CRITTER_TYPE::jackdaw},
-            {7, canvas::CRITTER_TYPE::frcat},
-            {8, canvas::CRITTER_TYPE::biter},
-            {9, canvas::CRITTER_TYPE::bee},
-            {10, canvas::CRITTER_TYPE::roller},
-            {11, canvas::CRITTER_TYPE::snek},
-            {12, canvas::CRITTER_TYPE::behemoth},
-            {13, canvas::CRITTER_TYPE::stinger},
-            {14, canvas::CRITTER_TYPE::watchman},
-            {15, canvas::CRITTER_TYPE::gnat},
-            {16, canvas::CRITTER_TYPE::moth},
         };
 
         inline std::unordered_map<canvas::CRITTER_TYPE, const char*> get_critter_string{

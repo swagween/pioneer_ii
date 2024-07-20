@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "room_id": 199,
+    "dimensions": [
+      32,
+      32
+    ],
+    "chunk_dimensions": [
+      2,
+      2
+    ],
+    "style": 0,
+    "background": 5
+  },
+  "platforms": [
+    {
+      "position": [
+        7,
+        12
+      ],
+      "dimensions": [
+        3,
+        1
+      ],
+      "extent": 16,
+      "style": 2,
+      "type": "standard_up_down_repeater",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        7,
+        8
+      ],
+      "dimensions": [
+        3,
+        1
+      ],
+      "extent": 16,
+      "style": 2,
+      "type": "standard_up_down_repeater",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        7,
+        16
+      ],
+      "dimensions": [
+        3,
+        1
+      ],
+      "extent": 16,
+      "style": 2,
+      "type": "standard_up_down_repeater",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        7,
+        4
+      ],
+      "dimensions": [
+        3,
+        1
+      ],
+      "extent": 16,
+      "style": 2,
+      "type": "standard_up_down_repeater",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        3,
+        12
+      ],
+      "dimensions": [
+        3,
+        2
+      ],
+      "extent": 16,
+      "style": 2,
+      "type": "standard_activated_up_down",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        15,
+        14
+      ],
+      "dimensions": [
+        2,
+        1
+      ],
+      "extent": 6,
+      "style": 2,
+      "type": "standard_activated",
+      "start": 0.000000
+    }
+  ],
+  "chests": [
+    {
+      "id": 0,
+      "item_id": 0,
+      "type": 3,
+      "amount": 16,
+      "rarity": 40.000000,
+      "position": [
+        12,
+        13
+      ]
+    }
+  ]
+}

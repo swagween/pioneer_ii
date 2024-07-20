@@ -29,7 +29,12 @@ enum class ENTITY_TYPE {
 	CHEST,
     ANIMATOR,
     ENTITY_EDITOR,
-    PLAYER_PLACER
+    PLAYER_PLACER,
+    PLATFORM,
+    SAVE_POINT,
+    SWITCH_BUTTON,
+    SWITCH_BLOCK,
+    BED
 };
 
 
@@ -70,6 +75,10 @@ public:
     canvas::Inspectable current_inspectable{};
     canvas::Animator current_animator{};
     canvas::Critter current_critter{};
+	canvas::Platform current_platform{};
+	canvas::Chest current_chest{};
+	canvas::SwitchBlock current_switch_block{};
+	canvas::SwitchButton current_switch{};
     
     TOOL_TYPE type{};
     ENTITY_TYPE ent_type{};

@@ -19,14 +19,7 @@
 #include <imgui-SFML.h>
 #include <sstream>
 #include <windows.h>
-
-//fornani includes
-#include "../../demo/src/level/Map.hpp"
-#include "../../demo/src/components/PhysicsComponent.hpp"
-#include "../../demo/src/entities/player/Player.hpp"
-#include "../../demo/src/setup/LookupTables.hpp"
-#include "../../demo/src/gui/HUD.hpp"
-#include "../../demo/src/graphics/Background.hpp"
+#include <string_view>
 
 namespace pi {
 
@@ -65,12 +58,17 @@ namespace pi {
             virtual void handle_events(sf::Event& event, sf::RenderWindow& win) {}
             virtual void logic() {}
             virtual void render(sf::RenderWindow& win) {}
-            virtual void gui_render(sf::RenderWindow& win) {}
+			virtual void gui_render(sf::RenderWindow& win) {}
+			virtual void launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position);
 
             STATE state = STATE::NONE;
+			char** args{};
 
             std::string filepath{};
-            std::string folderpath{};
+			std::string demopath{};
+			std::string folderpath{};
+			std::string room{};
+			int room_id{};
 
             bool trigger_demo{ false };
         };
@@ -127,23 +125,39 @@ namespace pi {
             void render(sf::RenderWindow& win);
             void gui_render(sf::RenderWindow& win);
             void help_marker(const char* desc);
+			void export_layer_texture();
+			sf::Vector2<int> get_tile_coord(int lookup);
 
             canvas::Canvas map{};
             std::vector<sf::Texture> tileset_textures{};
-            std::vector<sf::Sprite> tileset{};
             sf::Texture tool_texture{};
-            std::vector<sf::Sprite> tool_sprites{};
+            sf::Sprite tool_sprites{};
             sf::Texture large_animator_textures{};
-            std::vector<sf::Sprite> large_animator_sprites{};
             sf::Texture large_animator_thumbs{};
-            std::vector<sf::Sprite> large_animator_thumb_sprites{};
             sf::Texture small_animator_textures{};
-            std::vector<sf::Sprite> small_animator_sprites{};
             sf::Texture small_animator_thumbs{};
-            std::vector<sf::Sprite> small_animator_thumb_sprites{};
             sf::Texture enemy_thumbnails{};
-            std::vector<sf::Sprite> enemy_thumb_sprites{};
-            sf::Sprite curr_critter{};
+
+            struct {
+				sf::Sprite tool{};
+				sf::Sprite tileset{};
+				sf::Sprite large_animator{};
+				sf::Sprite small_animator{};
+				sf::Sprite large_animator_thumb{};
+				sf::Sprite small_animator_thumb{};
+				sf::Sprite enemy_thumb{};
+				sf::Sprite current_enemy{};
+
+			} sprites{};
+
+            sf::Texture t_chest{};
+            sf::Sprite s_chest{};
+            sf::Texture t_npc{};
+            sf::Sprite s_npc{};
+
+            //for loading out layer pngs
+            sf::RenderTexture screencap{};
+            sf::Sprite tile_sprite{};
 
             sf::Vector2<float> mouse_clicked_position{};
 
@@ -151,11 +165,17 @@ namespace pi {
             bool show_grid{ true };
             bool show_all_layers{ true };
             bool show_overlay{ false };
+			bool demo_mode{};
 
             sf::RectangleShape box{};
+			sf::RectangleShape player_box{};
             sf::RectangleShape gridbox{};
             sf::RectangleShape portalbox{};
             sf::RectangleShape inspbox{};
+			sf::RectangleShape platbox{};
+			sf::RectangleShape chestbox{};
+			sf::RectangleShape savebox{};
+			sf::RectangleShape platextent{};
             sf::RectangleShape target{};
             sf::RectangleShape backdrop{};
 
@@ -166,7 +186,7 @@ namespace pi {
 		class Dojo : public GameState {
 		public:
 
-            Dojo();
+            Dojo(){};
 
             void init(const std::string& load_path);
             void setTilesetTexture(sf::Texture& new_tex);
@@ -175,13 +195,10 @@ namespace pi {
             void render(sf::RenderWindow& win);
             void gui_render(sf::RenderWindow& win);
 
-            ::world::Map map{};
             sf::Texture tileset{};
             std::vector<sf::Sprite> tileset_sprites{};
             bool show_colliders{ false };
             int x{ 0 };
-
-            ::gui::HUD hud{ {20, 20} };
 
 		};
 

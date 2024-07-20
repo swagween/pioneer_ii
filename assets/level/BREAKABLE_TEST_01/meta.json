@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "room_id": 0,
+    "metagrid": [
+      0,
+      0
+    ],
+    "dimensions": [
+      32,
+      16
+    ],
+    "chunk_dimensions": [
+      2,
+      1
+    ],
+    "style": 0,
+    "background": 5,
+    "music": ""
+  },
+  "inspectables": [
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        22,
+        9
+      ],
+      "activate_on_contact": false,
+      "key": "sign",
+      "alternates": 0
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        6,
+        7
+      ],
+      "activate_on_contact": false,
+      "key": "computer",
+      "alternates": 0
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        11,
+        7
+      ],
+      "activate_on_contact": false,
+      "key": "brke",
+      "alternates": 0
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "room_id": 399,
+    "metagrid": [
+      0,
+      0
+    ],
+    "dimensions": [
+      32,
+      16
+    ],
+    "chunk_dimensions": [
+      2,
+      1
+    ],
+    "style": 2,
+    "background": 10,
+    "music": ""
+  },
+  "enemies": [
+    {
+      "id": 0,
+      "position": [
+        24,
+        10
+      ]
+    },
+    {
+      "id": 0,
+      "position": [
+        16,
+        7
+      ]
+    },
+    {
+      "id": 0,
+      "position": [
+        16,
+        12
+      ]
+    }
+  ]
+}

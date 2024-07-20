@@ -21,21 +21,43 @@ namespace tool {
 				if (critter.position == scaled_position) { crit_available = false; }
 			}
 			switch (ent_type) {
-			case ENTITY_TYPE::PORTAL:       canvas.portals.push_back(current_portal); break;
-			case ENTITY_TYPE::INSPECTABLE:  canvas.inspectables.push_back(current_inspectable); break;
-			case ENTITY_TYPE::PLAYER_PLACER:  pi::svc::playerStartLocator.get() = scaled_position; break;
-			case ENTITY_TYPE::CRITTER:		if (crit_available) { canvas.critters.push_back(current_critter); } break;
-			case ENTITY_TYPE::ANIMATOR:     if (anim_available) { canvas.animators.push_back(current_animator); } break;
+			case ENTITY_TYPE::PORTAL: canvas.portals.push_back(current_portal); break;
+			case ENTITY_TYPE::INSPECTABLE: canvas.inspectables.push_back(current_inspectable); break;
+			case ENTITY_TYPE::BED: canvas.beds.push_back(canvas::Bed(scaled_position)); break;
+			case ENTITY_TYPE::PLATFORM: canvas.platforms.push_back(current_platform); break;
+			case ENTITY_TYPE::PLAYER_PLACER: pi::svc::playerStartLocator.get() = scaled_position; break;
+			case ENTITY_TYPE::SAVE_POINT:
+				canvas.save_point.position = scaled_position;
+				canvas.save_point.placed = true;
+				break;
+			case ENTITY_TYPE::CRITTER:
+				if (crit_available) { canvas.critters.push_back(current_critter); }
+				break;
+			case ENTITY_TYPE::ANIMATOR:
+				if (anim_available) { canvas.animators.push_back(current_animator); }
+				break;
+			case ENTITY_TYPE::CHEST:
+				canvas.chests.push_back(current_chest); break;
+			case ENTITY_TYPE::SWITCH_BUTTON:
+				canvas.switch_buttons.push_back(current_switch); break;
+			case ENTITY_TYPE::SWITCH_BLOCK:
+				canvas.switch_blocks.push_back(current_switch_block);
+				break;
 
-				//for editing existing entities
+				// for editing existing entities
 			case ENTITY_TYPE::ENTITY_EDITOR:
-				std::erase_if(canvas.animators,		[this](auto&& const c) { return c.position == scaled_position;  });
-				std::erase_if(canvas.critters,		[this](auto&& const c) { return c.position == scaled_position;  });
-				std::erase_if(canvas.inspectables,	[this](auto&& const c) { return c.position == scaled_position;  });
-				std::erase_if(canvas.portals,		[this](auto&& const c) { return c.position == scaled_position;  });
+				std::erase_if(canvas.animators, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.critters, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.inspectables, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.portals, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.platforms, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.chests, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.switch_blocks, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.switch_buttons, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.beds, [this](auto&& const c) { return c.position == scaled_position; });
 				break;
 			}
-			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR) { trigger_switch = true; }
+			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR && ent_type != ENTITY_TYPE::PLATFORM && ent_type != ENTITY_TYPE::SWITCH_BLOCK) { trigger_switch = true; }
 		}
 		update();
 	}
@@ -52,6 +74,10 @@ namespace tool {
 		current_inspectable.position = scaled_position - current_inspectable.dimensions + sf::Vector2<uint32_t>(1, 1);
 		current_animator.position = scaled_position - current_animator.dimensions + sf::Vector2<uint32_t>(1, 1);
 		current_critter.position = scaled_position;
+		current_platform.position = scaled_position;
+		current_chest.position = scaled_position;
+		current_switch.position = scaled_position;
+		current_switch_block.position = scaled_position;
 	}
 
 	void EntityPlacer::render(sf::RenderWindow& win, sf::Vector2<float> offset) {

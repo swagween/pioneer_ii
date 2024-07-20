@@ -1,11 +1,5 @@
-//
-//  EnumLookups.hpp
-//
-//  Created by Alex Frasca on 12/26/22.
-//
 
 #pragma once
-
 
 #include <SFML/Graphics.hpp>
 #include <string>
@@ -16,6 +10,12 @@ namespace lookup {
 
 inline const float SPACING{ 32.0f };
 inline const int NUM_STYLES{21};
+
+const inline float unit_size_f{ 32.0f };
+inline int const unit_size_i{32};
+
+inline float const min_hook_length{32.f};
+inline float const max_hook_length{256.f};
 
 enum class CONTROLS {
     JUMP,
@@ -54,19 +54,6 @@ enum class STYLE {
     HOARDER,
     MANSION,
     PROVISIONAL
-};
-
-enum class TILE_TYPE {
-    TILE_BASIC,
-    TILE_GROUND_RAMP,
-    TILE_CEILING_RAMP,
-    TILE_MOVEABLE,
-    TILE_PLATFORM,
-    TILE_WATER,
-    TILE_BREAKABLE,
-    TILE_LADDER,
-    TILE_SPIKES,
-    TILE_ICY
 };
 
 enum class ALPHABET {
@@ -193,7 +180,7 @@ inline std::unordered_map<char, int> get_character {
     {'>', 41},
     {'?', 42},
     {':', 43},
-    {'—', 44},
+    // {'ï¿½', 44},
     {'_', 45},
     {'-', 46},
     {'(', 47},
@@ -216,41 +203,4 @@ inline std::unordered_map<char, int> get_orb_number{
     {'9', 9}
 };
 
-
-inline std::unordered_map<CONTROLS, sf::Keyboard::Key> controls_mapping {
-    {CONTROLS::JUMP, sf::Keyboard::Z},
-    {CONTROLS::SHOOT, sf::Keyboard::X},
-    {CONTROLS::DASH, sf::Keyboard::C},
-	{CONTROLS::MOVE_LEFT, sf::Keyboard::Left},
-	{CONTROLS::MOVE_RIGHT, sf::Keyboard::Right},
-	{CONTROLS::LOOK_UP, sf::Keyboard::Up},
-	{CONTROLS::LOOK_DOWN, sf::Keyboard::Down},
-    {CONTROLS::ARMS_SWITCH_LEFT, sf::Keyboard::A},
-	{CONTROLS::ARMS_SWITCH_RIGHT, sf::Keyboard::S},
-	{CONTROLS::INSPECT, sf::Keyboard::Down},
-	{CONTROLS::SELECT, sf::Keyboard::Z},
-    {CONTROLS::PAUSE, sf::Keyboard::Q}
-
-};
-
-inline std::unordered_map<int, TILE_TYPE> tile_lookup{};
-
-static void populate_lookup() {
-	for (int i = 0; i < 256; ++i) {
-		if (i < 192 && i >= 0)   { tile_lookup.insert({ i, TILE_TYPE::TILE_BASIC });        }
-        if (i < 208 && i >= 192) { tile_lookup.insert({ i, TILE_TYPE::TILE_CEILING_RAMP }); }
-		if (i < 224 && i >= 208) { tile_lookup.insert({ i, TILE_TYPE::TILE_GROUND_RAMP });         }
-		if (i < 228 && i >= 224) { tile_lookup.insert({ i, TILE_TYPE::TILE_BASIC });        }
-		if (i < 232 && i >= 228) { tile_lookup.insert({ i, TILE_TYPE::TILE_BASIC });        }
-		if (i < 236 && i >= 232) { tile_lookup.insert({ i, TILE_TYPE::TILE_BASIC });        }
-		if (i < 240 && i >= 236) { tile_lookup.insert({ i, TILE_TYPE::TILE_PLATFORM });     }
-		if (i < 244 && i >= 240) { tile_lookup.insert({ i, TILE_TYPE::TILE_WATER });        }
-		if (i < 248 && i >= 244) { tile_lookup.insert({ i, TILE_TYPE::TILE_BREAKABLE });    }
-		if (i < 252 && i >= 248) { tile_lookup.insert({ i, TILE_TYPE::TILE_LADDER });       }
-		if (i < 256 && i >= 252) { tile_lookup.insert({ i, TILE_TYPE::TILE_SPIKES });       }
-	}
 }
-
-}
-
-/* LookupTables_hpp */

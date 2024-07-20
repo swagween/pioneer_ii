@@ -1,0 +1,79 @@
+{
+  "bookshelf": {
+    "suite": [
+      [
+        "You find a small diary sealed with a padlock. Would you like to take it?%0"
+      ],
+      [
+        "Bryn's Notebook added to inventory!$9#1#1#^1"
+      ],
+      [
+        "That's probably the polite thing to do..."
+      ],
+      [
+        "Yes%0",
+        "No%1"
+      ]
+    ]
+  },
+  "computer": {
+    "suite": [
+      [
+        "It's just an unresponsive terminal prompt..."
+      ],
+      [
+
+      ]
+    ]
+  },
+  "guest_shelf": {
+    "suite": [
+      [
+        "There's an old instruction manual for assembling airship propellers."
+      ],
+      [
+
+      ]
+    ]
+  },
+  "comp3": {
+    "suite": [
+      [
+        "Just a blinking indicator..."
+      ],
+      [
+
+      ]
+    ]
+  },
+  "book3": {
+    "suite": [
+      [
+        "You find a coffee-stained paper. It appears to be an acceptance letter to Grand Island University, whatever that is."
+      ],
+      [
+
+      ]
+    ]
+  },
+  "open_book": {
+    "suite": [
+      [
+        "It's research about the ancient peoples of a floating island. Half the pages are torn out... and is that a blood stain?"
+      ],
+      [
+
+      ]
+    ]
+  },
+  "open_book_2": {
+    "suite": [
+      [
+        "The writings of Jonathan Peckett, a revered pioneer who mysteriously disappeared decades ago."
+      ],
+      [
+
+      ]
+    ]
+  }
+}

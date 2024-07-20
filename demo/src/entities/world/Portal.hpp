@@ -1,50 +1,58 @@
-//
-//  Portal.hpp
-//  entity
-//
-//
 
 #pragma once
 
 #include "../../utils/Shape.hpp"
+#include "../../utils/BitFlags.hpp"
+
+namespace automa {
+struct ServiceProvider;
+}
+
+namespace player {
+class Player;
+}
+namespace gui {
+class Console;
+}
 
 namespace entity {
 
-	const uint32_t CELL_SIZE = 32;
+enum class PortalAttributes { activate_on_contact };
+enum class PortalState { activated, ready, locked, unlocked };
 
-	class Portal {
+class Portal {
 
-	public:
+  public:
+	using Vec = sf::Vector2<float>;
+	using Vecu32 = sf::Vector2<uint32_t>;
 
-		using Vec = sf::Vector2<float>;
-		using Vecu16 = sf::Vector2<uint32_t>;
+	Portal() = default;
+	Portal(automa::ServiceProvider& svc, Vecu32 dim, Vecu32 pos, int src, int dest, bool activate_on_contact, bool locked = false, int key_id = 0);
+	void update(automa::ServiceProvider& svc);
+	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, Vec campos); // for debugging
+	void handle_activation(automa::ServiceProvider& svc, player::Player& player, gui::Console& console, int room_id, bool& fade_out, bool& done);
+	void change_states(automa::ServiceProvider& svc, int room_id, bool& fade_out, bool& done) const;
+	[[nodiscard]] auto get_source() const -> int { return meta.source_map_id; }
+	[[nodiscard]] auto get_destination() const -> int { return meta.destination_map_id; }
+	[[nodiscard]] auto activate_on_contact() const -> bool { return flags.attributes.test(PortalAttributes::activate_on_contact); }
 
-		Portal() = default;
-		Portal(Vecu16 dim, Vecu16 pos) : scaled_dimensions(dim), scaled_position(pos) {
-			dimensions = static_cast<Vec>(dim * CELL_SIZE);
-			position = static_cast<Vec>(pos * CELL_SIZE);
-			bounding_box = shape::Shape(dimensions);
-			bounding_box.set_position(position);
-		}
-		void update();
-		void render(sf::RenderWindow& win, Vec campos); //for debugging
-		void handle_activation(int room_id, bool& fade_out, bool& done);
+	Vec dimensions{};
+	Vec position{};
+	Vecu32 scaled_dimensions{};
+	Vecu32 scaled_position{};
+	shape::Shape bounding_box{};
 
-		Vec dimensions{};
-		Vec position{};
-		Vecu16 scaled_dimensions{};
-		Vecu16 scaled_position{};
-		shape::Shape bounding_box{};
+  private:
+	struct {
+		int source_map_id{};	  // where to place the player once they arrive (check all portals in the destination until you match)
+		int destination_map_id{}; // where to send the player
+		int key_id{};
+	} meta{};
 
-		int destination_map_id{}; //where to send the player
-		int source_map_id{}; //where to place the player once they arrive (check all portals in the destination until you match)
+	struct {
+		util::BitFlags<PortalAttributes> attributes{};
+		util::BitFlags<PortalState> state{};
+	} flags{};
+};
 
-		bool activated{};
-		bool activate_on_contact{};
-		bool ready{}; //starts false, made true once player isn't intesecting it. to prevent auto-portal for activat-on-contact portals
-
-	};
-
-} // end entity
-
-/* Portal_hpp */
+} // namespace entity

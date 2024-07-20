@@ -20,7 +20,7 @@ namespace fs = std::filesystem;
 
 fs::path find_resources(fs::path exe) {
     auto check = [](fs::path const& prefix) {
-        auto path = prefix / "resources";
+        auto path = prefix / "assets";
         if (fs::is_directory(path)) { return path; }
         return fs::path{};
     };
@@ -37,7 +37,6 @@ namespace {
 
 auto SM = pi::automa::StateManager{};
 auto window = sf::RenderWindow();
-auto demo_view = sf::View();
 
 sf::Color PIONEER_BLUE = sf::Color(85, 173, 232);
 
@@ -51,16 +50,6 @@ const int TIME_STEP_MILLI = 100;
 float G = 0.8f;
 
 void run(char** argv) {
-
-    //fornani demo stuff
-    lookup::populate_lookup();
-    //load all assets
-    //images
-    svc::assetLocator.get().setResourcePath(argv);
-    svc::assetLocator.get().importTextures();
-    svc::assetLocator.get().assignSprites();
-    //sounds
-    svc::assetLocator.get().load_audio();
     
     //load textures
     std::string resource_path = find_resources(argv[0]).string();
@@ -87,12 +76,6 @@ void run(char** argv) {
     window.setVerticalSyncEnabled(true);
     window.setKeyRepeatEnabled(false);
 
-    sf::Vector2<float> demo_view_dimensions{ 960.f, 540.f };
-    demo_view.reset(sf::FloatRect(0, 0, demo_view_dimensions.x, demo_view_dimensions.y));
-    demo_view.setViewport(sf::FloatRect(0.25f, 0.25f, 0.5f, 0.5f));
-    //demo_view.move(sf::Vector2<float>(pi::screen_dimensions.x / 2 - demo_view_dimensions.x / 2, pi::screen_dimensions.y / 2 - demo_view_dimensions.y / 2));
-    //demo_view.setCenter((float)pi::screen_dimensions.x * 0.5, (float)pi::screen_dimensions.y * 0.5);
-
     sf::RectangleShape background{};
     background.setSize(static_cast<sf::Vector2<float> >(pi::screen_dimensions));
     background.setPosition(0, 0);
@@ -103,9 +86,20 @@ void run(char** argv) {
     sf::Clock deltaClock{};
     auto start = Clock::now();
     int frame{};
-    while (window.isOpen()) {
+	while (window.isOpen()) {
 
-        svc::clockLocator.get().tick();
+		if (SM.get_current_state().trigger_demo) {
+			auto ppos = static_cast<sf::Vector2<float>>(pi::svc::playerStartLocator.get()) * 32.f;
+			std::cout << "Main path: " << SM.get_current_state().room.data() << "\n";
+			SM.get_current_state().launch_demo(SM.get_current_state().args, SM.get_current_state().room_id, SM.get_current_state().room, ppos);
+			ImGui::SFML::Init(window);
+			std::string loaddir = SM.get_current_state().filepath;
+			SM.set_current_state(std::make_unique<pi::automa::Editor>());
+			SM.get_current_state().init(loaddir);
+			window.setView(window.getDefaultView());
+		}
+
+        SM.get_current_state().args = argv;
 
         frame++;
         auto now = Clock::now();
@@ -122,7 +116,7 @@ void run(char** argv) {
                     pi::lookup::get_state_string.clear();
                     return;
                 case sf::Event::KeyPressed:
-                    if(event.key.code == sf::Keyboard::D) {
+					if (event.key.code == sf::Keyboard::D) {   
                         debug_mode = !debug_mode;
                     }
                     if (event.key.code == sf::Keyboard::R) {
@@ -145,9 +139,6 @@ void run(char** argv) {
                         SM.get_current_state().init(resource_path + "/level/WOODSHINE_SHACK_01");
                         SM.get_current_state().setTilesetTexture(t_tiles_provisional);*/
                     }
-                    if(event.key.code == sf::Keyboard::Equal) {
-                        SM.set_current_state(std::make_unique<pi::automa::Metagrid>());
-                    }
                     if(event.key.code == sf::Keyboard::Escape) {
                     if(SM.get_current_state().state == pi::automa::STATE::DOJO) {
                         std::string loaddir = SM.get_current_state().filepath;
@@ -165,16 +156,6 @@ void run(char** argv) {
         
         //game logic and rendering
         SM.get_current_state().logic();
-        if (SM.get_current_state().trigger_demo) {
-            if (SM.get_current_state().state == pi::automa::STATE::EDITOR) {
-                std::string loaddir = SM.get_current_state().filepath;
-                SM.set_current_state(std::make_unique<pi::automa::Dojo>());
-                SM.get_current_state().init(loaddir);
-                sf::Vector2<float> player_pos = { (float)pi::svc::playerStartLocator.get().x * CELL_SIZE, (float)pi::svc::playerStartLocator.get().y * CELL_SIZE };
-                svc::playerLocator.get().set_position(player_pos);
-                window.setView(demo_view);
-            }
-        }
         
         //ImGui update
         ImGui::SFML::Update(window, deltaClock.restart());
@@ -194,7 +175,6 @@ void run(char** argv) {
         
         ImGui::SFML::Render(window);
         window.display();
-
     }
     
 }

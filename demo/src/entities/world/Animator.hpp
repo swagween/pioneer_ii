@@ -1,61 +1,53 @@
-//
-//  Animator.hpp
-//  entity
-//
-//
 
 #pragma once
 
-#include "../../utils/Shape.hpp"
-#include "../../components/BehaviorComponent.hpp"
-#include "../../utils/StateFunction.hpp"
 #include <string>
+#include "../animation/Animation.hpp"
+#include "../../utils/Shape.hpp"
+#include "../../utils/StateFunction.hpp"
+#include "../Entity.hpp"
+
+namespace automa {
+struct ServiceProvider;
+}
+
+namespace player {
+class Player;
+}
 
 namespace entity {
 
-	const uint32_t A_UNIT_SIZE = 32;
-	const sf::Vector2<uint32_t> large_animator_offset{ 16, 16 };
+const sf::Vector2<float> large_animator_offset{16.f, 16.f};
+enum class AnimatorAttributes{large, automatic, foreground};
 
-	class Animator {
+class Animator : public Entity {
 
-	public:
+  public:
 
-		using Vec = sf::Vector2<float>;
-		using Vecu16 = sf::Vector2<uint32_t>;
+	Animator() = default;
+	Animator(automa::ServiceProvider& svc, sf::Vector2<int> pos, int id, bool large, bool automatic = false, bool foreground = false, int style = 0);
+	void update(automa::ServiceProvider& svc, player::Player& player);
+	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) override;
+	int get_frame() const;
+	[[nodiscard]] auto foreground() const -> bool { return attributes.test(AnimatorAttributes::foreground); }
 
-		Animator() = default;
-		Animator(Vecu16 dim, Vecu16 pos) : scaled_dimensions(dim), scaled_position(pos) {
-			dimensions = static_cast<Vec>(dim * A_UNIT_SIZE);
-			position = static_cast<Vec>(pos * A_UNIT_SIZE);
-			bounding_box = shape::Shape(dimensions);
-			bounding_box.set_position(position);
-		}
-		void update();
-		void render(sf::RenderWindow& win, Vec campos);
-		int get_frame();
+	sf::Vector2<float> position{};
+	sf::Vector2<int> scaled_position{};
+	shape::Shape bounding_box{};
+	anim::Animation animation{};
 
-		Vec dimensions{};
-		Vec position{};
-		Vecu16 scaled_dimensions{};
-		Vecu16 scaled_position{};
-		shape::Shape bounding_box{};
-		sf::Sprite sprite{};
-		components::SimpleBehaviorComponent anim{};
-		behavior::Behavior behavior{};
+	bool activated{};
 
-		int id{};
-		bool activated{};
-		bool automatic{};
-		bool foreground{};
-		bool large{};
+	int current_frame{};
 
-		int current_frame{0};
+	sf::Vector2<int> sprite_dimensions{}; // hardcoding for now
 
-		sf::Vector2<int> sprite_dimensions{}; //hardcoding for now
-		sf::Vector2<int> spritesheet_dimensions{1024, 320};
+	private:
+	int id{};
+	anim::Parameters automate{0, 6, 28, -1};
+	anim::Parameters moving{1, 4, 28, 0};
+	anim::Parameters still{0, 1, 28, -1};
+	util::BitFlags<AnimatorAttributes> attributes{};
+};
 
-	};
-
-} // end entity
-
-/* Animator_hpp */
+} // namespace entity

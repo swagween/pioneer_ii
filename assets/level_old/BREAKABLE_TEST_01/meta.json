@@ -1,0 +1,169 @@
+{
+  "meta": {
+    "room_id": 0,
+    "dimensions": [
+      32,
+      16
+    ],
+    "chunk_dimensions": [
+      2,
+      1
+    ],
+    "style": 0,
+    "background": 5
+  },
+  "inspectables": [
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        4,
+        7
+      ],
+      "activate_on_contact": false,
+      "key": "bookshelf"
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        22,
+        9
+      ],
+      "activate_on_contact": false,
+      "key": "sign"
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        6,
+        7
+      ],
+      "activate_on_contact": false,
+      "key": "computer"
+    }
+  ],
+  "chests": [
+    {
+      "id": 0,
+      "item_id": 0,
+      "type": 1,
+      "amount": 0,
+      "rarity": 0.000000,
+      "position": [
+        11,
+        7
+      ]
+    }
+  ],
+  "switch_blocks": [
+    [
+
+    ],
+    {
+      "button_id": 0,
+      "type": 0,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 1,
+      "position": [
+        16,
+        10
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 1,
+      "position": [
+        16,
+        11
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 1,
+      "position": [
+        16,
+        12
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 1,
+      "position": [
+        16,
+        13
+      ]
+    }
+  ],
+  "switches": [
+    [
+
+    ],
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "button_id": 0,
+      "type": 0,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 0,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 0,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 0,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 0,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "button_id": 0,
+      "type": 1,
+      "position": [
+        15,
+        7
+      ]
+    }
+  ]
+}

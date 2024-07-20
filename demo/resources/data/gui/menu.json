@@ -1,0 +1,67 @@
+{
+  "options": {
+    "main": [
+      "play",
+      "options",
+      "quit"
+    ],
+    "file": [
+      "file 1",
+      "file 2",
+      "file 3"
+    ],
+    "stat": [
+      "save screenshot",
+      "exit to menu"
+    ],
+    "options": [
+      "controls",
+      "settings"
+    ],
+    "controls": [
+      "jump/select",
+      "shoot",
+      "special",
+      "inspect",
+      "sprint",
+      "shield",
+      "inventory",
+      "menu",
+      "switch weapon (left)",
+      "switch weapon (right)",
+      "left",
+      "right",
+      "up",
+      "down"
+    ],
+    "settings": [
+      "auto-sprint: ",
+      "keyboard input: ",
+      "gamepad input: ",
+      "music volume: "
+    ],
+    "credits": [
+      ""
+    ]
+  },
+  "config": {
+    "main": {
+      "top_buffer": 296
+    },
+    "file": {
+      "top_buffer": 186
+    },
+    "options": {
+      "top_buffer": 186
+    },
+    "controls": {
+      "top_buffer": 60
+    },
+    "settings": {
+      "top_buffer": 60
+    },
+    "credits": {
+      "top_buffer": 60
+    }
+  }
+}

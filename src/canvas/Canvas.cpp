@@ -34,315 +34,360 @@ void Canvas::load(const std::string& path) {
 
     //init map_states
     map_states.push_back(Map());
-    
     clear();
     
-    std::string filepath = path + "/map_data.txt";
-    
-    int value{};
-    int counter = 0;
-    std::ifstream input{};
-    input.open(filepath);
-    if (!input.is_open()) {
-        printf("Failed to open file.\n");
-        return;
+    std::string filepath = path + "/meta.json";
+
+    data.meta = dj::Json::from_file((path + "/meta.json").c_str());
+    assert(!data.meta.is_null());
+    data.tiles = dj::Json::from_file((path + "/tile.json").c_str());
+    assert(!data.tiles.is_null());
+    data.inspectables = dj::Json::from_file((path + "/inspectables.json").c_str());
+
+    // get npc data
+    if (!data.meta.is_null()) {
+        auto const& meta = data.meta["meta"];
+        room_id = meta["room_id"].as<int>();
+		metagrid_coordinates.x = meta["metagrid"][0].as<int>();
+		metagrid_coordinates.y = meta["metagrid"][1].as<int>();
+        dimensions.x = meta["dimensions"][0].as<int>();
+        dimensions.y = meta["dimensions"][1].as<int>();
+        chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
+        chunk_dimensions.y = meta["chunk_dimensions"][1].as<int>();
+        real_dimensions = { (float)dimensions.x * constants.cell_size, (float)dimensions.y * constants.cell_size };
+        for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
+
+        auto style_value = meta["style"].as<int>();
+        style = static_cast<STYLE>(meta["style"].as<int>());
+		bg = static_cast<BACKDROP>(meta["background"].as<int>());
+		music = meta["music"].as_string();
+
+		for (auto& entry : data.meta["chests"].array_view()) {
+			Chest c{};
+			c.position.x = entry["position"][0].as<int>();
+			c.position.y = entry["position"][1].as<int>();
+			c.id = entry["id"].as<int>();
+			c.item_id = entry["item_id"].as<int>();
+			c.type = entry["type"].as<int>();
+			c.amount = entry["amount"].as<int>();
+			c.rarity = entry["rarity"].as<float>();
+			chests.push_back(c);
+		}
+
+        for (auto& entry : data.meta["portals"].array_view()) {
+            Portal p{};
+            p.position.x = entry["position"][0].as<int>();
+            p.position.y = entry["position"][1].as<int>();
+            p.dimensions.x = entry["dimensions"][0].as<int>();
+            p.dimensions.y = entry["dimensions"][1].as<int>();
+            p.source_map_id = entry["source_id"].as<int>();
+            p.destination_map_id = entry["destination_id"].as<int>();
+			p.activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
+			p.locked = (bool)entry["locked"].as_bool();
+			p.key_id = entry["key_id"].as<int>();
+            portals.push_back(p);
+        }
+
+        auto const& savept = data.meta["save_point"];
+		if (data.meta["save_point"].contains("id")) { save_point.placed = true; }
+        save_point.position.x = savept["position"][0].as<int>();
+		save_point.position.y = savept["position"][1].as<int>();
+
+        for (auto& entry : data.meta["npcs"].array_view()) {
+            NPC n{};
+            n.position.x = entry["position"][0].as<int>();
+            n.position.y = entry["position"][1].as<int>();
+            n.id = entry["id"].as<int>();
+			n.background = (bool)entry["background"].as_bool();
+			for (auto& suite : entry["suites"].array_view()) {
+				std::vector<std::string> in_set{};
+				for (auto& set : suite.array_view()) {
+					in_set.push_back(set.as_string().data());
+					std::cout << "In set: " << in_set.back() << "\n";
+				}
+				n.suites.push_back(in_set);
+			}
+            npcs.push_back(n);
+        }
+        for (auto& entry : data.meta["animators"].array_view()) {
+            Animator a{};
+            a.position.x = entry["position"][0].as<int>();
+            a.position.y = entry["position"][1].as<int>();
+            a.dimensions.x = entry["dimensions"][0].as<int>();
+            a.dimensions.y = entry["dimensions"][1].as<int>();
+			a.id = entry["id"].as<int>();
+			a.style = entry["style"].as<int>();
+            a.automatic = (bool)entry["automatic"].as_bool();
+            a.foreground = (bool)entry["foreground"].as_bool();
+            animators.push_back(a);
+		}
+		for (auto& entry : data.meta["beds"].array_view()) { beds.push_back(Bed{{entry["position"][0].as<uint32_t>(), entry["position"][1].as<uint32_t>()}}); }
+		for (auto& entry : data.meta["switch_blocks"].array_view()) {
+			SwitchBlock s{};
+			s.position.x = entry["position"][0].as<int>();
+			s.position.y = entry["position"][1].as<int>();
+			s.id = entry["button_id"].as<int>();
+			s.type = entry["type"].as<int>();
+			switch_blocks.push_back(s);
+		}
+		for (auto& entry : data.meta["switches"].array_view()) {
+			SwitchButton s{};
+			s.position.x = entry["position"][0].as<int>();
+			s.position.y = entry["position"][1].as<int>();
+			s.id = entry["button_id"].as<int>();
+			s.type = entry["type"].as<int>();
+			switch_buttons.push_back(s);
+		}
+		for (auto& entry : data.meta["destroyers"].array_view()) {
+			Destroyer d{};
+			d.position.x = entry["position"][0].as<int>();
+			d.position.y = entry["position"][1].as<int>();
+			d.id = entry["quest_id"].as<int>();
+			destroyers.push_back(d);
+		}
+        for (auto& entry : data.meta["platforms"].array_view()) {
+            Platform p{};
+            p.position.x = entry["position"][0].as<int>();
+            p.position.y = entry["position"][1].as<int>();
+            p.dimensions.x = entry["dimensions"][0].as<int>();
+            p.dimensions.y = entry["dimensions"][1].as<int>();
+            p.extent = entry["extent"].as<int>();
+            p.style = entry["style"].as<int>();
+            p.start = entry["start"].as<float>();
+            p.type = entry["type"].as_string();
+            platforms.push_back(p);
+        }
+
+        for (auto& entry : data.meta["inspectables"].array_view()) {
+            Inspectable i{};
+            i.key = entry["key"].as_string();
+            i.position.x = entry["position"][0].as<int>();
+            i.position.y = entry["position"][1].as<int>();
+            i.dimensions.x = entry["dimensions"][0].as<int>();
+			i.dimensions.y = entry["dimensions"][1].as<int>();
+			i.alternates = entry["alternates"].as<int>();
+            inspectables.push_back(i);
+            inspectables.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
+        }
+        for (auto& inspectable : inspectables) {
+			auto entry = data.inspectables[inspectable.key];
+			for (auto& suite : entry["suite"].array_view()) {
+				std::vector<std::string> in_set{};
+				for (auto& set : suite.array_view()) { in_set.push_back(set.as_string().data()); }
+				inspectable.suites.push_back(in_set);
+			}
+			for (auto& response : entry["responses"].array_view()) {
+				std::vector<std::string> in_set{};
+				for (auto& set : response.array_view()) { in_set.push_back(set.as_string().data()); }
+				inspectable.suites.push_back(in_set);
+			}
+		}
+        for (auto& entry : data.meta["enemies"].array_view()) {
+            Critter e{};
+            e.id = entry["id"].as<int>();
+            e.position.x = entry["position"][0].as<int>();
+            e.position.y = entry["position"][1].as<int>();
+            critters.push_back(e);
+        }
     }
-    
-    //dimensions and layers
-    input >> value; room_id = value; input.ignore();
-    input >> value; dimensions.x = value; input.ignore();
-    input >> value; dimensions.y = value; input.ignore();
-    input >> value; chunk_dimensions.x = value; input.ignore();
-    input >> value; chunk_dimensions.y = value; input.ignore();
-    if((dimensions.x / chunk_dimensions.x != CHUNK_SIZE) ||
-       (dimensions.y / chunk_dimensions.y != CHUNK_SIZE)) { printf("File is corrupted: Invalid dimensions.\n"); return; }
-    real_dimensions = {(float)dimensions.x * CELL_SIZE, (float)dimensions.y * CELL_SIZE};
-    for(int i = 0; i < NUM_LAYERS; ++i) {
-        map_states.back().layers.push_back(Layer( i, (i == MIDDLEGROUND), dimensions ));
-        map_states.back().layers.back().grid.initialize();
-    }
-    //style
-    input >> value; input.ignore();
-    if(value >= pi::lookup::get_style.size()) { printf("File is corrupted: Invalid style.\n"); return; } else {
-        style = pi::lookup::get_style.at(value);
-    }
-    //bg;
-    input >> value; input.ignore();
-    if(value >= pi::lookup::get_backdrop.size()) { printf("File is corrupted: Invalid backdrop.\n"); return; } else {
-        bg = pi::lookup::get_backdrop.at(value);
-    }
-    input.close();
-    
-    //get map tiles from text files
-    for(auto& layer : map_states.back().layers) {
-        input.open(path + "/map_tiles_" + std::to_string(counter) + ".txt");
-        for(auto& cell : layer.grid.cells) {
-            input >> value;
-            canvas::TILE_TYPE typ = lookup_type(value);
-            cell.value = value;
-            cell.type = typ;
-            
-            input.ignore(); //ignore the delimiter
+
+    // tiles
+    int layer_counter{};
+    for (auto& layer : map_states.back().layers) {
+        int cell_counter{};
+        for (auto& cell : data.tiles["layers"][layer_counter].array_view()) {
+            layer.grid.cells.at(cell_counter).value = cell.as<int>();
+            layer.grid.cells.at(cell_counter).type = lookup_type(cell.as<int>());
+            ++cell_counter;
         }
         layer.grid.update();
-        //close the current file
-        input.close();
-        ++counter;
-    }
-    pi::svc::active_layer = MIDDLEGROUND;
-
-    //get portal data
-    input.open(path + "/map_portals.txt");
-    if (input.is_open()) {
-        while(!input.eof()) {
-            Portal p{};
-            input >> p.dimensions.x; input.ignore();
-            input >> p.dimensions.y; input.ignore();
-            input >> value; p.activate_on_contact = (bool)value; input.ignore();
-            input >> p.source_map_id; input.ignore();
-            input >> p.destination_map_id; input.ignore();
-            input >> p.position.x; input.ignore();
-            input >> p.position.y; input.ignore();
-            if (p.dimensions.x != 0) { //only push if one was read, otherwise we reached the end of the file
-                portals.push_back(p);
-            }
-        }
-        input.close();
-    }
-
-    //get inspectable data
-    input.open(path + "/map_inspectables.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
-            Inspectable p{};
-            input >> p.dimensions.x; input.ignore();
-            input >> p.dimensions.y; input.ignore();
-            input >> value; p.activate_on_contact = (bool)value; input.ignore(); input.ignore();
-            std::getline(input, p.message, '#'); input.ignore();
-            input >> p.position.x; input.ignore();
-            input >> p.position.y; input.ignore();
-            if (p.dimensions.x != 0) { //only push if one was read, otherwise we reached the end of the file
-                inspectables.push_back(p);
-            }
-        }
-        input.close();
-    }
-
-    //get critter data
-    input.open(path + "/map_critters.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
-            Critter c{};
-            input >> value; if (value >= 0 && value < num_critter_types) { c.type = pi::lookup::get_critter_type.at(value); c.id = value; };
-            input.ignore();
-            input >> c.position.x; input.ignore();
-            input >> c.position.y; input.ignore();
-            if (c.id >= 0 && c.id < num_critter_types && c.position != sf::Vector2<unsigned int>{0, 0}) { //only push if one was read, otherwise we reached the end of the file
-                critters.push_back(c);
-            }
-        }
-        input.close();
-    }
-
-    //get animator data
-    input.open(path + "/map_animators.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
-            Animator p{};
-            input >> p.dimensions.x; input.ignore();
-            input >> p.dimensions.y; input.ignore();
-            input >> value; p.id = value; input.ignore();
-            input >> value; p.automatic = (bool)value; input.ignore();
-            input >> value; p.foreground = (bool)value; input.ignore();
-            input >> p.position.x; input.ignore();
-            input >> p.position.y; input.ignore();
-            if (p.dimensions.x != 0) { //only push if one was read, otherwise we reached the end of the file
-                animators.push_back(p);
-            }
-        }
-        input.close();
-    }
-
-    //get special block data
-    input.open(path + "/map_special_blocks.txt");
-    if (input.is_open()) {
-        while (!input.eof()) {
-            SpecialBlock p{};
-            input >> p.dimensions.x; input.ignore();
-            input >> p.dimensions.y; input.ignore();
-            input >> value; p.type = value; input.ignore(); input.ignore();
-            input >> p.id; input.ignore();
-            input >> p.position.x; input.ignore();
-            input >> p.position.y; input.ignore();
-            if (p.dimensions.x != 0) { //only push if one was read, otherwise we reached the end of the file
-                special_blocks.push_back(p);
-            }
-        }
-        input.close();
+        ++layer_counter;
     }
     
 }
 
 bool Canvas::save(const std::string& path) {
     
-    std::string filepath = path + "/map_data.txt";
-    
     int value{};
     int counter = 0;
     std::filesystem::create_directory(path);
-    std::ofstream output(filepath);
-    if (!output.is_open()) {
-        return false;
-    }
-
 
     /*json overhaul*/
 
     //clean jsons
-    metadata = {};
-    tiles = {};
+    data = {};
 
     //empty json array
     constexpr auto empty_array = R"([])";
     auto const wipe = dj::Json::parse(empty_array);
 
-    //metadata
-    metadata["meta"]["room_id"] = room_id;
-    metadata["meta"]["dimensions"][0] = dimensions.x;
-    metadata["meta"]["dimensions"][1] = dimensions.y;
-    metadata["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
-    metadata["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
-    metadata["meta"]["style"] = pi::lookup::get_style_id.at(style);
-    metadata["meta"]["background"] = pi::lookup::get_backdrop_id.at(bg);
+    //data.meta
+	data.meta["meta"]["room_id"] = room_id;
+	data.meta["meta"]["metagrid"][0] = metagrid_coordinates.x;
+	data.meta["meta"]["metagrid"][1] = metagrid_coordinates.y; 
+    data.meta["meta"]["dimensions"][0] = dimensions.x;
+    data.meta["meta"]["dimensions"][1] = dimensions.y;
+    data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
+    data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
+    data.meta["meta"]["style"] = static_cast<int>(style);
+    data.meta["meta"]["background"] = static_cast<int>(bg);
+	data.meta["meta"]["music"] = music;
 
     int ctr{};
     for (auto& portal : portals) {
-        metadata["portals"].push_back(wipe);
-        metadata["portals"][ctr]["dimensions"][0] = portal.dimensions.x;
-        metadata["portals"][ctr]["dimensions"][1] = portal.dimensions.y;
-        metadata["portals"][ctr]["position"][0] = portal.position.x;
-        metadata["portals"][ctr]["position"][1] = portal.position.y;
-        metadata["portals"][ctr]["source_id"] = portal.source_map_id;
-        metadata["portals"][ctr]["destination_id"] = portal.destination_map_id;
-        metadata["portals"][ctr]["activate_on_contact"] = (dj::Boolean)(portal.activate_on_contact);
+        data.meta["portals"].push_back(wipe);
+        data.meta["portals"][ctr]["dimensions"][0] = portal.dimensions.x;
+        data.meta["portals"][ctr]["dimensions"][1] = portal.dimensions.y;
+        data.meta["portals"][ctr]["position"][0] = portal.position.x;
+        data.meta["portals"][ctr]["position"][1] = portal.position.y;
+        data.meta["portals"][ctr]["source_id"] = room_id;
+        data.meta["portals"][ctr]["destination_id"] = portal.destination_map_id;
+		data.meta["portals"][ctr]["activate_on_contact"] = (dj::Boolean)(portal.activate_on_contact);
+		data.meta["portals"][ctr]["locked"] = (dj::Boolean)(portal.locked);
+		data.meta["portals"][ctr]["key_id"] = portal.key_id;
         ++ctr;
     }
     ctr = 0;
     for (auto& inspectable : inspectables) {
-        metadata["inspectables"].push_back(wipe);
-        metadata["inspectables"][ctr]["dimensions"][0] = inspectable.dimensions.x;
-        metadata["inspectables"][ctr]["dimensions"][1] = inspectable.dimensions.y;
-        metadata["inspectables"][ctr]["position"][0] = inspectable.position.x;
-        metadata["inspectables"][ctr]["position"][1] = inspectable.position.y;
-        metadata["inspectables"][ctr]["activate_on_contact"] = (dj::Boolean)(inspectable.activate_on_contact);
-        metadata["inspectables"][ctr]["key"] = inspectable.message;
+        data.meta["inspectables"].push_back(wipe);
+        data.meta["inspectables"][ctr]["dimensions"][0] = inspectable.dimensions.x;
+        data.meta["inspectables"][ctr]["dimensions"][1] = inspectable.dimensions.y;
+        data.meta["inspectables"][ctr]["position"][0] = inspectable.position.x;
+        data.meta["inspectables"][ctr]["position"][1] = inspectable.position.y;
+        data.meta["inspectables"][ctr]["activate_on_contact"] = (dj::Boolean)(inspectable.activate_on_contact);
+		data.meta["inspectables"][ctr]["key"] = inspectable.key;
+		data.meta["inspectables"][ctr]["alternates"] = inspectable.alternates;
+		for (auto& suite : inspectable.suites) {
+			auto out_set = wipe;
+			for (auto& message : suite) { out_set.push_back(message); }
+			data.inspectables[inspectable.key]["suite"].push_back(out_set);
+		}
+		for (auto& response : inspectable.responses) {
+			auto out_set = wipe;
+			for (auto& message : response) { out_set.push_back(message); }
+			data.inspectables[inspectable.key]["responses"].push_back(out_set);
+		}
         ++ctr;
     }
     ctr = 0;
     for (auto& animator : animators) {
-        metadata["animators"].push_back(wipe);
-        metadata["animators"][ctr]["id"] = animator.id;
-        metadata["animators"][ctr]["dimensions"][0] = animator.dimensions.x;
-        metadata["animators"][ctr]["dimensions"][1] = animator.dimensions.y;
-        metadata["animators"][ctr]["position"][0] = animator.position.x;
-        metadata["animators"][ctr]["position"][1] = animator.position.y;
-        metadata["animators"][ctr]["automatic"] = (dj::Boolean)(animator.automatic);
-        metadata["animators"][ctr]["foreground"] = (dj::Boolean)(animator.foreground);
+        data.meta["animators"].push_back(wipe);
+		data.meta["animators"][ctr]["id"] = animator.id;
+		data.meta["animators"][ctr]["style"] = animator.style;
+        data.meta["animators"][ctr]["dimensions"][0] = animator.dimensions.x;
+        data.meta["animators"][ctr]["dimensions"][1] = animator.dimensions.y;
+        data.meta["animators"][ctr]["position"][0] = animator.position.x;
+        data.meta["animators"][ctr]["position"][1] = animator.position.y;
+        data.meta["animators"][ctr]["automatic"] = (dj::Boolean)(animator.automatic);
+        data.meta["animators"][ctr]["foreground"] = (dj::Boolean)(animator.foreground);
         ++ctr;
     }
     ctr = 0;
-    for (auto& critter : critters) {
-        metadata["enemies"].push_back(wipe);
-        metadata["enemies"][ctr]["id"] = critter.id;
-        metadata["enemies"][ctr]["position"][0] = critter.position.x;
-        metadata["enemies"][ctr]["position"][1] = critter.position.y;
+    for (auto& plat : platforms) {
+        data.meta["platforms"].push_back(wipe);
+        data.meta["platforms"][ctr]["position"][0] = plat.position.x;
+        data.meta["platforms"][ctr]["position"][1] = plat.position.y;
+        data.meta["platforms"][ctr]["dimensions"][0] = plat.dimensions.x;
+        data.meta["platforms"][ctr]["dimensions"][1] = plat.dimensions.y;
+        data.meta["platforms"][ctr]["extent"] = plat.extent;
+        data.meta["platforms"][ctr]["style"] = plat.style;
+        data.meta["platforms"][ctr]["type"] = plat.type;
+        data.meta["platforms"][ctr]["start"] = plat.start;
         ++ctr;
-    }
+	}
+	ctr = 0;
+	for (auto& bed : beds) {
+		data.meta["beds"].push_back(wipe);
+		data.meta["beds"][ctr]["position"][0] = bed.position.x;
+		data.meta["beds"][ctr]["position"][1] = bed.position.y;
+		++ctr;
+	}
+	ctr = 0;
+	for (auto& destroyer : destroyers) {
+		data.meta["destroyers"].push_back(wipe);
+		data.meta["destroyers"][ctr]["quest_id"] = destroyer.id;
+		data.meta["destroyers"][ctr]["position"][0] = destroyer.position.x;
+		data.meta["destroyers"][ctr]["position"][1] = destroyer.position.y;
+		++ctr;
+	}
+    ctr = 0;
+    for (auto& critter : critters) {
+        data.meta["enemies"].push_back(wipe);
+        data.meta["enemies"][ctr]["id"] = critter.id;
+        data.meta["enemies"][ctr]["position"][0] = critter.position.x;
+        data.meta["enemies"][ctr]["position"][1] = critter.position.y;
+        ++ctr;
+	}
+	for (auto& npc : npcs) {
+		data.meta["npcs"].push_back(wipe);
+		data.meta["npcs"][ctr]["id"] = npc.id;
+		data.meta["npcs"][ctr]["position"][0] = npc.position.x;
+		data.meta["npcs"][ctr]["position"][1] = npc.position.y;
+		data.meta["npcs"][ctr]["background"] = (dj::Boolean)npc.background;
+		for (auto& suite : npc.suites) {
+			auto out_set = wipe;
+			for (auto& number : suite) { out_set.push_back(number); }
+			data.meta["npcs"][ctr]["suites"].push_back(out_set);
+			std::cout << "Out set: " << out_set.as_string() << "\n";
+		}
+		++ctr;
+	}
+	ctr = 0;
+	for (auto& chest : chests) {
+		data.meta["chests"].push_back(wipe);
+		data.meta["chests"][ctr]["id"] = chest.id;
+		data.meta["chests"][ctr]["item_id"] = chest.item_id;
+		data.meta["chests"][ctr]["type"] = chest.type;
+		data.meta["chests"][ctr]["amount"] = chest.amount;
+		data.meta["chests"][ctr]["rarity"] = chest.rarity;
+		data.meta["chests"][ctr]["position"][0] = chest.position.x;
+		data.meta["chests"][ctr]["position"][1] = chest.position.y;
+		++ctr;
+	}
+	ctr = 0;
+	for (auto& block : switch_blocks) {
+		data.meta["switch_blocks"].push_back(wipe);
+		data.meta["switch_blocks"][ctr]["button_id"] = block.id;
+		data.meta["switch_blocks"][ctr]["type"] = block.type;
+		data.meta["switch_blocks"][ctr]["position"][0] = block.position.x;
+		data.meta["switch_blocks"][ctr]["position"][1] = block.position.y;
+		++ctr;
+	}
+	ctr = 0;
+	for (auto& button : switch_buttons) {
+		data.meta["switches"].push_back(wipe);
+		data.meta["switches"][ctr]["button_id"] = button.id;
+		data.meta["switches"][ctr]["type"] = button.type;
+		data.meta["switches"][ctr]["position"][0] = button.position.x;
+		data.meta["switches"][ctr]["position"][1] = button.position.y;
+		++ctr;
+	}
+	if (save_point.placed) {
+		data.meta["save_point"]["id"] = room_id;
+		data.meta["save_point"]["position"][0] = save_point.position.x;
+		data.meta["save_point"]["position"][1] = save_point.position.y;
+	}
 
-
-    tiles["layers"] = wipe;
+    data.tiles["layers"] = wipe;
     for (int i = 0; i < NUM_LAYERS; ++i) {
-        tiles["layers"].push_back(wipe);
+        data.tiles["layers"].push_back(wipe);
     }
     //push layer data
     int current_layer{};
     for (auto& layer : map_states.back().layers) {
         int current_cell{};
         for (auto& cell : layer.grid.cells) {
-            tiles["layers"][current_layer].push_back(layer.grid.cells.at(current_cell).value);
+            data.tiles["layers"][current_layer].push_back(layer.grid.cells.at(current_cell).value);
             ++current_cell;
         }
         ++current_layer;
     }
 
-    metadata.to_file((path + "/meta.json").c_str());
-    tiles.to_file((path + "/tile.json").c_str());
+    data.meta.to_file((path + "/meta.json").c_str());
+    data.inspectables.to_file((path + "/inspectables.json").c_str());
+    data.tiles.to_file((path + "/tile.json").c_str());
 
     /*json overhaul*/
-
-
-
-    output << room_id << ", " << dimensions.x << ", " << dimensions.y << ", "
-    << chunk_dimensions.x << ", " << chunk_dimensions.y << ", "
-    << pi::lookup::get_style_id.at(style) << ", " << pi::lookup::get_backdrop_id.at(bg);
-    output.close();
-    
-    for(auto& layer : map_states.back().layers) {
-        int cell_ctr{0};
-        std::ofstream tile_output(path + "/map_tiles_" + std::to_string(counter) + ".txt");
-        for(auto& cell : layer.grid.cells) {
-            tile_output << std::to_string(layer.grid.cells.at(cell_ctr).value);
-            
-            tile_output << ",";
-            
-            ++cell_ctr;
-        }
-        layer.grid.update();
-        //close the current file
-        tile_output.close();
-        ++counter;
-    }
-    output.open(path + "/map_portals.txt");
-    if (output.is_open()) {
-        for (auto& portal : portals) {
-            int aoc = portal.activate_on_contact ? 1 : 0;
-            output << portal.dimensions.x << "," << portal.dimensions.y << "," << aoc << "," << portal.source_map_id << "," << portal.destination_map_id << "," << portal.position.x << "," << portal.position.y << "#\n";
-        }
-    }
-    output.close();
-    output.open(path + "/map_inspectables.txt");
-    if (output.is_open()) {
-        for (auto& inspectable : inspectables) {
-            int aoc = inspectable.activate_on_contact ? 1 : 0;
-            output << inspectable.dimensions.x << "," << inspectable.dimensions.y << "," << aoc << "#\n" << inspectable.message << "#\n" << inspectable.position.x << "," << inspectable.position.y << "#\n";
-        }
-    }
-    output.close();
-    output.open(path + "/map_animators.txt");
-    if (output.is_open()) {
-        for (auto& animator : animators) {
-            int automatic = animator.automatic ? 1 : 0;
-            int foreground = animator.foreground ? 1 : 0;
-            output << animator.dimensions.x << "," << animator.dimensions.y << "," << animator.id << "," << automatic << "," << foreground << "," << animator.position.x << "," << animator.position.y << "#\n";
-        }
-    }
-    output.close();
-    output.open(path + "/map_critters.txt");
-    if (output.is_open()) {
-        for (auto& critter : critters) {
-            output << critter.id << "," << critter.position.x << "," << critter.position.y << "#\n";
-        }
-    }
-    output.close();
-    output.open(path + "/map_special_blocks.txt");
-    if (output.is_open()) {
-        for (auto& block : special_blocks) {
-            int type = block.type;
-            int id = block.id;
-            output << block.dimensions.x << "," << block.dimensions.y << "," << type << "," << id << "," << block.position.x << "," << block.position.y << "#\n";
-        }
-    }
-    output.close();
     return true;
 }
 
@@ -356,11 +401,20 @@ void Canvas::clear() {
         inspectables.clear();
         critters.clear();
         animators.clear();
+        chests.clear();
+		platforms.clear();
+        npcs.clear();
+        switch_blocks.clear();
+		switch_buttons.clear();
+		beds.clear();
+		destroyers.clear();
+		save_point.placed = false;
     }
 }
 
 void Canvas::save_state() {
-    auto undoable_tool = pi::svc::current_tool.get()->type == tool::TOOL_TYPE::BRUSH || pi::svc::current_tool.get()->type == tool::TOOL_TYPE::FILL;
+    auto const& type = pi::svc::current_tool.get()->type;
+    auto undoable_tool = type == tool::TOOL_TYPE::BRUSH || type == tool::TOOL_TYPE::FILL || type == tool::TOOL_TYPE::SELECT || type == tool::TOOL_TYPE::ERASE;
     auto just_clicked = !pi::svc::current_tool.get()->active && pi::svc::current_tool.get()->ready;
     if (undoable_tool && just_clicked) {
         map_states.emplace_back(canvas::Map(map_states.back()));

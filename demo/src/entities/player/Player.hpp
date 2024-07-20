@@ -1,246 +1,239 @@
-//
-//  Player.hpp
-//  for_loop
-//
-//  Created by Alex Frasca on 10/12/18.
-//  Copyright © 2018 Western Forest Studios. All rights reserved.
-//
+
 #pragma once
 
-#include "../../utils/Collider.hpp"
-#include "../../components/PhysicsComponent.hpp"
-#include "../../components/BehaviorComponent.hpp"
-#include "../../weapon/Arsenal.hpp"
-#include "../../utils/BitFlags.hpp"
 #include <array>
 #include <memory>
+#include "../../components/PhysicsComponent.hpp"
+#include "../../graphics/SpriteHistory.hpp"
+#include "../../graphics/TextureUpdater.hpp"
+#include "../../particle/Gravitator.hpp"
+#include "../../utils/BitFlags.hpp"
+#include "../../utils/QuestCode.hpp"
+#include "../../utils/Collider.hpp"
+#include "../../graphics/Tutorial.hpp"
+#include "../../weapon/Arsenal.hpp"
+#include "../packages/Health.hpp"
+#include "Catalog.hpp"
+#include "Indicator.hpp"
+#include "PlayerAnimation.hpp"
+#include "PlayerController.hpp"
+#include "Transponder.hpp"
 
-const float PLAYER_WIDTH = 24.0f;
-const float PLAYER_HEIGHT = 24.0f;
-const float PLAYER_START_X = 100.0f;
-const float PLAYER_START_Y = 100.0f;
-const float JUMPBOX_HEIGHT = 8.0f;
-const float DETECTOR_WIDTH = 8.0f;
-const float DETECTOR_HEIGHT = 22.0f;
-const float WALL_SLIDE_DETECTOR_OFFSET = 20.0f;
-const float DETECTOR_BUFFER = (PLAYER_HEIGHT - DETECTOR_HEIGHT) / 2;
-const int JUMP_BUFFER_TIME = 12;
-const int INVINCIBILITY_TIME = 200;
-const int ANCHOR_BUFFER = 50;
-const int num_sprites{220};
+namespace gui {
+class Console;
+class InventoryWindow;
+} // namespace gui
+
+namespace world {
+class Map;
+}
+
+namespace automa {
+struct ServiceProvider;
+}
+
+namespace item {
+enum class DropType;
+}
+
+namespace player {
+
+float const PLAYER_WIDTH = 20.0f;
+float const PLAYER_HEIGHT = 20.0f;
+float const head_height{8.f};
+float const PLAYER_START_X = 100.0f;
+float const PLAYER_START_Y = 100.0f;
+float const JUMPBOX_HEIGHT = 8.0f;
+float const DETECTOR_WIDTH = 8.0f;
+float const DETECTOR_HEIGHT = 22.0f;
+float const WALL_SLIDE_DETECTOR_OFFSET = 20.0f;
+float const DETECTOR_BUFFER = (PLAYER_HEIGHT - DETECTOR_HEIGHT) / 2;
+int const JUMP_BUFFER_TIME = 12;
+int const INVINCIBILITY_TIME = 200;
+int const ANCHOR_BUFFER = 50;
+int const num_sprites{220};
+
+constexpr inline float antenna_force{0.18f};
+constexpr inline float antenna_speed{336.f};
 
 struct PlayerStats {
-    
-    int health{};
-    int max_health{};
-    int orbs{};
-    int max_orbs{};
-    
+	int orbs{};
+	int max_orbs{};
+	float shield_dampen{0.01f};
 };
-
-struct PlayerInventoryStats {
-    
-    uint32_t gem_spinel{};
-    uint32_t gem_topaz{};
-    uint32_t gem_tourmaline{};
-    uint32_t gem_peridot{};
-    
-    uint32_t flower_lavender{};
-    uint32_t flower_daffodil{};
-    uint32_t flower_hibiscus{};
-    uint32_t flower_orchid{};
-    
-};
-
 
 struct PhysicsStats {
-
-    float PLAYER_MAX_XVEL = 2.380f;
-    float PLAYER_MAX_YVEL = 0.226f;
-
-    float AIR_MULTIPLIER = 2.912f;
-
-    float PLAYER_GRAV = 0.002f;
-
-    float TERMINAL_VELOCITY = 0.8f;
-
-    float PLAYER_GROUND_FRIC = 0.963f;
-    float PLAYER_HORIZ_AIR_FRIC = 0.987f;
-    float PLAYER_VERT_AIR_FRIC = 0.956f;
-
-    float X_ACC = 0.056f;
-    float X_ACC_AIR = 0.056f;
-
-    //float JUMP_MAX = 0.304f; //3 blocks
-    float JUMP_MAX = 0.392f; //4 blocks
-    
-    float WALL_SLIDE_THRESHOLD = -1.0f;
-    float WALL_SLIDE_SPEED = 1.31f;
-    float PLAYER_MASS = 1.0f;
-
-    float JUMP_RELEASE_MULTIPLIER = 0.65f;
-
-    float HURT_ACC = 0.15f;
-    
+	float grav{};
+	float ground_fric{};
+	float air_fric{};
+	float x_acc{};
+	float air_multiplier{};
+	float sprint_multiplier{};
+	float jump_velocity{};
+	float jump_release_multiplier{};
+	float hurt_acc{};
+	sf::Vector2<float> maximum_velocity{};
+	float mass{};
+	float vertical_dash_multiplier{};
+	float dash_speed{};
+	float dash_dampen{};
+	float wallslide_speed{};
 };
 
 struct Counters {
-    int invincibility{};
+	int invincibility{};
 };
 
-enum class Soundboard {
-    jump,
-    step,
-    land,
-    weapon_swap,
-    hurt,
-};
-
-enum class Jump {
-    hold, //true if jump is pressed and permanently false once released, until player touches the ground again
-    trigger, //true for one frame if jump is pressed and the player is grounded
-    can_jump, //true if the player is grounded
-    just_jumped, //used for updating animation
-    is_pressed, //true if the jump button is pressed, false if not. independent of player's state.
-    is_released, //true if jump released midair, reset upon landing
-    jumping, //true if jumpsquat is over, falce once player lands
-};
-
-enum class Movement {
-
-	move_left,
-	move_right,
-	look_up,
-	look_down,
-	left_released,
-	right_released,
-
-	stopping,
-	just_stopped,
-	suspended_trigger,
-	fall_trigger,
-	landed_trigger,
-	entered_freefall,
-	freefalling,
-    autonomous_walk,
-
-	is_wall_sliding,
-	wall_slide_trigger,
-	release_wallslide,
-};
-
-enum class Input {
-    restricted,
-    no_anim,
-    exit_request,
-    inspecting,
-    inspecting_trigger
-};
-
-enum class State {
-    alive
-};
+enum class State { killed, dir_switch, show_weapon, impart_recoil, crushed};
+enum class Triggers { hurt };
 
 struct PlayerFlags {
-    util::BitFlags<Soundboard> sounds{};
-    util::BitFlags<Jump> jump{};
-    util::BitFlags<Movement> movement{};
-    util::BitFlags<Input> input{};
-    util::BitFlags<State> state{};
+	util::BitFlags<State> state{};
+	util::BitFlags<Triggers> triggers{};
 };
 
 class Player {
-public:
+  public:
+	Player(automa::ServiceProvider& svc);
+	~Player() {}
 
-    using Clock = std::chrono::steady_clock;
-    using Time = std::chrono::duration<float>;
-    Player();
-    
-    //member functions
-    void handle_events(sf::Event& event);
-    void update(Time dt);
-    void render(sf::RenderWindow& win, sf::Vector2<float>& campos);
-    void assign_texture(sf::Texture& tex);
-    void update_animation();
-    void update_sprite();
-    void flash_sprite();
-    void calculate_sprite_offset();
-    
-    void update_behavior();
-    void set_position(sf::Vector2<float> new_pos);
-    void update_direction();
-    void update_weapon();
-    void walk();
-    void autonomous_walk();
+	// init (violates RAII but must happen after resource path is set)
+	void init(automa::ServiceProvider& svc);
+	// member functions
+	void update(world::Map& map, gui::Console& console, gui::InventoryWindow& inventory_window);
+	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> campos);
+	void render_indicators(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam);
+	void assign_texture(sf::Texture& tex);
+	void update_animation();
+	void update_sprite();
+	void handle_turning();
+	void update_transponder(gui::Console& console, gui::InventoryWindow& inventory_window);
+	void flash_sprite();
+	void calculate_sprite_offset();
 
-    void restrict_inputs();
-    void unrestrict_inputs();
-    void restrict_animation();
-    void no_move();
+	// state
+	[[nodiscard]] auto alive() const -> bool { return !health.is_dead(); }
+	[[nodiscard]] auto is_dead() const -> bool { return health.is_dead(); }
+	[[nodiscard]] auto death_animation_over() -> bool { return animation.death_over(); }
+	[[nodiscard]] auto just_died() const -> bool { return flags.state.test(State::killed); }
+	[[nodiscard]] auto height() const -> float { return collider.dimensions.y; }
+	[[nodiscard]] auto width() const -> float { return collider.dimensions.x; }
+	[[nodiscard]] auto arsenal_size() const -> size_t { return arsenal ? arsenal.value().size() : 0; }
+	[[nodiscard]] auto quick_direction_switch() const -> bool { return flags.state.test(State::dir_switch); }
+	[[nodiscard]] auto shielding() -> bool { return controller.get_shield().is_shielding(); }
+	[[nodiscard]] auto has_shield() const -> bool { return catalog.categories.abilities.has_ability(Abilities::shield); }
+	[[nodiscard]] auto has_item(int id) const -> bool { return catalog.categories.inventory.has_item(id); }
+	[[nodiscard]] auto invincible() const -> bool { return health.invincible(); }
+	[[nodiscard]] auto has_map() const -> bool { return catalog.categories.inventory.has_item(16); }
 
-    bool grounded() const;
-    bool moving() const;
-    bool moving_at_all() const;
-    
-    //firing
-    sf::Vector2<float> get_fire_point();
+	// moves
+	void jump(world::Map& map);
+	void dash();
+	void wallslide();
+	void shield();
 
-    //level events
-    void make_invincible();
-    void update_invincibility();
-    bool is_invincible() const;
-    void kill();
-    void start_over();
+	void set_position(sf::Vector2<float> new_pos, bool centered = false);
+	void freeze_position();
+	void update_direction();
+	void update_weapon();
+	void walk();
+	void hurt(float amount = 1.f, bool force = false);
+	void on_crush(world::Map& map);
+	void update_antennae();
+	void sync_antennae();
 
-    //map helpers
-    behavior::DIR_LR entered_from();
-    
-    //sound
-    void play_sounds();
-    
-    //for debug mode
-    std::string print_direction(bool lr);
+	bool grounded() const;
+	bool fire_weapon();
 
-    shape::Collider collider{ {PLAYER_WIDTH, PLAYER_HEIGHT}, {PLAYER_START_X, PLAYER_START_Y} };
-    components::PlayerBehaviorComponent behavior{};
-    behavior::DIR last_dir{};
-    arms::Arsenal loadout{};
-    std::vector<arms::WEAPON_TYPE> weapons_hotbar{};
-    int current_weapon{};
-    
-    sf::Vector2<float> apparent_position{};
-    sf::Vector2<float> anchor_point{};
-    sf::Vector2<float> hand_position{};
-    sf::Vector2<float> sprite_offset{};
-    
-    PlayerStats player_stats{3, 3, 0, 100};
-    PlayerInventoryStats player_inv_stats{0, 0, 0, 0, 0, 0, 0, 0};
-    PhysicsStats stats{};
-    PlayerFlags flags{};
-    
-    Counters counters{};
+	// level events
+	void update_invincibility();
+	void start_over();
+	void give_drop(item::DropType type, float value);
+	void give_item(int item_id, int amount);
 
-    //fixed animation time step variables
-    Time dt{ 0.001f };
-    Clock::time_point current_time = Clock::now();
-    Time accumulator{ 0.0f };
+	void reset_flags();
+	void total_reset();
+	void map_reset();
 
-    //sprites
-    sf::Sprite sprite{};
-    
-    bool grav = true;
+	arms::Weapon& equipped_weapon();
+	void push_to_loadout(int id);
+	void pop_from_loadout(int id);
 
-    
-    int jump_request{};
+	// map helpers
+	dir::LR entered_from() const;
 
-    bool just_hurt{};
-    
-    bool weapon_fired{};
-    bool start_cooldown{};
+	// for debug mode
+	std::string print_direction(bool lr);
 
-    bool sprite_flip{};
+	// components
+	PlayerController controller;
+	Transponder transponder{};
+	shape::Collider collider{};
+	shape::Shape hurtbox{};
+	PlayerAnimation animation;
+	entity::Health health{};
+	Indicator health_indicator;
+	Indicator orb_indicator;
 
-    int wall_slide_ctr{0};
-    
+	text::Tutorial tutorial{};
+
+	// weapons
+	std::optional<arms::Arsenal> arsenal{};
+
+	sf::Vector2<float> apparent_position{};
+	sf::Vector2<float> anchor_point{};
+	sf::Vector2<float> hand_position{};
+	sf::Vector2<float> sprite_offset{9.f, -3.f};
+	sf::Vector2<float> sprite_dimensions{};
+	sf::Vector2<float> sprite_position{};
+
+	std::vector<vfx::Gravitator> antennae{};
+	sf::Vector2<float> antenna_offset{4.f, -17.f};
+
+	PlayerStats player_stats{0, 99999, 0.06f};
+	PhysicsStats physics_stats{};
+	PlayerFlags flags{};
+	util::Cooldown hurt_cooldown{}; //for animation
+	util::Cooldown force_cooldown{}; //for player hurt forces
+	struct {
+		util::Cooldown tutorial{400};
+		util::Cooldown sprint_tutorial{800};
+	} cooldowns{};
+	Counters counters{};
+	std::vector<sf::Vector2<float>> accumulated_forces{};
+	sf::Vector2<float> forced_momentum{};
+	std::optional<util::QuestCode> quest_code{};
+
+	automa::ServiceProvider* m_services;
+
+	// sprites
+	sf::Sprite sprite{};
+	flfx::SpriteHistory sprite_history{};
+
+	// texture updater
+	flfx::TextureUpdater texture_updater{};
+
+	bool grav = true;
+
+	bool start_cooldown{};
+	bool sprite_flip{};
+
+	int ledge_height{}; // temp for testing
+
+	Catalog catalog{};
+
+  private:
+	struct {
+		float stop{5.8f};
+		float wallslide{-1.5f};
+		float suspend{4.4f};
+		float landed{0.4f};
+		float run{0.02f};
+	} thresholds{};
+	struct {
+		dir::Direction left_squish{};
+		dir::Direction right_squish{};
+	} directions{};
 };
- /* Player_hpp */
+
+} // namespace player

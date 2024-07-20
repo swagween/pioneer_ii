@@ -1,48 +1,62 @@
-//
-//  Inspectable.hpp
-//  entity
-//
-//
-
 #pragma once
 
-#include "../../utils/Shape.hpp"
+#include <djson/json.hpp>
 #include <string>
+#include <optional>
+#include "../../utils/Shape.hpp"
+#include "../animation/Animation.hpp"
+#include "../../utils/Circuit.hpp"
+
+namespace automa {
+struct ServiceProvider;
+}
+
+namespace player {
+class Player;
+}
+
+namespace gui {
+class Console;
+}
 
 namespace entity {
 
-	const uint32_t UNIT_SIZE = 32;
+enum class InspectableFlags { hovered, hovered_trigger, activated, destroy, engaged };
 
-	class Inspectable {
+class Inspectable {
+  public:
+	using Vec = sf::Vector2<float>;
+	using Vecu16 = sf::Vector2<uint32_t>;
 
-	public:
+	Inspectable() = default;
+	Inspectable(automa::ServiceProvider& svc, Vecu16 dim, Vecu16 pos, std::string_view key, int room_id, int alternates = 0);
+	void update(automa::ServiceProvider& svc, player::Player& player, gui::Console& console, dj::Json& set);
+	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, Vec campos);
+	void destroy() { flags.set(InspectableFlags::destroy); } 
+	[[nodiscard]] auto destroyed() const -> bool { return flags.test(InspectableFlags::destroy); }
+	[[nodiscard]] auto get_id() const -> std::string { return id; }
 
-		using Vec = sf::Vector2<float>;
-		using Vecu16 = sf::Vector2<uint32_t>;
+	Vec dimensions{};
+	Vec position{};
+	Vec offset{0.f, -36.f};
+	Vecu16 scaled_dimensions{};
+	Vecu16 scaled_position{};
+	shape::Shape bounding_box{};
 
-		Inspectable() = default;
-		Inspectable(Vecu16 dim, Vecu16 pos) : scaled_dimensions(dim), scaled_position(pos) {
-			dimensions = static_cast<Vec>(dim * UNIT_SIZE);
-			position = static_cast<Vec>(pos * UNIT_SIZE);
-			bounding_box = shape::Shape(dimensions);
-			bounding_box.set_position(position);
-		}
-		void update();
-		void render(sf::RenderWindow& win, Vec campos); //for debugging
+	bool activated{};
+	bool activate_on_contact{};
 
-		Vec dimensions{};
-		Vec position{};
-		Vecu16 scaled_dimensions{};
-		Vecu16 scaled_position{};
-		shape::Shape bounding_box{};
+	std::string key{};
+	int alternates{};
+	int current_alt{};
 
-		bool activated{};
-		bool activate_on_contact{};
+  private:
+	std::string id{};
+	int iid{};
+	util::BitFlags<InspectableFlags> flags{};
+	sf::Sprite sprite{};
+	anim::Animation animation{};
+	anim::Parameters params{0, 14, 18, 0};
+};
 
-		std::string message{};
-
-	};
-
-} // end entity
-
-/* Inspectable_hpp */
+} // namespace entity

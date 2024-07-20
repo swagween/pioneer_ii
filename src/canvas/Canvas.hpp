@@ -26,7 +26,6 @@ const int CHUNK_SIZE{16};
 const int num_critter_types{ 17 };
 
 enum class BACKDROP {
-    BG_NULL,
     BG_DUSK,
     BG_SUNRISE,
     BG_OPEN_SKY,
@@ -107,16 +106,20 @@ struct Portal {
     bool activate_on_contact{};
     int source_map_id{};
     int destination_map_id{};
-
+    bool locked{};
+	int key_id{};
     sf::Vector2<uint32_t> position{};
 };
 
 struct Inspectable {
     sf::Vector2<uint32_t> dimensions{};
     bool activate_on_contact{};
-    std::string message{};
+    std::string key{};
+	std::vector<std::vector<std::string>> suites{};
+	std::vector<std::vector<std::string>> responses{};
 
     sf::Vector2<uint32_t> position{};
+	int alternates{};
 };
 
 struct Critter {
@@ -131,7 +134,21 @@ struct Animator {
     int id{};
     bool automatic{};
     bool foreground{};
+	int style{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct Bed {
+	sf::Vector2<uint32_t> position{};
+};
+
+struct Platform {
     sf::Vector2<uint32_t> position{};
+    sf::Vector2<uint32_t> dimensions{};
+    int extent{};
+    int style{};
+    std::string type{};
+    float start{};
 };
 
 struct SpecialBlock {
@@ -139,6 +156,44 @@ struct SpecialBlock {
     int type{};
     int id{};
     sf::Vector2<uint32_t> position{};
+};
+
+struct NPC {
+    int id{};
+	bool background{};
+    sf::Vector2<uint32_t> position{};
+	std::vector<std::vector<std::string>> suites{};
+};
+
+struct Chest {
+    int id{};
+    int item_id{};
+	int type{};
+	float rarity{};
+	int amount{};
+    sf::Vector2<uint32_t> position{};
+};
+
+struct SwitchBlock {
+	int id{};
+	int type{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct Destroyer {
+	int id{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct SwitchButton {
+	int id{};
+	int type{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct SavePoint {
+	bool placed{};
+	sf::Vector2<uint32_t> position{};
 };
 
 struct Map {
@@ -162,8 +217,6 @@ public:
     void update_dimensions();
     void edit_tile_at(int i, int j, int new_val, int layer_index);
     int tile_val_at(int i, int j, int layer);
-    void render(sf::RenderWindow& win, std::vector<sf::Sprite>& tileset, sf::Vector2<float> cam);
-    canvas::Tile& tile_at(const uint8_t i, const uint8_t j);
     TILE_TYPE lookup_type(int idx);
     
     //layers
@@ -172,16 +225,34 @@ public:
     sf::Vector2<float> real_dimensions{};
     sf::Vector2<uint32_t> dimensions{};
     sf::Vector2<uint32_t> chunk_dimensions{};
+	sf::Vector2<int> metagrid_coordinates{};
 
     //entities
     std::vector<Portal> portals{};
     std::vector<Inspectable> inspectables{};
     std::vector<Animator> animators{};
     std::vector<Critter> critters{};
+    std::vector<NPC> npcs{};
+    std::vector<Chest> chests{};
     std::vector<SpecialBlock> special_blocks{};
+	std::vector<Platform> platforms{};
+	std::vector<SwitchBlock> switch_blocks{};
+	std::vector<SwitchButton> switch_buttons{};
+	std::vector<Bed> beds{};
+	std::vector<Destroyer> destroyers{};
+	SavePoint save_point{};
+	std::string music{};
 
-    dj::Json metadata{};
-    dj::Json tiles{};
+    // read and write
+    struct {
+        dj::Json meta{};
+        dj::Json tiles{};
+        dj::Json inspectables{};
+    } data{};
+
+    struct {
+        float cell_size{ 32.f };
+    } constants{};
     
     STYLE style{};
     BACKDROP bg{};

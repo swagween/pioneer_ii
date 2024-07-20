@@ -1,99 +1,113 @@
-//
-//  PhysicsComponent.hpp
-//  components
-//
-//
 
 #pragma once
 
 #include "PhysicsComponent.hpp"
-#include "../setup/ServiceLocator.hpp"
+#include "../service/ServiceProvider.hpp"
+#include <algorithm>
 
 namespace components {
-    
-    using Time = std::chrono::duration<float>;
-    
 
-    void PhysicsComponent::apply_force(sf::Vector2<float> force) {
-        sf::operator+= (acceleration, force);
-    }
-    
-    void PhysicsComponent::apply_force_at_angle(float magnitude, float angle) {
-        acceleration.x += (magnitude * cos(angle)) / mass;
-        acceleration.y += (magnitude * sin(angle)) / mass;
-    }
-    
-    void PhysicsComponent::update_euler() {
+void PhysicsComponent::apply_force(sf::Vector2<float> force) { sf::operator+=(acceleration, force); }
 
-        dt = svc::clockLocator.get().tick_rate;
+void PhysicsComponent::apply_force_at_angle(float magnitude, float angle) {
+	acceleration.x += (magnitude * cos(angle)) / mass;
+	acceleration.y += (magnitude * sin(angle)) / mass;
+}
 
-        auto new_time = Clock::now();
-        Time frame_time = std::chrono::duration_cast<Time>(new_time - current_time);
-        /*printf("frame_time.count(): %i\n", static_cast<int>(frame_time.count()));*/
-        if (frame_time.count() > svc::clockLocator.get().frame_limit) {
-            frame_time = Time{ svc::clockLocator.get().frame_limit };
-        }
-        /*printf("frame count:\n %0.5f", frame_count);*/
-        current_time = new_time;
-        accumulator += frame_time;
-        /*printf("accumulator: %.i\n", accumulator.count());*/
-        int integrations = 0;
-        while (accumulator >= dt) {
+void PhysicsComponent::update_euler(automa::ServiceProvider& svc) {
 
+	integrate(svc);
+	direction.und = velocity.y > 0.f ? dir::UND::down : (velocity.y < 0.f ? dir::UND::up : dir::UND::neutral);
+	direction.lr = velocity.x > 0.f ? dir::LR::right : (velocity.x < 0.f ? dir::LR::left : dir::LR::neutral);
 
-            previous_acceleration = acceleration;
-            previous_velocity = velocity;
-            previous_position = position;
-            integrate(svc::clockLocator.get().tick_multiplier);
+}
 
-            accumulator -= dt;
-            ++integrations;
-        }
+void PhysicsComponent::integrate(automa::ServiceProvider& svc) {
 
-        /*printf("integrations: %i\n\n", integrations);*/
-        //fixme: linear interpolation
-        /*const float alpha = accumulator.count() / svc::clockLocator.get().tick_constant();
-        acceleration = acceleration * alpha + previous_acceleration * (1.0f - alpha);
-        velocity = velocity * alpha + previous_velocity * (1.0f - alpha);
-        position = position * alpha + previous_position * (1.0f - alpha);*/
+	auto dt = svc.ticker.global_tick_rate();
+	previous_acceleration = acceleration;
+	previous_velocity = velocity;
+	previous_position = position;
 
+	acceleration.y += gravity * dt;
+	sf::Vector2<float> friction = flags.test(State::grounded) ? ground_friction : air_friction;
+	velocity.x = (velocity.x + (acceleration.x / mass) * dt) * friction.x;
+	velocity.y = (velocity.y + (acceleration.y / mass) * dt) * friction.y;
+	velocity.x = std::clamp(velocity.x, -maximum_velocity.x, maximum_velocity.x);
+	velocity.y = std::clamp(velocity.y, -maximum_velocity.y, maximum_velocity.y);
+	position = position + velocity * dt;
 
-    }
+	if (y_acc_history.size() < acceleration_sample_size) { y_acc_history.push_back(acceleration.y);
+	} else {
+		y_acc_history.pop_front();
+		y_acc_history.push_back(acceleration.y);
+	}
+	if (x_acc_history.size() < acceleration_sample_size) {
+		x_acc_history.push_back(acceleration.x);
+	} else {
+		x_acc_history.pop_front();
+		x_acc_history.push_back(acceleration.x);
+	}
 
-    void PhysicsComponent::integrate(float ndt) {
+	calculate_maximum_acceleration();
+	calculate_jerk();
+}
 
-        acceleration.y += gravity * ndt;
-        velocity.x = (velocity.x + (acceleration.x / mass) * ndt) * friction.x;
-        velocity.y = (velocity.y + (acceleration.y / mass) * ndt) * friction.y;
-        if (velocity.x > maximum_velocity.x) { velocity.x = maximum_velocity.x; }
-        if (velocity.x < -maximum_velocity.x) { velocity.x = -maximum_velocity.x; }
-        if (velocity.y > maximum_velocity.y) { velocity.y = maximum_velocity.y; }
-        if (velocity.y < -maximum_velocity.y) { velocity.y = -maximum_velocity.y; }
-        if (velocity.y > TERMINAL_VELOCITY) { velocity.y = TERMINAL_VELOCITY; }
-        position = position + velocity * ndt;
+void PhysicsComponent::update(automa::ServiceProvider& svc) { update_euler(svc); }
 
-    }
-    
-    void PhysicsComponent::update() {
-        update_euler();
-    }
-    
-    void PhysicsComponent::update_dampen() {
-        acceleration /= svc::clockLocator.get().tick_multiplier;
-        update_euler();
-        acceleration = {0.0f, 0.0f};
-    }
+void PhysicsComponent::update_dampen(automa::ServiceProvider& svc) {
+	update_euler(svc);
+	acceleration = {};
+}
 
-    void PhysicsComponent::zero() {
-        acceleration = { 0.0f, 0.0f };
-        velocity = { 0.0f, 0.0f };
-    }
+void PhysicsComponent::calculate_maximum_acceleration() {
+	auto max = acceleration.x;
+	for (auto& acc : x_acc_history) {
+		if (acc > max) { max = acc; }
+	}
+}
 
-    void PhysicsComponent::hitstun() {
-        dt /= 2.0f;
-    }
-    
+void PhysicsComponent::calculate_jerk() {
+	float sum{};
+	float previous_y{acceleration.y};
+	for (auto& instance : y_acc_history) {
+		sum += instance - previous_y;
+		previous_y = instance;
+	}
+	jerk.y = sum / acceleration_sample_size;
+	float previous_x{acceleration.x};
+	for (auto& instance : x_acc_history) {
+		sum += instance - previous_x;
+		previous_x = instance;
+	}
+	jerk.x = sum / acceleration_sample_size;
+}
 
-} // end components
+void PhysicsComponent::zero() {
+	acceleration = {};
+	velocity = {};
+}
 
-/* PhysicsComponent_hpp */
+void PhysicsComponent::zero_x() {
+	acceleration.x = 0.0f;
+	velocity.x *= -elasticity;
+}
+
+void PhysicsComponent::zero_y() {
+	acceleration.y = 0.0f;
+	velocity.y *= -elasticity;
+}
+
+void PhysicsComponent::hitstun() {}
+
+void PhysicsComponent::set_constant_friction(sf::Vector2<float> fric) {
+	ground_friction = {fric.x, fric.x};
+	air_friction = {fric.y, fric.y};
+}
+
+void PhysicsComponent::set_global_friction(float fric) {
+	ground_friction = {fric, fric};
+	air_friction = {fric, fric};
+}
+
+} // namespace components
