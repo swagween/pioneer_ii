@@ -1,0 +1,16 @@
+{
+  "eom": {
+    "suite": [
+      [
+        "Skycorps Employee of the Month: Gus Hazard"
+      ]
+    ]
+  },
+  "caplog": {
+    "suite": [
+      [
+        "You find a captain's log. Would you like to read it?"
+      ]
+    ]
+  }
+}

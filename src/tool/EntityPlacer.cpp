@@ -41,7 +41,7 @@ namespace tool {
 			case ENTITY_TYPE::SWITCH_BUTTON:
 				canvas.switch_buttons.push_back(current_switch); break;
 			case ENTITY_TYPE::SWITCH_BLOCK:
-				canvas.switch_blocks.push_back(current_switch_block);
+				if (!canvas.has_switch_block_at(current_switch_block.position)) { canvas.switch_blocks.push_back(current_switch_block); }
 				break;
 
 				// for editing existing entities

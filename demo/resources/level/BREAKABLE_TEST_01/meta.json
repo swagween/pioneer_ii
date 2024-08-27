@@ -6,15 +6,18 @@
       0
     ],
     "dimensions": [
-      80,
+      32,
       16
     ],
     "chunk_dimensions": [
-      5,
+      2,
       1
     ],
     "style": 0,
     "background": 5,
-    "music": ""
+    "music": "",
+    "styles": {
+      "breakables": 0
+    }
   }
 }

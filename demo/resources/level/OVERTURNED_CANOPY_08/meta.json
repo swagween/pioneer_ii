@@ -1,0 +1,657 @@
+{
+  "meta": {
+    "room_id": 225,
+    "metagrid": [
+      0,
+      0
+    ],
+    "dimensions": [
+      96,
+      16
+    ],
+    "chunk_dimensions": [
+      6,
+      1
+    ],
+    "style": 1,
+    "background": 3,
+    "music": "",
+    "styles": {
+      "breakables": 0
+    }
+  },
+  "animators": [
+    {
+      "id": 110,
+      "style": 0,
+      "dimensions": [
+        2,
+        2
+      ],
+      "position": [
+        13,
+        9
+      ],
+      "automatic": false,
+      "foreground": true
+    }
+  ],
+  "platforms": [
+    {
+      "position": [
+        42,
+        1
+      ],
+      "dimensions": [
+        1,
+        1
+      ],
+      "extent": 12,
+      "style": 3,
+      "type": "slow_up_down",
+      "start": 0.000000
+    },
+    {
+      "position": [
+        50,
+        1
+      ],
+      "dimensions": [
+        1,
+        1
+      ],
+      "extent": 12,
+      "style": 3,
+      "type": "slow_up_down",
+      "start": 0.000000
+    }
+  ],
+  "switch_blocks": [
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        5
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        6
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        7
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        7
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        7
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        7
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        7
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        63,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        5
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        6
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    },
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        59,
+        7
+      ]
+    }
+  ],
+  "switches": [
+    {
+      "button_id": 1,
+      "type": 1,
+      "position": [
+        42,
+        13
+      ]
+    },
+    {
+      "button_id": 2,
+      "type": 1,
+      "position": [
+        50,
+        13
+      ]
+    }
+  ]
+}

@@ -45,8 +45,7 @@
         8
       ],
       "activate_on_contact": false,
-      "key": "inf_comp",
-      "alternates": 0
+      "key": "inf_comp"
     },
     {
       "dimensions": [
@@ -58,8 +57,7 @@
         5
       ],
       "activate_on_contact": false,
-      "key": "inf_shelf1",
-      "alternates": 0
+      "key": "inf_shelf1"
     }
   ],
   "animators": [
@@ -106,26 +104,6 @@
       "foreground": false
     }
   ],
-  "beds": [
-    {
-      "position": [
-        13,
-        5
-      ]
-    },
-    {
-      "position": [
-        16,
-        5
-      ]
-    },
-    {
-      "position": [
-        19,
-        12
-      ]
-    }
-  ],
   "npcs": [
     {
       "id": 16,
@@ -163,5 +141,25 @@
       9,
       12
     ]
-  }
+  },
+  "beds": [
+    {
+      "position": [
+        13,
+        5
+      ]
+    },
+    {
+      "position": [
+        16,
+        5
+      ]
+    },
+    {
+      "position": [
+        19,
+        12
+      ]
+    }
+  ]
 }

@@ -125,7 +125,6 @@ struct Inspectable {
 struct Critter {
     CRITTER_TYPE type{};
     int id{};
-
     sf::Vector2<uint32_t> position{};
 };
 
@@ -213,6 +212,7 @@ public:
     void undo();
     void redo();
     void clear_redo_states();
+	bool has_switch_block_at(sf::Vector2<uint32_t> pos) const;
 
     void update_dimensions();
     void edit_tile_at(int i, int j, int new_val, int layer_index);
@@ -253,6 +253,10 @@ public:
     struct {
         float cell_size{ 32.f };
     } constants{};
+
+    struct {
+		int breakable{};
+	} styles{};
     
     STYLE style{};
     BACKDROP bg{};

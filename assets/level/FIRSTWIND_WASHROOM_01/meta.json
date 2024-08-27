@@ -50,6 +50,13 @@
       "foreground": false
     }
   ],
+  "save_point": {
+    "id": 199,
+    "position": [
+      6,
+      10
+    ]
+  },
   "beds": [
     {
       "position": [
@@ -57,12 +64,5 @@
         6
       ]
     }
-  ],
-  "save_point": {
-    "id": 199,
-    "position": [
-      6,
-      10
-    ]
-  }
+  ]
 }

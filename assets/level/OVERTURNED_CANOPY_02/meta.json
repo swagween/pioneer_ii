@@ -2,8 +2,8 @@
   "meta": {
     "room_id": 299,
     "metagrid": [
-      0,
-      0
+      26,
+      8
     ],
     "dimensions": [
       16,
@@ -15,7 +15,8 @@
     ],
     "style": 1,
     "background": 3,
-    "music": ""
+    "music": "",
+    "styles":  {"breakables": 2}
   },
   "portals": [
     {

@@ -45,8 +45,7 @@
         11
       ],
       "activate_on_contact": false,
-      "key": "firstwind_closet_3",
-      "alternates": 0
+      "key": "firstwind_closet_3"
     }
   ],
   "animators": [
@@ -79,6 +78,13 @@
       "foreground": false
     }
   ],
+  "save_point": {
+    "id": 117,
+    "position": [
+      6,
+      7
+    ]
+  },
   "beds": [
     {
       "position": [
@@ -86,12 +92,5 @@
         7
       ]
     }
-  ],
-  "save_point": {
-    "id": 117,
-    "position": [
-      6,
-      7
-    ]
-  }
+  ]
 }

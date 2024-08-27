@@ -61,6 +61,7 @@ void Canvas::load(const std::string& path) {
         style = static_cast<STYLE>(meta["style"].as<int>());
 		bg = static_cast<BACKDROP>(meta["background"].as<int>());
 		music = meta["music"].as_string();
+		styles.breakable = meta["styles"]["breakables"].as<int>();
 
 		for (auto& entry : data.meta["chests"].array_view()) {
 			Chest c{};
@@ -232,6 +233,7 @@ bool Canvas::save(const std::string& path) {
     data.meta["meta"]["style"] = static_cast<int>(style);
     data.meta["meta"]["background"] = static_cast<int>(bg);
 	data.meta["meta"]["music"] = music;
+	data.meta["meta"]["styles"]["breakables"] = styles.breakable;
 
     int ctr{};
     for (auto& portal : portals) {
@@ -437,7 +439,13 @@ void Canvas::redo() {
 }
 
 void Canvas::clear_redo_states() {
-    redo_states.clear();
+    redo_states.clear(); }
+
+bool Canvas::has_switch_block_at(sf::Vector2<uint32_t> pos) const {
+	for (auto& s : switch_blocks) {
+		if (s.position.x == pos.x && s.position.y == pos.y) { return true; };
+	}
+	return false;
 }
 
 void Canvas::update_dimensions() {

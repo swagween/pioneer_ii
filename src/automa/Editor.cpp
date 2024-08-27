@@ -25,14 +25,15 @@ void Editor::init(std::string const& load_path) {
 	std::filesystem::path room_dir = load_path;
 	room = room_dir.filename().string();
 	demopath = "../../../demo/resources/level/" + room;
+	std::string demo_resources = "../../../demo/resources/image";
 	std::cout << "\ndemopath: " << demopath;
 	room_id = map.room_id;
 
 	tool_texture.loadFromFile(load_path + "../../../gui/tools.png");
-	large_animator_textures.loadFromFile(load_path + "../../../animators/large_animators_01.png");
+	large_animator_textures.loadFromFile(demo_resources + "/animators/large_animators_01.png");
 	large_animator_thumbs.loadFromFile(load_path + "../../../animators/large_animator_thumbs.png");
 	small_animator_textures.loadFromFile(load_path + "../../../animators/small_animators_01.png");
-	small_animator_thumbs.loadFromFile(load_path + "../../../animators/small_animator_thumbs.png");
+	small_animator_thumbs.loadFromFile(demo_resources + "/animators/small_animator_thumbs.png");
 	enemy_thumbnails.loadFromFile(load_path + "../../../enemies/thumbnails.png");
 	t_chest.loadFromFile(load_path + "../../../entity/chest.png");
 	t_npc.loadFromFile(load_path + "../../../entity/npc.png");
@@ -271,6 +272,15 @@ void Editor::render(sf::RenderWindow& win) {
 		win.draw(inspbox);
 	}
 
+	for (auto& block : map.switch_blocks) {
+		inspbox.setPosition((block.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (block.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		win.draw(inspbox);
+	}
+	for (auto& button : map.switch_buttons) {
+		inspbox.setPosition((button.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (button.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		win.draw(inspbox);
+	}
+
 	for (auto& chest : map.chests) {
 		chestbox.setPosition((chest.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (chest.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
 		win.draw(chestbox);
@@ -305,14 +315,17 @@ void Editor::render(sf::RenderWindow& win) {
 		sf::Vector2<float> anim_pos = {animator.position.x * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, animator.position.y * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y};
 		box.setPosition(anim_pos.x, anim_pos.y);
 		if (show_all_layers) {
-			if (animator.id / 100 == 1) {
+			auto which = static_cast<int>(animator.id / 100);
+			auto lookup = static_cast<int>(animator.id % 100);
+			if (which == 1) {
 				win.draw(box);
-				sprites.large_animator.setTextureRect(sf::IntRect{{animator.id * 64, 0}, {64, 64}});
+				sprites.large_animator.setTextureRect(sf::IntRect{{lookup * 64, 0}, {64, 64}});
 				sprites.large_animator.setPosition(anim_pos.x, anim_pos.y);
+				sprites.large_animator.setScale({1.0f, 1.0f});
 				win.draw(sprites.large_animator);
 			} else {
 				win.draw(box);
-				sprites.small_animator.setTextureRect(sf::IntRect{{animator.id * 32, 0}, {32, 32}});
+				sprites.small_animator.setTextureRect(sf::IntRect{{lookup * 32, 0}, {32, 32}});
 				sprites.small_animator.setPosition(anim_pos.x, anim_pos.y);
 				win.draw(sprites.small_animator);
 			}
@@ -708,61 +721,6 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
 	work_size = viewport->WorkSize;
 	window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
-	window_flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
-	ImGui::SetNextWindowPos(window_pos);
-	if (ImGui::Begin("Large Animators", debug, window_flags)) {
-		prev_window_size = ImGui::GetWindowSize();
-		prev_window_pos = ImGui::GetWindowPos();
-		int num_cols = 8;
-		int num_rows = 2;
-		for (int i = 0; i < num_rows; i++) {
-			for (int j = 0; j < num_cols; j++) {
-				ImGui::PushID(j + i * num_cols);
-				auto idx = j + i * num_cols;
-				sprites.large_animator.setTextureRect(sf::IntRect({{idx * 64, 0}, {64, 64}}));
-				sprites.large_animator.setScale({0.5f, 0.5f});
-				if (ImGui::ImageButton(sprites.large_animator, 2)) {
-					svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-					svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
-					svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)2, (uint32_t)2}, idx + large_index_multiplier, false, svc::active_layer >= 4); // change booleans here later
-				}
-				ImGui::PopID();
-				ImGui::SameLine();
-			}
-			ImGui::NewLine();
-		}
-		ImGui::End();
-	}
-	ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
-	work_size = viewport->WorkSize;
-	window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
-	window_flags = ImGuiWindowFlags_NoCollapse;
-	ImGui::SetNextWindowPos(window_pos);
-	if (ImGui::Begin("Small Animators", debug, window_flags)) {
-		prev_window_size = ImGui::GetWindowSize();
-		prev_window_pos = ImGui::GetWindowPos();
-		int num_cols = 16;
-		int num_rows = 2;
-		for (int i = 0; i < num_rows; i++) {
-			for (int j = 0; j < num_cols; j++) {
-				ImGui::PushID(j + i * num_cols);
-				auto idx = j + i * num_cols;
-				sprites.small_animator.setTextureRect(sf::IntRect({{idx * 32, 0}, {32, 32}}));
-				if (ImGui::ImageButton(sprites.small_animator, 2)) {
-					svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-					svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
-					svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, idx + small_index_multiplier, false, svc::active_layer >= 4); // change booleans here later
-				}
-				ImGui::PopID();
-				ImGui::SameLine();
-			}
-			ImGui::NewLine();
-		}
-		ImGui::End();
-	}
-	ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
-	work_size = viewport->WorkSize;
-	window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
 	window_flags = ImGuiWindowFlags_NoCollapse;
 	ImGui::SetNextWindowPos(window_pos);
 	if (ImGui::Begin("Enemies", debug, window_flags)) {
@@ -798,6 +756,52 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	if (ImGui::Begin("Entities", debug, window_flags)) {
 		prev_window_size = ImGui::GetWindowSize();
 		prev_window_pos = ImGui::GetWindowPos();
+
+		if (ImGui::Button("Animator")) { ImGui::OpenPopup("Select Animator"); }
+		if (ImGui::BeginPopupModal("Select Animator", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+			ImGui::Text("2x2:");
+			int num_cols = 8;
+			int num_rows = 2;
+			for (int i = 0; i < num_rows; i++) {
+				for (int j = 0; j < num_cols; j++) {
+					ImGui::PushID(j + i * num_cols);
+					auto idx = j + i * num_cols;
+					sprites.large_animator.setTextureRect(sf::IntRect({{idx * 64, 0}, {64, 64}}));
+					sprites.large_animator.setScale({0.5f, 0.5f});
+					if (ImGui::ImageButton(sprites.large_animator, 2)) {
+						svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+						svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
+						svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)2, (uint32_t)2}, idx + large_index_multiplier, false, svc::active_layer >= 4); // change booleans here later
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::PopID();
+					ImGui::SameLine();
+				}
+				ImGui::NewLine();
+			}
+			ImGui::Text("1x1:");
+			num_cols = 16;
+			num_rows = 2;
+			for (int i = 0; i < num_rows; i++) {
+				for (int j = 0; j < num_cols; j++) {
+					ImGui::PushID(j + i * num_cols);
+					auto idx = j + i * num_cols;
+					sprites.small_animator.setTextureRect(sf::IntRect({{idx * 32, 0}, {32, 32}}));
+					if (ImGui::ImageButton(sprites.small_animator, 2)) {
+						svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
+						svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
+						svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, idx + small_index_multiplier, false, svc::active_layer >= 4); // change booleans here later
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::PopID();
+					ImGui::SameLine();
+				}
+				ImGui::NewLine();
+			}
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::EndPopup();
+		}
+	
 		if (ImGui::Button("Bed")) { 
 				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
 				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::BED;

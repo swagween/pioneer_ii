@@ -15,7 +15,10 @@
     ],
     "style": 0,
     "background": 5,
-    "music": ""
+    "music": "",
+    "styles": {
+      "breakables": 0
+    }
   },
   "inspectables": [
     {

@@ -15,7 +15,10 @@
     ],
     "style": 0,
     "background": 5,
-    "music": "dusken_cove"
+    "music": "dusken_cove",
+    "styles": {
+      "breakables": 0
+    }
   },
   "portals": [
     {
@@ -129,12 +132,25 @@
         71,
         11
       ]
-    },
+    }
+  ],
+  "switch_blocks": [
     {
-      "id": 4,
+      "button_id": 44,
+      "type": 1,
       "position": [
-        69,
-        5
+        74,
+        10
+      ]
+    }
+  ],
+  "switches": [
+    {
+      "button_id": 44,
+      "type": 1,
+      "position": [
+        59,
+        6
       ]
     }
   ]
