@@ -62,6 +62,10 @@ void Canvas::load(const std::string& path) {
 		bg = static_cast<BACKDROP>(meta["background"].as<int>());
 		music = meta["music"].as_string();
 		styles.breakable = meta["styles"]["breakables"].as<int>();
+		cutscene.flag = static_cast<bool>(meta["cutscene_on_entry"]["flag"].as_bool());
+		cutscene.type = meta["cutscene_on_entry"]["type"].as<int>();
+		cutscene.id = meta["cutscene_on_entry"]["id"].as<int>();
+		cutscene.source = meta["cutscene_on_entry"]["source"].as<int>();
 
 		for (auto& entry : data.meta["chests"].array_view()) {
 			Chest c{};
@@ -84,6 +88,7 @@ void Canvas::load(const std::string& path) {
             p.source_map_id = entry["source_id"].as<int>();
             p.destination_map_id = entry["destination_id"].as<int>();
 			p.activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
+			p.already_open = (bool)entry["already_open"].as_bool();
 			p.locked = (bool)entry["locked"].as_bool();
 			p.key_id = entry["key_id"].as<int>();
             portals.push_back(p);
@@ -234,6 +239,10 @@ bool Canvas::save(const std::string& path) {
     data.meta["meta"]["background"] = static_cast<int>(bg);
 	data.meta["meta"]["music"] = music;
 	data.meta["meta"]["styles"]["breakables"] = styles.breakable;
+	data.meta["meta"]["cutscene_on_entry"]["flag"] = dj::Boolean{cutscene.flag};
+	data.meta["meta"]["cutscene_on_entry"]["type"] = cutscene.type;
+	data.meta["meta"]["cutscene_on_entry"]["id"] = cutscene.id;
+	data.meta["meta"]["cutscene_on_entry"]["source"] = cutscene.source;
 
     int ctr{};
     for (auto& portal : portals) {
@@ -245,6 +254,7 @@ bool Canvas::save(const std::string& path) {
         data.meta["portals"][ctr]["source_id"] = room_id;
         data.meta["portals"][ctr]["destination_id"] = portal.destination_map_id;
 		data.meta["portals"][ctr]["activate_on_contact"] = (dj::Boolean)(portal.activate_on_contact);
+		data.meta["portals"][ctr]["already_open"] = (dj::Boolean)(portal.already_open);
 		data.meta["portals"][ctr]["locked"] = (dj::Boolean)(portal.locked);
 		data.meta["portals"][ctr]["key_id"] = portal.key_id;
         ++ctr;

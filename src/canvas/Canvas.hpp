@@ -104,6 +104,7 @@ const int CELL_SIZE{32};
 struct Portal {
     sf::Vector2<uint32_t> dimensions{};
     bool activate_on_contact{};
+	bool already_open{};
     int source_map_id{};
     int destination_map_id{};
     bool locked{};
@@ -257,6 +258,13 @@ public:
     struct {
 		int breakable{};
 	} styles{};
+
+    struct {
+		bool flag{};
+		int type{};
+		int id{};
+		int source{};
+    } cutscene{};
     
     STYLE style{};
     BACKDROP bg{};

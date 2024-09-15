@@ -18,8 +18,32 @@
     "music": "",
     "styles": {
       "breakables": 0
+    },
+    "cutscene_on_entry": {
+      "flag": false,
+      "type": 0,
+      "id": 0,
+      "source": 0
     }
   },
+  "portals": [
+    {
+      "dimensions": [
+        3,
+        1
+      ],
+      "position": [
+        5,
+        0
+      ],
+      "source_id": 225,
+      "destination_id": 0,
+      "activate_on_contact": true,
+      "already_open": true,
+      "locked": false,
+      "key_id": 0
+    }
+  ],
   "animators": [
     {
       "id": 110,
@@ -34,623 +58,111 @@
       ],
       "automatic": false,
       "foreground": true
-    }
-  ],
-  "platforms": [
-    {
-      "position": [
-        42,
-        1
-      ],
-      "dimensions": [
-        1,
-        1
-      ],
-      "extent": 12,
-      "style": 3,
-      "type": "slow_up_down",
-      "start": 0.000000
     },
     {
-      "position": [
-        50,
-        1
-      ],
+      "id": 111,
+      "style": 0,
       "dimensions": [
-        1,
-        1
+        2,
+        2
       ],
-      "extent": 12,
-      "style": 3,
-      "type": "slow_up_down",
-      "start": 0.000000
+      "position": [
+        53,
+        9
+      ],
+      "automatic": false,
+      "foreground": false
+    },
+    {
+      "id": 112,
+      "style": 0,
+      "dimensions": [
+        2,
+        2
+      ],
+      "position": [
+        39,
+        12
+      ],
+      "automatic": false,
+      "foreground": false
+    },
+    {
+      "id": 112,
+      "style": 0,
+      "dimensions": [
+        2,
+        2
+      ],
+      "position": [
+        45,
+        11
+      ],
+      "automatic": false,
+      "foreground": false
+    }
+  ],
+  "enemies": [
+    {
+      "id": 7,
+      "position": [
+        18,
+        10
+      ]
+    },
+    {
+      "id": 7,
+      "position": [
+        32,
+        4
+      ]
+    },
+    {
+      "id": 7,
+      "position": [
+        44,
+        12
+      ]
+    },
+    {
+      "id": 7,
+      "position": [
+        45,
+        6
+      ]
+    },
+    {
+      "id": 7,
+      "position": [
+        32,
+        12
+      ]
+    },
+    {
+      "id": 7,
+      "position": [
+        79,
+        9
+      ]
     }
   ],
   "switch_blocks": [
     {
-      "button_id": 2,
+      "button_id": 2251,
       "type": 1,
       "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        5
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
+        61,
         6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        6
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        7
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        7
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        7
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        7
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        7
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        63,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        5
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        6
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
-      ]
-    },
-    {
-      "button_id": 1,
-      "type": 1,
-      "position": [
-        59,
-        7
       ]
     }
   ],
   "switches": [
     {
-      "button_id": 1,
+      "button_id": 2251,
       "type": 1,
       "position": [
-        42,
-        13
-      ]
-    },
-    {
-      "button_id": 2,
-      "type": 1,
-      "position": [
-        50,
-        13
+        25,
+        11
       ]
     }
   ]

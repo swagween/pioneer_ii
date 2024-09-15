@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "room_id": 3002,
+    "metagrid": [
+      0,
+      0
+    ],
+    "dimensions": [
+      16,
+      16
+    ],
+    "chunk_dimensions": [
+      1,
+      1
+    ],
+    "style": 16,
+    "background": 2,
+    "music": "",
+    "styles": {
+      "breakables": 0
+    }
+  },
+  "portals": [
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        3,
+        13
+      ],
+      "source_id": 3002,
+      "destination_id": 0,
+      "activate_on_contact": false,
+      "already_open": true,
+      "locked": false,
+      "key_id": 0
+    }
+  ]
+}

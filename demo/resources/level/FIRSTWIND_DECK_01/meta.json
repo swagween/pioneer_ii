@@ -18,6 +18,12 @@
     "music": "dusken_cove",
     "styles": {
       "breakables": 0
+    },
+    "cutscene_on_entry": {
+      "flag": false,
+      "type": 0,
+      "id": 0,
+      "source": 0
     }
   },
   "portals": [
@@ -33,6 +39,7 @@
       "source_id": 115,
       "destination_id": 112,
       "activate_on_contact": false,
+      "already_open": false,
       "locked": false,
       "key_id": 0
     },
@@ -48,6 +55,7 @@
       "source_id": 115,
       "destination_id": 122,
       "activate_on_contact": true,
+      "already_open": false,
       "locked": false,
       "key_id": 0
     }
@@ -71,8 +79,22 @@
     {
       "quest_id": 115,
       "position": [
-        47,
-        13
+        68,
+        7
+      ]
+    },
+    {
+      "quest_id": 115,
+      "position": [
+        68,
+        8
+      ]
+    },
+    {
+      "quest_id": 115,
+      "position": [
+        68,
+        9
       ]
     }
   ],
