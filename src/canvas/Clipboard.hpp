@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <cassert>
 
-namespace canvas {
+namespace pi {
 
 class Clipboard {
     

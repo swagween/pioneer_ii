@@ -9,7 +9,7 @@
 
 namespace world {
 
-SwitchButton::SwitchButton(automa::ServiceProvider& svc, sf::Vector2<float> position, int id, int type) : sprite(svc.assets.t_switches, {32, 16}), id(id), type(static_cast<SwitchType>(type)) {
+SwitchButton::SwitchButton(automa::ServiceProvider& svc, sf::Vector2<float> position, int id, int type, Map& map) : sprite(svc.assets.t_switches, {32, 16}), id(id), type(static_cast<SwitchType>(type)) {
 	collider = shape::Collider({32.f, 14.f});
 	collider.physics.position = position;
 	collider.physics.position.y += 18.f;
@@ -27,6 +27,16 @@ SwitchButton::SwitchButton(automa::ServiceProvider& svc, sf::Vector2<float> posi
 	sprite.push_params("pressed", {6, 1, 28, 0, true});
 	sprite.push_params("rising", {7, 1, 28, 0, false, true});
 	sprite.set_params("neutral");
+	if (svc.data.switch_is_activated(id)) {
+		state = SwitchButtonState::pressed;
+		state_function = std::bind(&SwitchButton::update_pressed, this);
+		collider.dimensions.y = 4.f;
+		collider.physics.position.y += 6.f;
+		sprite.set_params("pressed", true);
+		for (auto& block : map.switch_blocks) {
+			if (block.get_id() == id && pressed()) { block.turn_off(); }
+		}
+	}
 }
 
 void SwitchButton::update(automa::ServiceProvider& svc, Map& map, player::Player& player) {
@@ -44,6 +54,9 @@ void SwitchButton::update(automa::ServiceProvider& svc, Map& map, player::Player
 		collider.handle_collider_collision(player.collider.bounding_box);
 	}
 
+	// press permanent switches forever
+	if (type == SwitchType::permanent && pressed()) { svc.data.activate_switch(id); }
+
 	//assume unpressed, then check everything for a press
 	if (type != SwitchType::permanent) { state = SwitchButtonState::unpressed; }
 	for (auto& breakable : map.breakables) { collider.handle_collider_collision(breakable.get_bounding_box()); }
@@ -56,6 +69,9 @@ void SwitchButton::update(automa::ServiceProvider& svc, Map& map, player::Player
 		if (chest.get_jumpbox().overlaps(sensor)) {
 			state = SwitchButtonState::pressed;
 		}
+	}
+	for (auto& pushable : map.pushables) {
+		if (pushable.collider.jumpbox.overlaps(sensor)) { state = SwitchButtonState::pressed; }
 	}
 	if (player.collider.jumpbox.overlaps(sensor)) {
 		state = SwitchButtonState::pressed;
@@ -70,6 +86,8 @@ void SwitchButton::update(automa::ServiceProvider& svc, Map& map, player::Player
 		if (collider.collision_depths.value().vertical_squish()) { state = SwitchButtonState::pressed; }
 		collider.collision_depths.value().update();
 	}
+
+	if (pressed() && triggers.consume(SwitchButtonState::pressed)) { svc.soundboard.flags.world.set(audio::World::switch_press); }
 
 	state_function = state_function();
 }
@@ -152,6 +170,7 @@ fsm::StateFunction SwitchButton::update_squished() {
 
 fsm::StateFunction SwitchButton::update_pressed() {
 	external = SwitchButtonState::pressed;
+	if (sprite.just_started()) { triggers.set(SwitchButtonState::pressed); }
 	sensor.set_position(collider.physics.position + sf::Vector2<float>{2.f, -10.f});
 	if (change_state(SwitchButtonState::unpressed, "rising")) {
 		collider.dimensions.y = 10.f;

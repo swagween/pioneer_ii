@@ -19,7 +19,7 @@
 #include <iostream>
 #include <djson/json.hpp>
 
-namespace canvas {
+namespace pi {
 
 const int NUM_LAYERS{8};
 const int CHUNK_SIZE{16};
@@ -200,6 +200,8 @@ struct Map {
     std::vector<Layer> layers{};
 };
 
+class Tool;
+
 class Canvas {
     
 public:
@@ -209,7 +211,7 @@ public:
     void load(const std::string& path);
     bool save(const std::string& path);
     void clear();
-    void save_state();
+	void save_state(Tool& tool);
     void undo();
     void redo();
     void clear_redo_states();
@@ -265,6 +267,9 @@ public:
 		int id{};
 		int source{};
     } cutscene{};
+
+	sf::Vector2u player_start{};
+    int active_layer{};
     
     STYLE style{};
     BACKDROP bg{};

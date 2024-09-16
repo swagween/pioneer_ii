@@ -7,7 +7,7 @@
 
 #include "Grid.hpp"
 
-namespace canvas {
+namespace pi {
 
 Grid::Grid() {
     spacing = DEFAULT_SPACING;

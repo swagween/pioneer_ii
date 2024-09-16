@@ -42,8 +42,10 @@ void Tile::set_type() {
 	if (value < 224 && value >= 208) { type = TileType::ground_ramp; }
 	if (value < 240 && value >= 236) { type = TileType::platform; }
 	if (value < 244 && value >= 240) { type = TileType::death_spike; }
+	if (value < 230 && value >= 228) { type = TileType::pushable; }
+	if (value == 231) { type = TileType::spawner; }
 	if (value < 248 && value >= 244) { type = TileType::breakable; }
-	if (value < 256 && value >= 252) { type = TileType::spike; }
+	if (value >= 248) { type = TileType::spike; }
 }
 
 sf::Vector2<float> Tile::middle_point() { return {position.x + bounding_box.dimensions.x / 2, position.y + bounding_box.dimensions.y / 2}; }

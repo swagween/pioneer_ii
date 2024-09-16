@@ -1,15 +1,10 @@
-//
-//  Canvas.cpp
-//  Pioneer-Lab
-//
-//  Created by Alex Frasca on 9/30/20.
-//
 
 #include "Canvas.hpp"
-#include "../util/ServiceLocator.hpp"
 #include "../util/Lookup.hpp"
+#include "../tool/Tool.hpp"
+#include <cassert>
 
-namespace canvas {
+namespace pi {
 
 Canvas::Canvas() {
 }
@@ -424,12 +419,12 @@ void Canvas::clear() {
     }
 }
 
-void Canvas::save_state() {
-    auto const& type = pi::svc::current_tool.get()->type;
-    auto undoable_tool = type == tool::TOOL_TYPE::BRUSH || type == tool::TOOL_TYPE::FILL || type == tool::TOOL_TYPE::SELECT || type == tool::TOOL_TYPE::ERASE;
-    auto just_clicked = !pi::svc::current_tool.get()->active && pi::svc::current_tool.get()->ready;
+void Canvas::save_state(Tool& tool) {
+    auto const& type = tool.type;
+    auto undoable_tool = type == ToolType::brush || type == ToolType::fill || type == ToolType::select || type == ToolType::erase;
+    auto just_clicked = !tool.active && tool.ready;
     if (undoable_tool && just_clicked) {
-        map_states.emplace_back(canvas::Map(map_states.back()));
+        map_states.emplace_back(Map(map_states.back()));
         clear_redo_states();
     }
 }

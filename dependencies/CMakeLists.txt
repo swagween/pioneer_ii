@@ -1,4 +1,5 @@
 include(FetchContent)
+set(BUILD_SHARED_LIBS OFF)
 
 # SFML
 FetchContent_Declare(sfml
@@ -24,3 +25,38 @@ FetchContent_Declare(
   GIT_TAG 82dc2033e51b8323857c3ae1cf1f458b3a933c35 # 2.3
 )
 add_subdirectory(imgui-sfml)
+
+# djson
+FetchContent_Declare(
+    djson
+    GIT_REPOSITORY https://github.com/karnkaul/djson
+    GIT_TAG v2.1.1
+)
+FetchContent_MakeAvailable(djson)
+
+# ccmath
+FetchContent_Declare(
+        ccmath
+        GIT_REPOSITORY https://github.com/Rinzii/ccmath.git
+        GIT_TAG 26a0e1845eebc775121964b17a3fc5bd9c330831
+)
+FetchContent_MakeAvailable(ccmath)
+
+# steamworks API
+FetchContent_Declare(
+  steamworks_archive
+  URL https://github.com/aleokdev/fornani/releases/download/deck-test-1/steamworks_sdk_160.zip
+)
+FetchContent_MakeAvailable(steamworks_archive)
+
+add_library(steamworks INTERFACE)
+target_include_directories(steamworks INTERFACE ${steamworks_archive_SOURCE_DIR}/public)
+if (WIN32)
+  target_link_libraries(steamworks INTERFACE ${steamworks_archive_SOURCE_DIR}/redistributable_bin/win64/steam_api64.lib)
+  if (MSVC)
+    # Avoid hundreds of strncpy deprecation messages
+    target_compile_definitions(steamworks INTERFACE _CRT_SECURE_NO_WARNINGS)
+  endif()
+  
+  set(steamworks_dll_file ${steamworks_archive_SOURCE_DIR}/redistributable_bin/win64/steam_api64.dll PARENT_SCOPE)
+endif()

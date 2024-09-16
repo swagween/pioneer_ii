@@ -4,10 +4,11 @@
 
 namespace enemy {
 
-Eyebit::Eyebit(automa::ServiceProvider& svc) : Enemy(svc, "eyebit") {
+Eyebit::Eyebit(automa::ServiceProvider& svc, bool spawned) : Enemy(svc, "eyebit", spawned) {
 	animation.set_params(idle);
 	seeker_cooldown.start(2);
 	collider.flags.general.set(shape::General::ignore_resolution);
+	flags.general.set(GeneralFlags::transcendent);
 }
 
 void Eyebit::unique_update(automa::ServiceProvider& svc, world::Map& map, player::Player& player) {

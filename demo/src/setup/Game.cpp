@@ -1,22 +1,18 @@
 #include "Game.hpp"
+#include "WindowManager.hpp"
+#include <steam/steam_api.h>
 #include <ctime>
 
 namespace fornani {
 
-Game::Game(char** argv) : player(services) {
+Game::Game(char** argv, WindowManager& window) : player(services) {
+	services.window = &window;
+	services.constants.screen_dimensions = window.screen_dimensions;
 	// data
 	services.data = data::DataManager(services);
 	services.data.finder.setResourcePath(argv);
 	services.data.finder.set_scene_path(argv);
 	services.data.load_data();
-	// metadata
-	auto const& in_info = services.data.game_info;
-	metadata.title = in_info["title"].as_string();
-	metadata.build = in_info["build"].as_string();
-	metadata.major = in_info["version"]["major"].as<int>();
-	metadata.minor = in_info["version"]["minor"].as<int>();
-	metadata.hotfix = in_info["version"]["hotfix"].as<int>();
-
 	// controls
 	services.data.load_controls(services.controller_map);
 	// text
@@ -34,28 +30,21 @@ Game::Game(char** argv) : player(services) {
 	player.init(services);
 
 	// state manager
-
 	game_state.set_current_state(std::make_unique<automa::MainMenu>(services, player, "main"));
 	game_state.get_current_state().init(services, 100);
 
-	window.create(sf::VideoMode(services.constants.screen_dimensions.x, services.constants.screen_dimensions.y), metadata.long_title());
-	measurements.width_ratio = (float)services.constants.screen_dimensions.x / (float)services.constants.screen_dimensions.y;
-	measurements.height_ratio = (float)services.constants.screen_dimensions.y / (float)services.constants.screen_dimensions.x;
-
-	screencap.create(window.getSize().x, window.getSize().y);
 	background.setSize(static_cast<sf::Vector2<float>>(services.constants.screen_dimensions));
 	background.setPosition(0, 0);
 	background.setFillColor(services.styles.colors.ui_black);
-
-	// some SFML variables for drawing a basic window + background
-	window.setVerticalSyncEnabled(true);
-	window.setFramerateLimit(60);
-	window.setKeyRepeatEnabled(false);
-
-	ImGui::SFML::Init(window);
 }
 
 void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vector2<float> player_position) {
+
+	if (services.window->fullscreen()) { services.app_flags.set(automa::AppFlags::fullscreen); }
+	flags.set(GameFlags::standard_display);
+
+	measurements.win_size.x = services.window->get().getSize().x;
+	measurements.win_size.y = services.window->get().getSize().y;
 
 	// for editor demo. should be excluded for releases.
 	if (demo) {
@@ -65,7 +54,7 @@ void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vect
 		services.music.turn_off();
 		services.data.load_blank_save(player);
 		game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
-		//TODO: fix this
+		// TODO: fix this
 		game_state.get_current_state().init(services, room_id, levelpath.filename().string());
 		services.state_controller.demo_level = room_id;
 		//
@@ -76,15 +65,14 @@ void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vect
 		game_state.get_current_state().target_folder.paths.region = services.data.finder.scene_path + "/firstwind";
 	}
 
-	while (window.isOpen()) {
+	std::cout << "> Success\n";
 
-		if (services.state_controller.actions.test(automa::Actions::shutdown)) { return; }
+	while (services.window->get().isOpen()) {
+
+		if (services.state_controller.actions.test(automa::Actions::shutdown)) { break; }
 		if (services.death_mode()) { flags.reset(GameFlags::in_game); }
 
 		services.ticker.start_frame();
-
-		measurements.win_size.x = window.getSize().x;
-		measurements.win_size.y = window.getSize().y;
 
 		// game loop
 		sf::Clock deltaClock{};
@@ -94,37 +82,32 @@ void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vect
 
 		bool valid_event{};
 		// check window events
-		while (window.pollEvent(event)) {
-			if ((event.type == sf::Event::JoystickButtonPressed || services.controller_map.joystick_moved()) && !services.controller_map.is_gamepad()) {
-				services.controller_map.switch_to_joystick();
-				services.data.load_controls(services.controller_map);
-			}
-			if ((event.type == sf::Event::KeyPressed || event.type == sf::Event::KeyReleased) && !services.controller_map.is_keyboard()) {
-				services.controller_map.switch_to_keyboard();
-				services.data.load_controls(services.controller_map);
-			}
-			if (event.type == sf::Event::JoystickConnected) { services.controller_map.status.set(config::ControllerStatus::gamepad_connected); }
-			if (event.type == sf::Event::JoystickDisconnected) { services.controller_map.status.reset(config::ControllerStatus::gamepad_connected); }
-			if (event.type == sf::Event::JoystickDisconnected && !services.controller_map.is_keyboard()) { services.controller_map.switch_to_keyboard(); }
-			if (event.type == sf::Event::JoystickConnected && !services.controller_map.is_gamepad()) { services.controller_map.switch_to_joystick(); }
-
-			player.animation.state = {};
+		while (services.window->get().pollEvent(event)) {
 			player.animation.state = {};
 			if (event.key.code == sf::Keyboard::F2) { valid_event = false; }
 			if (event.key.code == sf::Keyboard::F3) { valid_event = false; }
 			if (event.key.code == sf::Keyboard::Slash) { valid_event = false; }
 			switch (event.type) {
-			case sf::Event::Closed: return;
+			case sf::Event::Closed: goto shutdown;
 			case sf::Event::Resized:
-				measurements.win_size.x = window.getSize().x;
-				measurements.win_size.y = window.getSize().y;
-				if (measurements.win_size.y * measurements.width_ratio <= measurements.win_size.x) {
-					measurements.win_size.x = static_cast<uint32_t>(measurements.win_size.y * measurements.width_ratio);
-				} else if (measurements.win_size.x * measurements.height_ratio <= measurements.win_size.y) {
-					measurements.win_size.y = static_cast<uint32_t>(measurements.win_size.x * measurements.height_ratio);
+				if (flags.test(GameFlags::standard_display)) {
+					sf::Vector2u display_dimensions{static_cast<unsigned>(sf::VideoMode::getDesktopMode().width), static_cast<unsigned>(sf::VideoMode::getDesktopMode().height)};
+					auto aspect_ratio = static_cast<float>(services.constants.aspect_ratio.x) / static_cast<float>(services.constants.aspect_ratio.y);
+					auto display_ratio = static_cast<float>(display_dimensions.x) / static_cast<float>(display_dimensions.y);
+					auto vertical = display_ratio < aspect_ratio;
+					auto letterbox = std::min(display_ratio, aspect_ratio) / std::max(display_ratio, aspect_ratio);
+					if (vertical) {
+						services.window->get().setSize({static_cast<unsigned>(sf::VideoMode::getDesktopMode().width), static_cast<unsigned>(sf::VideoMode::getDesktopMode().height * letterbox)});
+					} else {
+						services.window->get().setSize({static_cast<unsigned>(sf::VideoMode::getDesktopMode().width * letterbox), static_cast<unsigned>(sf::VideoMode::getDesktopMode().height)});
+					}
+					flags.reset(GameFlags::standard_display);
+				} else {
+					services.window->get().setSize(measurements.win_size);
+					flags.set(GameFlags::standard_display);
 				}
-				window.setSize(sf::Vector2u{measurements.win_size.x, measurements.win_size.y});
-				screencap.create(window.getSize().x, window.getSize().y);
+				services.window->set_screencap();
+				while (services.window->get().pollEvent(event)) {} // have to clear the event queue because Window::setSize() is considered a resize event
 				break;
 			case sf::Event::KeyPressed:
 				if (event.key.code == sf::Keyboard::F2) { valid_event = false; }
@@ -132,13 +115,13 @@ void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vect
 				if (event.key.code == sf::Keyboard::Slash) { valid_event = false; }
 				if (event.key.code == sf::Keyboard::Unknown) { valid_event = false; }
 				if (event.key.code == sf::Keyboard::D) {
-					//debug() ? services.debug_flags.reset(automa::DebugFlags::imgui_overlay) : services.debug_flags.set(automa::DebugFlags::imgui_overlay);
-					//services.assets.sharp_click.play();
-					//services.state_controller.actions.set(automa::Actions::print_stats);
+					// debug() ? services.debug_flags.reset(automa::DebugFlags::imgui_overlay) : services.debug_flags.set(automa::DebugFlags::imgui_overlay);
+					// services.assets.sharp_click.play();
+					// services.state_controller.actions.set(automa::Actions::print_stats);
 				}
 				if (event.key.code == sf::Keyboard::Q) {
-					//game_state.set_current_state(std::make_unique<automa::MainMenu>(services, player, "main"));
-					//flags.set(GameFlags::in_game);
+					// game_state.set_current_state(std::make_unique<automa::MainMenu>(services, player, "main"));
+					// flags.set(GameFlags::in_game);
 				}
 				if (event.key.code == sf::Keyboard::P) {
 					if (flags.test(GameFlags::playtest)) {
@@ -149,10 +132,10 @@ void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vect
 						services.assets.menu_next.play();
 					}
 				}
-				if (event.key.code == sf::Keyboard::F12) { take_screenshot(); }
+				if (event.key.code == sf::Keyboard::Equal) { take_screenshot(services.window->screencap); }
 				if (event.key.code == sf::Keyboard::H) {
-					//services.debug_flags.set(automa::DebugFlags::greyblock_trigger);
-					//services.debug_flags.test(automa::DebugFlags::greyblock_mode) ? services.debug_flags.reset(automa::DebugFlags::greyblock_mode) : services.debug_flags.set(automa::DebugFlags::greyblock_mode);
+					// services.debug_flags.set(automa::DebugFlags::greyblock_trigger);
+					// services.debug_flags.test(automa::DebugFlags::greyblock_mode) ? services.debug_flags.reset(automa::DebugFlags::greyblock_mode) : services.debug_flags.set(automa::DebugFlags::greyblock_mode);
 				}
 				break;
 			case sf::Event::KeyReleased:
@@ -168,39 +151,46 @@ void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vect
 			valid_event = true;
 		}
 
+		SteamAPI_RunCallbacks();
+
 		// game logic and rendering
 		services.music.update();
-		services.ticker.tick([this, &services = services] { game_state.get_current_state().tick_update(services); });
+		bool has_focus = services.window->get().hasFocus();
+		services.ticker.tick([this, has_focus, &services = services] {
+			services.controller_map.update(has_focus);
+			game_state.get_current_state().tick_update(services);
+		});
 		game_state.get_current_state().frame_update(services);
 		game_state.process_state(services, player, *this);
-		if (services.state_controller.actions.consume(automa::Actions::screenshot)) { take_screenshot(); }
+		if (services.state_controller.actions.consume(automa::Actions::screenshot)) { take_screenshot(services.window->screencap); }
 
-		ImGui::SFML::Update(window, deltaClock.restart());
-		screencap.update(window);
+		ImGui::SFML::Update(services.window->get(), deltaClock.restart());
+		services.window->screencap.update(services.window->get());
 
 		// ImGui stuff
-		if (services.debug_flags.test(automa::DebugFlags::imgui_overlay)) { debug_window(); }
-		if (flags.test(GameFlags::playtest)) { playtester_portal(); }
+		if (services.debug_flags.test(automa::DebugFlags::imgui_overlay)) { debug_window(services.window->get()); }
+		if (flags.test(GameFlags::playtest)) { playtester_portal(services.window->get()); }
 
 		// my renders
-		window.clear();
-		window.draw(background);
+		services.window->get().clear();
+		services.window->get().draw(background);
 
-		game_state.get_current_state().render(services, window);
+		game_state.get_current_state().render(services, services.window->get());
 
-		ImGui::SFML::Render(window);
-		window.display();
+		ImGui::SFML::Render(services.window->get());
+		services.window->get().display();
 
 		services.ticker.end_frame();
 	}
 
-	//shutdown
-	//explicitly delete music player since it can't be deleted after AssetManager
+shutdown:
+	// shutdown
+	// explicitly delete music player since it can't be deleted after AssetManager
 	services.music.stop();
 	ImGui::SFML::Shutdown();
 }
 
-void Game::debug_window() {
+void Game::debug_window(sf::RenderWindow& window) {
 
 	bool* debug{};
 	float const PAD = 10.0f;
@@ -291,47 +281,22 @@ void Game::debug_window() {
 
 					ImGui::EndTabItem();
 				}
-				if (ImGui::BeginTabItem("Key States")) {
-					ImGui::Text("Joystick");
-					ImGui::Text("Status: ");
-					ImGui::SameLine();
-					sf::Joystick::isConnected(0) ? ImGui::Text("Connected") : ImGui::Text("Not connected");
 
-					ImGui::Text("Controller Type: ");
-					ImGui::SameLine();
-					if (services.controller_map.is_gamepad()) { ImGui::Text("Gamepad"); }
-					if (services.controller_map.is_keyboard()) { ImGui::Text("Keyboard"); }
-
-					ImGui::Text("Main     : %s", services.controller_map.label_to_control.at("main_action").held() ? "Pressed" : "");
-					ImGui::Text("Secondary: %s", services.controller_map.label_to_control.at("secondary_action").held() ? "Pressed" : "");
-					ImGui::Text("Arms L   : %s", services.controller_map.label_to_control.at("arms_switch_left").held() ? "Pressed" : "");
-					ImGui::Text("Arms R   : %s", services.controller_map.label_to_control.at("arms_switch_right").held() ? "Pressed" : "");
-					ImGui::Text("Left   : %s", services.controller_map.label_to_control.at("left").held() ? "Pressed" : "");
-					ImGui::Text("Right  : %s", services.controller_map.label_to_control.at("right").held() ? "Pressed" : "");
-					ImGui::Text("Up     : %s", services.controller_map.label_to_control.at("up").held() ? "Pressed" : "");
-					ImGui::Text("Down   : %s", services.controller_map.label_to_control.at("down").held() ? "Pressed" : "");
-
-					ImGui::Text("SQUARE  : %s", sf::Joystick::isButtonPressed(0, 0) ? "Pressed" : "");
-					ImGui::Text("CROSS   : %s", sf::Joystick::isButtonPressed(0, 1) ? "Pressed" : "");
-					ImGui::Text("CIRCLE  : %s", sf::Joystick::isButtonPressed(0, 2) ? "Pressed" : "");
-					ImGui::Text("TRIANGLE: %s", sf::Joystick::isButtonPressed(0, 3) ? "Pressed" : "");
-					ImGui::Text("4: %s", sf::Joystick::isButtonPressed(0, 4) ? "Pressed" : "");
-					ImGui::Text("5: %s", sf::Joystick::isButtonPressed(0, 5) ? "Pressed" : "");
-					ImGui::Text("6: %s", sf::Joystick::isButtonPressed(0, 6) ? "Pressed" : "");
-					ImGui::Text("7: %s", sf::Joystick::isButtonPressed(0, 7) ? "Pressed" : "");
-					ImGui::Text("8: %s", sf::Joystick::isButtonPressed(0, 8) ? "Pressed" : "");
-					ImGui::Text("9: %s", sf::Joystick::isButtonPressed(0, 9) ? "Pressed" : "");
-					ImGui::Text("10: %s", sf::Joystick::isButtonPressed(0, 10) ? "Pressed" : "");
-					ImGui::Text("11: %s", sf::Joystick::isButtonPressed(0, 11) ? "Pressed" : "");
-					ImGui::Text("12: %s", sf::Joystick::isButtonPressed(0, 12) ? "Pressed" : "");
-					ImGui::Text("13: %s", sf::Joystick::isButtonPressed(0, 13) ? "Pressed" : "");
-					ImGui::Text("14: %s", sf::Joystick::isButtonPressed(0, 14) ? "Pressed" : "");
-					ImGui::Text("15: %s", sf::Joystick::isButtonPressed(0, 15) ? "Pressed" : "");
-					ImGui::Text("16: %s", sf::Joystick::isButtonPressed(0, 16) ? "Pressed" : "");
-
-					ImGui::Text("X Axis: %f", sf::Joystick::getAxisPosition(0, sf::Joystick::X));
-					ImGui::Text("Y Axis: %f", sf::Joystick::getAxisPosition(0, sf::Joystick::Y));
-
+				if (ImGui::BeginTabItem("Input State")) {
+					for (auto action = config::DigitalAction::platformer_left; action < config::DigitalAction::COUNT; action = static_cast<config::DigitalAction>(static_cast<int>(action) + 1)) {
+						ImGui::Text(services.controller_map.digital_action_name(action).data());
+						ImGui::SameLine();
+						auto status = services.controller_map.digital_action_status(action);
+						if (status.triggered) {
+							ImGui::Text("Triggered");
+						} else if (status.held) {
+							ImGui::Text("Held");
+						} else if (status.released) {
+							ImGui::Text("Released");
+						} else {
+							ImGui::Text("-");
+						}
+					}
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Audio")) {
@@ -351,7 +316,6 @@ void Game::debug_window() {
 							ImGui::Text("Player Pos: (%.4f,%.4f)", player.collider.physics.position.x, player.collider.physics.position.y);
 							ImGui::Text("Player Vel: (%.4f,%.4f)", player.collider.physics.velocity.x, player.collider.physics.velocity.y);
 							ImGui::Text("Player Acc: (%.4f,%.4f)", player.collider.physics.acceleration.x, player.collider.physics.acceleration.y);
-							ImGui::Text("Player Jer: (%.4f,%.4f)", player.collider.physics.jerk.x, player.collider.physics.jerk.y);
 							ImGui::Separator();
 							ImGui::Text("Player Grounded: %s", player.grounded() ? "Yes" : "No");
 							ImGui::Separator();
@@ -566,8 +530,6 @@ void Game::debug_window() {
 				}
 				if (ImGui::BeginTabItem("General")) {
 
-					if (ImGui::Button("Save Screenshot")) { take_screenshot(); }
-					ImGui::Separator();
 					ImGui::Text("Draw Calls: %u", trackers.draw_calls);
 					trackers.draw_calls = 0;
 
@@ -787,9 +749,9 @@ void Game::debug_window() {
 	}
 }
 
-void Game::playtester_portal() {
+void Game::playtester_portal(sf::RenderWindow& window) {
 	if (!flags.test(GameFlags::playtest)) { return; }
-	//if (flags.test(GameFlags::in_game)) { return; }
+	// if (flags.test(GameFlags::in_game)) { return; }
 	bool* b_debug{};
 	float const PAD = 10.0f;
 	static int corner = 1;
@@ -811,14 +773,11 @@ void Game::playtester_portal() {
 		if (ImGui::Begin("Playtester Portal", b_debug, window_flags)) {
 			ImGui::Text("Playtester Portal");
 			ImGui::Separator();
-			if (services.controller_map.is_gamepad()) { ImGui::Text("Gamepad Identification: %s", sf::Joystick::getIdentification(0).name.getData()); }
 			ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 			if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags)) {
 				if (ImGui::BeginTabItem("General")) {
-					ImGui::Separator();
 					ImGui::Text("Region: %s", game_state.get_current_state().target_folder.paths.region.string().c_str());
 					ImGui::Text("Room: %s", game_state.get_current_state().target_folder.paths.room.string().c_str());
-					ImGui::Text(metadata.long_title().c_str());
 					ImGui::Text("demo mode: %s", services.demo_mode() ? "Enabled" : "Disabled");
 					if (ImGui::Button("Toggle Demo Mode")) { services.debug_flags.test(automa::DebugFlags::demo_mode) ? services.debug_flags.reset(automa::DebugFlags::demo_mode) : services.debug_flags.set(automa::DebugFlags::demo_mode); }
 					if (ImGui::Button("Toggle Greyblock Mode")) {
@@ -827,7 +786,16 @@ void Game::playtester_portal() {
 					}
 					ImGui::Separator();
 					ImGui::Text("Player");
-					ImGui::Text("world grounded? %s", player.collider.perma_grounded() ? "Yes" : "No");
+					ImGui::Text("World Grounded? %s", player.collider.perma_grounded() ? "Yes" : "No");
+					ImGui::Text("Horizontal Movement: %f", player.controller.horizontal_movement());
+					ImGui::Text("Coyote Time: %i", player.controller.get_jump().get_coyote());
+					ImGui::Text("Push Time: %i", player.cooldowns.push.get_cooldown());
+					ImGui::Text("Can Doublejump? %s", player.controller.get_jump().can_doublejump() ? "Yes" : "No");
+					ImGui::Text("Jump Count: %i", player.controller.get_jump().get_count());
+					ImGui::Text("Downhill? %s", player.collider.downhill() ? "Yes" : "No");
+					ImGui::Text("X Velocity: %.2f", player.collider.physics.velocity.x);
+					ImGui::Text("Y Velocity: %.2f", player.collider.physics.velocity.y);
+
 					ImGui::Separator();
 					ImGui::Text("Ticker");
 					ImGui::Text("dt: %.8f", services.ticker.dt.count());
@@ -840,15 +808,12 @@ void Game::playtester_portal() {
 					ImGui::Separator();
 					if (ImGui::SliderFloat("DeltaTime Scalar", &services.ticker.dt_scalar, 0.0f, 2.f, "%.3f")) { services.ticker.scale_dt(); };
 					if (ImGui::Button("Reset")) { services.ticker.reset_dt(); }
-					ImGui::Separator();
-					if (ImGui::Button("Save Screenshot")) { take_screenshot(); }
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Input")) {
-					ImGui::Text("Current Input Device: %s", services.controller_map.is_gamepad() ? "Gamepad" : "Keyboard");
+					ImGui::Text("Current Input Device: %s", "TODO"); // XXX services.controller_map.is_gamepad() ? "Gamepad" : "Keyboard
 					ImGui::Text("Gamepad Status: %s", services.controller_map.gamepad_connected() ? "Connected" : "Disconnected");
-					ImGui::Text("Gamepad Enabled? %s", services.controller_map.hard_toggles.test(config::Toggles::gamepad) ? "Yes" : "No");
-					ImGui::Text("Kayboard Enabled? %s", services.controller_map.hard_toggles.test(config::Toggles::keyboard) ? "Yes" : "No");
+					ImGui::Text("Gamepad Enabled? %s", services.controller_map.is_gamepad_input_enabled() ? "Yes" : "No");
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Tutorial")) {
@@ -912,6 +877,12 @@ void Game::playtester_portal() {
 							game_state.set_current_state(std::make_unique<automa::MainMenu>(services, player, "main"));
 							flags.reset(GameFlags::in_game);
 						}
+						if (ImGui::Button("Fall")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 122);
+							player.set_position({32 * 3, 32 * 3});
+						}
 						if (ImGui::Button("Minigus")) {
 							services.assets.click.play();
 							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
@@ -924,11 +895,47 @@ void Game::playtester_portal() {
 							game_state.get_current_state().init(services, 112);
 							player.set_position({32 * 2, 32 * 8});
 						}
+						if (ImGui::Button("Canopy")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 224);
+							player.set_position({32 * 4, 32 * 8});
+						}
+						if (ImGui::Button("Hideout")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 125);
+							player.set_position({32 * 8, 32 * 2});
+						}
+						if (ImGui::Button("Shaft")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 107);
+							player.set_position({32 * 6, 32 * 4});
+						}
+						if (ImGui::Button("Atrium 1")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 102);
+							player.set_position({32 * 45, 32 * 56});
+						}
 						if (ImGui::Button("Corridor 2")) {
 							services.assets.click.play();
 							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
 							game_state.get_current_state().init(services, 104);
 							player.set_position({7 * 32, 7 * 32});
+						}
+						if (ImGui::Button("Arena")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 121);
+							player.set_position({3 * 32, 9 * 32});
+						}
+						if (ImGui::Button("Bunker")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 124);
+							player.set_position({4 * 32, 3 * 32});
 						}
 						if (ImGui::Button("Cargo")) {
 							services.assets.click.play();
@@ -947,6 +954,19 @@ void Game::playtester_portal() {
 							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
 							game_state.get_current_state().init(services, 110);
 							player.set_position({7 * 32, 9 * 32});
+						}
+						ImGui::Text("Test Levels:");
+						if (ImGui::Button("Junkyard")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 3001);
+							player.set_position({4 * 32, 9 * 32});
+						}
+						if (ImGui::Button("Bridge")) {
+							services.assets.click.play();
+							game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
+							game_state.get_current_state().init(services, 6001);
+							player.set_position({4 * 32, 9 * 32});
 						}
 						ImGui::EndTabItem();
 					}
@@ -994,7 +1014,7 @@ void Game::playtester_portal() {
 								ImGui::Checkbox("Dash", &playtest.b_dash);
 								ImGui::Checkbox("Shield", &playtest.b_shield);
 								ImGui::Checkbox("Wallslide", &playtest.b_wallslide);
-								ImGui::Checkbox("Double Jump (not implemented)", &playtest.b_doublejump);
+								ImGui::Checkbox("Double Jump", &playtest.b_doublejump);
 								playtest.b_dash ? player.catalog.categories.abilities.give_ability(player::Abilities::dash) : player.catalog.categories.abilities.remove_ability(player::Abilities::dash);
 								playtest.b_shield ? player.catalog.categories.abilities.give_ability(player::Abilities::shield) : player.catalog.categories.abilities.remove_ability(player::Abilities::shield);
 								playtest.b_wallslide ? player.catalog.categories.abilities.give_ability(player::Abilities::wall_slide) : player.catalog.categories.abilities.remove_ability(player::Abilities::wall_slide);
@@ -1042,7 +1062,7 @@ void Game::playtester_portal() {
 	}
 }
 
-void Game::take_screenshot() {
+void Game::take_screenshot(sf::Texture& screencap) {
 	std::time_t const now = std::time(nullptr);
 
 	std::time_t time = std::time({});

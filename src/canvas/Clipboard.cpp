@@ -7,7 +7,7 @@
 
 #include "Clipboard.hpp"
 
-namespace canvas {
+namespace pi {
 
 Clipboard::Clipboard() {
 }

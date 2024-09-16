@@ -6,11 +6,10 @@
 //
 
 #include "Tool.hpp"
-#include "../util/ServiceLocator.hpp"
 
-namespace tool {
+namespace pi {
 
-void Hand::handle_events(canvas::Canvas& canvas, sf::Event& e) {
+void Hand::handle_events(Canvas& canvas, sf::Event& e) {
     if(ready) {
         if(just_clicked) {
             clicked_position = position;
@@ -25,12 +24,12 @@ void Hand::handle_events(canvas::Canvas& canvas, sf::Event& e) {
     update();
 }
 
-void Hand::handle_keyboard_events(canvas::Canvas& canvas, sf::Keyboard::Key& key) {
+void Hand::handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key) {
     
 }
 
 void Hand::update() {
-    tool::Tool::update();
+    Tool::update();
 }
 
 void Hand::render(sf::RenderWindow& win, sf::Vector2<float> offset) {

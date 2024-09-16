@@ -6,16 +6,16 @@
 #include <djson/json.hpp>
 #include <array>
 #include <deque>
-#include <unordered_map>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include "../graphics/HelpText.hpp"
 #include "../utils/BitFlags.hpp"
-#include "../utils/Shipment.hpp"
 #include "../utils/Cooldown.hpp"
 #include "../utils/Counter.hpp"
-#include "../utils/QuestCode.hpp"
 #include "../utils/Decoder.hpp"
-#include "../graphics/HelpText.hpp"
+#include "../utils/QuestCode.hpp"
+#include "../utils/Shipment.hpp"
 
 namespace automa {
 struct ServiceProvider;
@@ -56,7 +56,7 @@ class TextWriter {
 	void check_for_event(Message& msg, Codes code, bool response = false);
 	void adjust_selection(int amount);
 	void process_selection();
-	void process_quest();
+	void process_quest(util::QuestKey out);
 	void shutdown();
 
 	void skip_ahead();
@@ -96,6 +96,7 @@ class TextWriter {
 		util::Shipment reveal_item{};
 	} communicators{};
 
+	std::vector<util::QuestKey> response_keys{};
 	util::QuestKey out_quest{};
 	util::Decoder decoder{};
 
@@ -133,6 +134,7 @@ class TextWriter {
 	automa::ServiceProvider* m_services;
 
 	Message zero_option{}; // for debug
+	sf::RectangleShape bounds_box{};
 };
 
 } // namespace text

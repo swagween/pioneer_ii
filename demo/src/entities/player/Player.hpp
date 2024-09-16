@@ -110,6 +110,7 @@ class Player {
 	void update_transponder(gui::Console& console, gui::InventoryWindow& inventory_window);
 	void flash_sprite();
 	void calculate_sprite_offset();
+	void set_idle();
 
 	// state
 	[[nodiscard]] auto alive() const -> bool { return !health.is_dead(); }
@@ -121,6 +122,7 @@ class Player {
 	[[nodiscard]] auto arsenal_size() const -> size_t { return arsenal ? arsenal.value().size() : 0; }
 	[[nodiscard]] auto quick_direction_switch() const -> bool { return flags.state.test(State::dir_switch); }
 	[[nodiscard]] auto shielding() -> bool { return controller.get_shield().is_shielding(); }
+	[[nodiscard]] auto pushing() const -> bool { return animation.state == AnimState::push || animation.state == AnimState::between_push; }
 	[[nodiscard]] auto has_shield() const -> bool { return catalog.categories.abilities.has_ability(Abilities::shield); }
 	[[nodiscard]] auto has_item(int id) const -> bool { return catalog.categories.inventory.has_item(id); }
 	[[nodiscard]] auto invincible() const -> bool { return health.invincible(); }
@@ -150,6 +152,7 @@ class Player {
 	void start_over();
 	void give_drop(item::DropType type, float value);
 	void give_item(int item_id, int amount);
+	void take_item(int item_id, int amount = 1);
 
 	void reset_flags();
 	void total_reset();
@@ -182,13 +185,12 @@ class Player {
 
 	sf::Vector2<float> apparent_position{};
 	sf::Vector2<float> anchor_point{};
-	sf::Vector2<float> hand_position{};
-	sf::Vector2<float> sprite_offset{9.f, -3.f};
+	sf::Vector2<float> sprite_offset{10.f, -3.f};
 	sf::Vector2<float> sprite_dimensions{};
 	sf::Vector2<float> sprite_position{};
 
 	std::vector<vfx::Gravitator> antennae{};
-	sf::Vector2<float> antenna_offset{4.f, -17.f};
+	sf::Vector2<float> antenna_offset{6.f, -17.f};
 
 	PlayerStats player_stats{0, 99999, 0.06f};
 	PhysicsStats physics_stats{};
@@ -198,6 +200,7 @@ class Player {
 	struct {
 		util::Cooldown tutorial{400};
 		util::Cooldown sprint_tutorial{800};
+		util::Cooldown push{32};
 	} cooldowns{};
 	Counters counters{};
 	std::vector<sf::Vector2<float>> accumulated_forces{};
@@ -229,6 +232,7 @@ class Player {
 		float suspend{4.4f};
 		float landed{0.4f};
 		float run{0.02f};
+		float quick_turn{0.9f};
 	} thresholds{};
 	struct {
 		dir::Direction left_squish{};

@@ -11,7 +11,7 @@
 #include "Grid.hpp"
 #include <fstream>
 
-namespace canvas {
+namespace pi {
 
 class Layer {
     

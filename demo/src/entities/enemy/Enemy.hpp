@@ -10,6 +10,7 @@
 #include "../packages/Caution.hpp"
 #include "../packages/Attack.hpp"
 #include "../packages/Shockwave.hpp"
+#include "../packages/FloatingPart.hpp"
 #include "../player/Indicator.hpp"
 #include <string_view>
 #include <iostream>
@@ -28,10 +29,10 @@ class Projectile;
 
 namespace enemy {
 
-enum class GeneralFlags { mobile, gravity, player_collision, hurt_on_contact, map_collision, post_death_render, no_loot, custom_sounds };
-enum class StateFlags { alive, alert, hostile, shot, vulnerable, hurt, shaking };
+enum class GeneralFlags { mobile, gravity, player_collision, hurt_on_contact, map_collision, post_death_render, no_loot, custom_sounds, uncrushable, foreground, spawned, transcendent };
+enum class StateFlags { alive, alert, hostile, shot, vulnerable, hurt, shaking, special_death_mode };
 enum class Triggers { hostile, alert };
-enum class Variant { beast, soldier, elemental, worker };
+enum class Variant { beast, soldier, elemental, worker, guardian };
 struct Attributes {
 	float base_hp{};
 	float base_damage{};
@@ -50,8 +51,9 @@ class Enemy : public entity::Entity {
   public:
 	Enemy() = default;
 	virtual ~Enemy() {}
-	Enemy(automa::ServiceProvider& svc, std::string_view label);
+	Enemy(automa::ServiceProvider& svc, std::string_view label, bool spawned = false);
 	void update(automa::ServiceProvider& svc, world::Map& map, player::Player& player);
+	void post_update(automa::ServiceProvider& svc, world::Map& map, player::Player& player);
 	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) override;
 	void render_indicators(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam);
 	virtual void unique_update(automa::ServiceProvider& svc, world::Map& map, player::Player& player){};
@@ -59,6 +61,7 @@ class Enemy : public entity::Entity {
 	virtual void gui_render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam){};
 	void handle_player_collision(player::Player& player) const;
 	void on_hit(automa::ServiceProvider& svc, world::Map& map, arms::Projectile& proj);
+	void on_crush(world::Map& map);
 	[[nodiscard]] auto hostile() const -> bool { return flags.state.test(StateFlags::hostile); }
 	[[nodiscard]] auto alert() const -> bool { return flags.state.test(StateFlags::alert); }
 	[[nodiscard]] auto hostility_triggered() const -> bool { return flags.triggers.test(Triggers::hostile); }
@@ -66,19 +69,23 @@ class Enemy : public entity::Entity {
 	[[nodiscard]] auto get_attributes() const -> Attributes { return attributes; }
 	[[nodiscard]] auto get_flags() const -> Flags { return flags; }
 	[[nodiscard]] auto get_collider() -> shape::Collider& { return collider; }
+	[[nodiscard]] auto get_secondary_collider() -> shape::Collider& { return secondary_collider; }
 	[[nodiscard]] auto died() const -> bool { return health.is_dead(); }
 	[[nodiscard]] auto just_died() const -> bool { return health.is_dead() && post_death.get_cooldown() == afterlife; }
 	[[nodiscard]] auto gone() const -> bool { return post_death.is_complete(); }
 	[[nodiscard]] auto player_collision() const -> bool { return flags.general.test(GeneralFlags::player_collision); }
 	[[nodiscard]] auto spawn_loot() const -> bool { return !flags.general.test(GeneralFlags::no_loot); }
+	[[nodiscard]] auto is_foreground() const -> bool { return flags.general.test(GeneralFlags::foreground); }
+	[[nodiscard]] auto is_transcendent() const -> bool { return flags.general.test(GeneralFlags::transcendent); }
 	[[nodiscard]] bool player_behind(player::Player& player) const;
 	void set_position(sf::Vector2<float> pos) {
 		collider.physics.position = pos;
 		collider.sync_components();
 		health_indicator.set_position(pos);
 	}
+	void set_position_from_scaled(sf::Vector2<float> pos);
 	void hurt() { flags.state.set(StateFlags::hurt); }
-	void shake() { flags.state.set(StateFlags::shaking); }
+	void shake() { energy = hit_energy; }
 	void stop_shaking() { flags.state.reset(StateFlags::shaking); }
 
 	entity::Health health{};
@@ -121,6 +128,11 @@ class Enemy : public entity::Entity {
 		sf::Sound hit{};
 		sf::Sound inv_hit{};
 	} sounds{};
+
+	// shake
+	float energy{};
+	float dampen{0.1f};
+	float hit_energy{6.f};
 };
 
 } // namespace enemy

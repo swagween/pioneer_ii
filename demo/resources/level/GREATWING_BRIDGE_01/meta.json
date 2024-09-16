@@ -2,8 +2,8 @@
   "meta": {
     "room_id": 6001,
     "metagrid": [
-      0,
-      0
+      -10,
+      40
     ],
     "dimensions": [
       32,
@@ -15,9 +15,15 @@
     ],
     "style": 10,
     "background": 0,
-    "music": "",
+    "music": "skycorps",
     "styles": {
       "breakables": 0
+    },
+    "cutscene_on_entry": {
+      "flag": true,
+      "type": 8,
+      "id": 6001,
+      "source": 6001
     }
   },
   "portals": [
@@ -31,11 +37,46 @@
         12
       ],
       "source_id": 6001,
-      "destination_id": 0,
+      "destination_id": 6002,
       "activate_on_contact": false,
       "already_open": true,
       "locked": false,
       "key_id": 0
+    }
+  ],
+  "npcs": [
+    {
+      "id": 22,
+      "position": [
+        23,
+        11
+      ],
+      "background": false,
+      "suites": [
+        [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      ]
+    },
+    {
+      "id": 23,
+      "position": [
+        1,
+        1
+      ],
+      "background": false,
+      "suites": [
+        [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      ]
     }
   ]
 }

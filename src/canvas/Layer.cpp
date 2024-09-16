@@ -7,7 +7,7 @@
 
 #include "Layer.hpp"
 
-namespace canvas {
+namespace pi {
 
 void Layer::clear() {
     for(auto& cell : grid.cells) {

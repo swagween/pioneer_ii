@@ -3,14 +3,19 @@
 #include "Console.hpp"
 #include "Selector.hpp"
 #include "MiniMap.hpp"
+#include "MiniMenu.hpp"
 
 namespace player {
 class Player;
 }
 
+namespace item {
+class Item;
+}
+
 namespace gui {
 
-	enum class Mode{inventory, minimap};
+enum class Mode{inventory, minimap};
 
 class InventoryWindow : public Console {
   public:
@@ -20,6 +25,10 @@ class InventoryWindow : public Console {
 	void render(automa::ServiceProvider& svc, player::Player& player, sf::RenderWindow& win, sf::Vector2<float> cam);
 	void open();
 	void close();
+	void select();
+	void cancel();
+	void move(sf::Vector2<int> direction);
+	void use_item(automa::ServiceProvider& svc, player::Player& player, world::Map& map, item::Item& item);
 	void set_item_size(int sz) {
 		if (sz > 0) { selector.current_selection = util::Circuit(sz); }
 	}
@@ -31,6 +40,7 @@ class InventoryWindow : public Console {
 	Console info;
 	MiniMap minimap;
 	Mode mode{};
+	MiniMenu item_menu;
 	text::HelpText help_marker;
 
   private:
@@ -43,7 +53,7 @@ class InventoryWindow : public Console {
 		sf::Vector2<float> title_offset{(float)corner_factor, 16.f};
 		sf::Vector2<float> item_label_offset{(float)corner_factor, 230.f};
 		sf::Vector2<float> item_description_offset{(float)corner_factor, 290.f};
-		sf::Vector2<float> info_offset{inner_corner, 260.f};
+		sf::Vector2<float> info_offset{32.f, 120.f};
 	} ui{};
 
 	sf::Text title{};

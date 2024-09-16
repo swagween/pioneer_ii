@@ -95,9 +95,9 @@
         61
       ],
       "source_id": 106,
-      "destination_id": 0,
+      "destination_id": 125,
       "activate_on_contact": false,
-      "already_open": true,
+      "already_open": false,
       "locked": false,
       "key_id": 0
     }

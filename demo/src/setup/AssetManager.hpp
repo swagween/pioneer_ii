@@ -36,13 +36,14 @@ class AssetManager {
 	sf::Texture t_mirin{};
 	sf::Texture t_carl{};
 	sf::Texture t_bit{};
+	sf::Texture t_lady_nimbus{};
 
-	//player palettes
+	// player palettes
 	sf::Texture t_palette_nani{};
 	sf::Texture t_palette_nanidiv{};
 	sf::Texture t_palette_naninight{};
 
-	//items
+	// items
 	sf::Texture t_items{};
 	sf::Texture t_guns{};
 
@@ -57,12 +58,18 @@ class AssetManager {
 	sf::Texture t_minigus_inv{};
 	sf::Texture t_minigus_red{};
 	sf::Texture t_minigus_blue{};
+	sf::Texture t_demon{};
+	sf::Texture t_demon_spear{};
+	sf::Texture t_demon_sword{};
+	sf::Texture t_demon_shield{};
 
 	// gui
 	sf::Texture t_ui{};
 	sf::Texture t_title{};
 	sf::Texture t_title_assets{};
 	sf::Texture t_file_text{};
+	sf::Texture t_blue_console{};
+	sf::Texture t_cream_console{};
 
 	sf::Texture t_hud_orb_font{};
 	sf::Texture t_hud_hearts{};
@@ -85,25 +92,29 @@ class AssetManager {
 	sf::Texture t_platform_firstwind{};
 	sf::Texture t_platform_overturned{};
 
-	//animators
+	//portals
+	sf::Texture t_portals{};
+
+	// animators
 	sf::Texture t_automatic_animators_firstwind{};
 
-	//save
+	// save
 	sf::Texture savepoint{};
 
-	//entities
+	// entities
 	sf::Texture t_chest{};
 	sf::Texture t_shield{};
 
 	sf::Texture t_large_animators{};
 	sf::Texture t_small_animators{};
 	sf::Texture t_breakables{};
+	sf::Texture t_pushables{};
 	sf::Texture t_inspectable{};
 	sf::Texture t_switches{};
 	sf::Texture t_switch_blocks{};
 	sf::Texture t_fader{};
 
-	//vfx
+	// vfx
 	sf::Texture t_huge_explosion{};
 	sf::Texture t_large_explosion{};
 	sf::Texture t_small_explosion{};
@@ -115,6 +126,8 @@ class AssetManager {
 	sf::Texture t_inv_hit{};
 	sf::Texture t_puff{};
 	sf::Texture t_bullet_hit{};
+	sf::Texture t_doublejump{};
+	sf::Texture t_dust{};
 
 	// load scrollingbackground sheets
 	sf::Texture t_bg_opensky{};
@@ -176,7 +189,7 @@ class AssetManager {
 	sf::Texture t_gnat{};
 	sf::Texture t_gnat_projectile{};
 
-	//items
+	// items
 	sf::Texture t_heart{};
 	sf::Texture t_orb{};
 
@@ -188,6 +201,7 @@ class AssetManager {
 	sf::SoundBuffer orb_2_buffer{};
 	sf::SoundBuffer orb_3_buffer{};
 	sf::SoundBuffer orb_4_buffer{};
+	sf::SoundBuffer b_health_increase{};
 
 	// sound effects!
 	sf::SoundBuffer click_buffer{};
@@ -214,14 +228,16 @@ class AssetManager {
 	sf::SoundBuffer step_buffer{};
 	sf::SoundBuffer landed_buffer{};
 	sf::SoundBuffer hurt_buffer{};
+	sf::SoundBuffer slide_buffer{};
 
 	sf::SoundBuffer tank_alert1_buffer{};
 	sf::SoundBuffer tank_alert2_buffer{};
 	sf::SoundBuffer tank_hurt1_buffer{};
 	sf::SoundBuffer tank_hurt2_buffer{};
 	sf::SoundBuffer tank_death_buffer{};
+	sf::SoundBuffer b_demon_snort{};
 
-	//minigus
+	// minigus
 	sf::SoundBuffer b_minigus_invincibility{};
 	sf::SoundBuffer b_minigus_lose_inv{};
 	sf::SoundBuffer b_minigus_build{};
@@ -258,15 +274,26 @@ class AssetManager {
 	sf::SoundBuffer b_minigus_whatisit{};
 	sf::SoundBuffer b_minigus_woob{};
 
+	sf::SoundBuffer b_mirin_ah{};
+	sf::SoundBuffer b_mirin_oh{};
+	sf::SoundBuffer b_mirin_laugh{};
+
+	sf::SoundBuffer b_carl_huh{};
+	sf::SoundBuffer b_carl_eh{};
+	sf::SoundBuffer b_carl_and{};
+
 	sf::SoundBuffer b_heavy_land{};
 	sf::SoundBuffer b_delay_crash{};
+	sf::SoundBuffer b_small_crash{};
 	sf::SoundBuffer b_delay_high{};
 	sf::SoundBuffer b_laser{};
 	sf::SoundBuffer b_gun_charge{};
 	sf::SoundBuffer b_soda{};
 	sf::SoundBuffer b_breakable_hit{};
+	sf::SoundBuffer b_switch_press{};
+	sf::SoundBuffer b_block_toggle{};
 
-	//minigun
+	// minigun
 	sf::SoundBuffer b_minigun_neutral{};
 	sf::SoundBuffer b_minigun_charge{};
 	sf::SoundBuffer b_minigun_reload{};
@@ -277,8 +304,13 @@ class AssetManager {
 	sf::SoundBuffer b_enemy_hit_high{};
 	sf::SoundBuffer b_enemy_hit_squeak{};
 	sf::SoundBuffer b_enemy_hit_inv{};
+	sf::SoundBuffer b_thud{};
+	sf::SoundBuffer b_wall_hit{};
+	sf::SoundBuffer b_heavy_move{};
+	sf::SoundBuffer b_door_open{};
+	sf::SoundBuffer b_door_unlock{};
 
-	//save/load
+	// save/load
 	sf::SoundBuffer save_buffer{};
 	sf::SoundBuffer load_buffer{};
 	sf::SoundBuffer soft_sparkle_high_buffer{};
@@ -289,6 +321,7 @@ class AssetManager {
 	sf::Sound step{};
 	sf::Sound shatter{};
 	sf::Sound jump{};
+	sf::Sound slide{};
 	sf::Sound arms_switch{};
 	sf::Sound bg_shot{};
 	sf::Sound plasmer_shot{};
@@ -300,6 +333,13 @@ class AssetManager {
 	sf::Sound nova_shot{};
 	sf::Sound staple{};
 	sf::Sound gnat{};
+
+	sf::Sound hard_hit{};
+	sf::Sound thud{};
+	sf::Sound small_crash{};
+	sf::Sound heavy_move{};
+	sf::Sound door_open{};
+	sf::Sound door_unlock{};
 
 	sf::Sound minigun_neutral{};
 	sf::Sound minigun_charge{};
@@ -316,11 +356,13 @@ class AssetManager {
 	sf::Sound tank_hurt_1{};
 	sf::Sound tank_hurt_2{};
 	sf::Sound tank_death{};
+	sf::Sound snort{};
 	sf::Sound hurt{};
 	sf::Sound player_death{};
 	sf::Sound enem_hit{};
 	sf::Sound enem_death_1{};
 	sf::Sound heal{};
+	sf::Sound health_increase{};
 	sf::Sound orb_1{};
 	sf::Sound orb_2{};
 	sf::Sound orb_3{};
@@ -333,6 +375,9 @@ class AssetManager {
 
 	sf::Sound breakable_hit{};
 	sf::Sound breakable_shatter{};
+	sf::Sound switch_press{};
+	sf::Sound block_toggle{};
+	sf::Sound wall_hit{};
 
 	// other members
 	int music_vol{24};
@@ -348,6 +393,10 @@ class AssetManager {
 	std::unordered_map<std::string_view, sf::Texture&> particle_textures{};
 	std::unordered_map<std::string_view, sf::Texture&> npcs{};
 	std::unordered_map<std::string_view, sf::Texture&> projectile_textures{};
+	std::vector<sf::SoundBuffer> vs_mirin{};
+	std::vector<sf::SoundBuffer> vs_carl{};
+	std::vector<sf::SoundBuffer> vs_hologus{};
+	std::unordered_map<std::string_view, std::vector<sf::SoundBuffer>> npc_sounds{};
 };
 
 } // namespace asset

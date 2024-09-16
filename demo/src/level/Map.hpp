@@ -21,10 +21,13 @@
 #include "../entities/world/Bed.hpp"
 #include "Platform.hpp"
 #include "Breakable.hpp"
+#include "Pushable.hpp"
+#include "Spawner.hpp"
 #include "Spike.hpp"
 #include "SwitchBlock.hpp"
-#include "BlockDestroyer.hpp"
+#include "Destroyable.hpp"
 #include "../weapon/Grenade.hpp"
+#include "../story/CutsceneCatalog.hpp"
 #include "../utils/Stopwatch.hpp"
 
 int const NUM_LAYERS{8};
@@ -132,10 +135,12 @@ class Map {
 	std::vector<npc::NPC> npcs{};
 	std::vector<Platform> platforms{};
 	std::vector<Breakable> breakables{};
+	std::vector<Pushable> pushables{};
+	std::vector<Spawner> spawners{};
 	std::vector<Spike> spikes{};
 	std::vector<std::unique_ptr<SwitchButton>> switch_buttons{};
 	std::vector<SwitchBlock> switch_blocks{};
-	std::vector<BlockDestroyer> destroyers{};
+	std::vector<Destroyable> destroyers{};
 	std::vector<EnemySpawn> enemy_spawns{};
 	entity::SavePoint save_point;
 
@@ -143,6 +148,7 @@ class Map {
 	flfx::Transition transition;
 
 	enemy::EnemyCatalog enemy_catalog;
+	fornani::CutsceneCatalog cutscene_catalog;
 
 	sf::RectangleShape tile{};
 	sf::RectangleShape borderbox{};
@@ -159,6 +165,7 @@ class Map {
 	int native_style_id{};
 	struct {
 		int breakables{};
+		int pushables{};
 	} styles{};
 
 	float collision_barrier{2.5f};
@@ -174,11 +181,11 @@ class Map {
 
 	util::Cooldown loading{}; // shouldn't exist
 	util::Cooldown spawning{2};
+	util::Counter spawn_counter{};
 
 	// debug
 	util::Stopwatch stopwatch{};
-
-	util::Cooldown end_demo{1600};
+	util::Cooldown end_demo{500};
 
   private:
 	int abyss_distance{400};

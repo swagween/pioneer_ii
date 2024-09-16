@@ -22,18 +22,24 @@ Intro::Intro(ServiceProvider& svc, player::Player& player, std::string_view scen
 void Intro::init(ServiceProvider& svc, int room_number) {}
 
 void Intro::handle_events(ServiceProvider& svc, sf::Event& event) {
-	svc.controller_map.handle_mouse_events(event);
-	svc.controller_map.handle_joystick_events(event);
-	if (event.type == sf::Event::EventType::KeyPressed) { svc.controller_map.handle_press(event.key.code); }
-	if (event.type == sf::Event::EventType::KeyReleased) { svc.controller_map.handle_release(event.key.code); }
-	if (svc.controller_map.label_to_control.at("menu_toggle_secondary").triggered()) { toggle_pause_menu(svc); }
+	if (pause_window.consume_exited()) { toggle_pause_menu(svc); }
 }
 
 void Intro::tick_update(ServiceProvider& svc) {
+	if (pause_window.active()) {
+		svc.controller_map.set_action_set(config::ActionSet::Menu);
+		if (svc.controller_map.digital_action_status(config::DigitalAction::platformer_toggle_pause).triggered) { toggle_pause_menu(svc); }
+		pause_window.update(svc, console, true);
+		return;
+	}
+	svc.controller_map.set_action_set(config::ActionSet::Menu);
+	if (svc.state_controller.actions.test(Actions::main_menu)) {
+		svc.state_controller.actions.set(automa::Actions::trigger);
+		return;
+	}
 	player->update(map, console, inventory_window);
 	player->controller.prevent_movement();
 	map.update(svc, console, inventory_window);
-
 	console.load_and_launch("intro");
 	if (console.is_complete()) {
 		svc.state_controller.actions.set(automa::Actions::intro_done);
@@ -46,36 +52,42 @@ void Intro::tick_update(ServiceProvider& svc) {
 	}
 	map.debug_mode = debug_mode;
 
-	svc.controller_map.reset_triggers();
 	player->controller.clean();
 	svc.soundboard.play_sounds(svc);
 	player->flags.triggers = {};
+
+	pause_window.update(svc, console, true);
 
 	map.background->update(svc, {});
 	console.end_tick();
 }
 
 void Intro::frame_update(ServiceProvider& svc) {
-	pause_window.update(svc, *player);
-	hud.update(svc, *player);
-	svc.controller_map.reset_triggers();
+	pause_window.render_update(svc);
 	pause_window.clean_off_trigger();
+	if (pause_window.active()) { svc.soundboard.play_sounds(svc); }
+	hud.update(svc, *player);
 }
 
 void Intro::render(ServiceProvider& svc, sf::RenderWindow& win) {
 	win.draw(title);
 	pause_window.render(svc, *player, win);
-	//map.render_background(svc, win, {});
-	//map.render(svc, win, {});
+	// map.render_background(svc, win, {});
+	// map.render(svc, win, {});
 	map.render_console(svc, console, win);
-
 	map.transition.render(win);
 }
 
 void Intro::toggle_pause_menu(ServiceProvider& svc) {
-	pause_window.active() ? pause_window.close() : pause_window.open();
+	if (pause_window.active()) {
+		pause_window.close();
+		svc.soundboard.flags.console.set(audio::Console::done);
+	} else {
+		pause_window.open();
+		svc.soundboard.flags.console.set(audio::Console::menu_open);
+		svc.soundboard.play_sounds(svc);
+	}
 	svc.ticker.paused() ? svc.ticker.unpause() : svc.ticker.pause();
-	svc.controller_map.reset_triggers();
 }
 
 } // namespace automa

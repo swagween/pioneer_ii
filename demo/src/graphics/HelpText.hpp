@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <string_view>
+#include "../utils/BitFlags.hpp"
 #include "../utils/Cooldown.hpp"
 #include "../utils/Counter.hpp"
 
@@ -9,11 +10,17 @@ namespace automa {
 struct ServiceProvider;
 }
 
+namespace config {
+enum class DigitalAction;
+}
+
 namespace text {
+
+enum class HelpTextFlags { no_blink, time_limit };
 
 class HelpText {
   public:
-	void init(automa::ServiceProvider& svc, std::string start, std::string_view code = "", std::string end = "", int delay_time = 195, bool include_background = false);
+	void init(automa::ServiceProvider& svc, std::string start, config::DigitalAction const& code, std::string end = "", int delay_time = 195, bool include_background = false, bool no_blink = false);
 	void render(sf::RenderWindow& win);
 	void set_color(sf::Color color);
 	void set_string(std::string string);
@@ -25,6 +32,7 @@ class HelpText {
 	sf::Text& text() { return data; };
 
   private:
+	util::BitFlags<HelpTextFlags> flags{};
 	util::Cooldown delay{195};
 	util::Counter alpha_counter{};
 	sf::Text data{};
@@ -39,4 +47,4 @@ class HelpText {
 	sf::Vector2<float> bg_offset{2.f, 2.f};
 };
 
-} // namespace flfx
+} // namespace text

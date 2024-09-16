@@ -1,19 +1,86 @@
-//
-//  Editor.cpp
-//  automa
-//
-//  Created by Alex Frasca on 12/26/22.
-//
-
 #include <algorithm>
-#include <filesystem>
-#include "../../demo/src/setup/Game.hpp"
+#include "../setup/ResourceFinder.hpp"
+#include "../../demo/src/setup/Application.hpp"
 #include "../util/Lookup.hpp"
-#include "GameState.hpp"
+#include "Editor.hpp"
+#include <filesystem>
 
 namespace pi {
 
-namespace automa {
+Editor::Editor(char** argv, WindowManager& window, ResourceFinder& finder) : window(&window), finder(&finder) { args = argv; }
+
+void Editor::run() {
+
+	// load textures
+	std::string resource_path = finder->find_resources(args[0]).string();
+	int const TILE_WIDTH = 32;
+
+	// load the tilesets!
+	sf::Texture t_tiles_provisional{};
+	t_tiles_provisional.loadFromFile(resource_path + "/tile/provisional_tiles.png");
+
+	init(resource_path + "/level/BREAKABLE_TEST_01");
+	setTilesetTexture(t_tiles_provisional);
+
+	bool debug_mode = false;
+
+	sf::RectangleShape background{};
+	background.setSize(static_cast<sf::Vector2<float>>(screen_dimensions));
+	background.setPosition(0, 0);
+	background.setFillColor(sf::Color(40, 60, 80));
+	sf::Clock delta_clock{};
+	// editor loop
+	while (window->get().isOpen()) {
+
+		if (trigger_demo) {
+			auto ppos = static_cast<sf::Vector2<float>>(player_start) * 32.f;
+			std::cout << "Main path: " << room.data() << "\n";
+			launch_demo(args, room_id, room, ppos);
+			ImGui::SFML::Init(window->get());
+			std::string loaddir = filepath;
+			init(loaddir);
+		}
+
+		auto event = sf::Event{};
+
+		while (window->get().pollEvent(event)) {
+			ImGui::SFML::ProcessEvent(event);
+			switch (event.type) {
+			case sf::Event::Closed: return;
+			case sf::Event::KeyPressed:
+				if (event.key.code == sf::Keyboard::D) { debug_mode = !debug_mode; }
+				if (event.key.code == sf::Keyboard::R) {}
+				if (event.key.code == sf::Keyboard::Num1) { current_tool = std::move(std::make_unique<Hand>()); }
+				if (event.key.code == sf::Keyboard::Num2) { current_tool = std::move(std::make_unique<Brush>()); }
+				if (event.key.code == sf::Keyboard::Num3) { current_tool = std::move(std::make_unique<Fill>()); }
+				if (event.key.code == sf::Keyboard::Num4) { current_tool = std::move(std::make_unique<SelectionRectangular>()); }
+				if (event.key.code == sf::Keyboard::Escape) { return; }
+				break;
+			default: break;
+			}
+			handle_events(event, window->get());
+		}
+
+		// game logic and rendering
+		logic();
+
+		// ImGui update
+		ImGui::SFML::Update(window->get(), delta_clock.restart());
+
+		// my renders
+		window->get().clear();
+		window->get().draw(background);
+
+		render(window->get());
+
+		// draw canvas here
+
+		ImGui::SFML::Render(window->get());
+		window->get().display();
+	}
+}
+
+ // end namespace
 
 void Editor::init(std::string const& load_path) {
 	folderpath = load_path + "../../../level/";
@@ -38,7 +105,7 @@ void Editor::init(std::string const& load_path) {
 	t_chest.loadFromFile(load_path + "../../../entity/chest.png");
 	t_npc.loadFromFile(load_path + "../../../entity/npc.png");
 
-	map.map_states.back().layers.at(canvas::MIDDLEGROUND).active = true;
+	map.map_states.back().layers.at(MIDDLEGROUND).active = true;
 
 	sprites.current_enemy.setTexture(enemy_thumbnails);
 	sprites.enemy_thumb.setTexture(enemy_thumbnails);
@@ -48,60 +115,54 @@ void Editor::init(std::string const& load_path) {
 	sprites.small_animator.setTexture(small_animator_textures);
 	sprites.small_animator_thumb.setTexture(small_animator_thumbs);
 
-	for (int i = 0; i < canvas::NUM_STYLES; ++i) {
-		char const* next = lookup::get_style_string.at(static_cast<canvas::STYLE>(i));
+	for (int i = 0; i < NUM_STYLES; ++i) {
+		char const* next = get_style_string.at(static_cast<STYLE>(i));
 		styles[i] = next;
 	}
-	for (int i = 0; i < canvas::NUM_BGS; ++i) {
-		char const* next = lookup::get_backdrop_string.at(static_cast<canvas::BACKDROP>(i));
+	for (int i = 0; i < NUM_BGS; ++i) {
+		char const* next = get_backdrop_string.at(static_cast<BACKDROP>(i));
 		bgs[i] = next;
 	}
-	for (int i = 0; i < canvas::NUM_STYLES; ++i) {
+	for (int i = 0; i < NUM_STYLES; ++i) {
 		tileset_textures.push_back(sf::Texture());
-		std::string style = lookup::get_style_string.at(static_cast<canvas::STYLE>(i));
+		std::string style = get_style_string.at(static_cast<STYLE>(i));
 		tileset_textures.back().loadFromFile(load_path + "../../../tile/" + style + "_tiles.png");
 	}
 
-	for (int i = 0; i < 16; ++i) {
-		for (int j = 0; j < 16; ++j) {
-			// do all tilesets in this loop
-			sprites.tileset.setTexture(tileset_textures.at(static_cast<int>(map.style)));
-		}
-	}
-	setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
+	sprites.tileset.setTexture(tileset_textures.at(static_cast<int>(map.style)));
 	box.setOutlineColor(sf::Color{200, 200, 200, 20});
 	box.setOutlineThickness(-2);
-	box.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	box.setSize({CELL_SIZE, CELL_SIZE});
 
 	player_box.setFillColor(sf::Color{100, 200, 100, 10});
 	player_box.setOutlineColor(sf::Color{100, 200, 100, 70});
 	player_box.setOutlineThickness(-2);
-	player_box.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	player_box.setSize({CELL_SIZE, CELL_SIZE});
 
 	gridbox.setFillColor(sf::Color::Transparent);
 	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
 	gridbox.setOutlineThickness(-1);
-	gridbox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	gridbox.setSize({CELL_SIZE, CELL_SIZE});
 
 	portalbox.setFillColor(sf::Color{120, 220, 200, 128});
 	portalbox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	portalbox.setOutlineThickness(-1);
-	portalbox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	portalbox.setSize({CELL_SIZE, CELL_SIZE});
 
 	chestbox.setFillColor(sf::Color{220, 220, 80, 128});
 	chestbox.setOutlineColor(sf::Color{40, 30, 255, 180});
 	chestbox.setOutlineThickness(-3);
-	chestbox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	chestbox.setSize({CELL_SIZE, CELL_SIZE});
 
 	savebox.setFillColor(sf::Color{220, 20, 220, 128});
 	savebox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	savebox.setOutlineThickness(-1);
-	savebox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	savebox.setSize({CELL_SIZE, CELL_SIZE});
 
 	inspbox.setFillColor(sf::Color{220, 120, 100, 128});
 	inspbox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	inspbox.setOutlineThickness(-1);
-	inspbox.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	inspbox.setSize({CELL_SIZE, CELL_SIZE});
 
 	
 	platextent.setFillColor(sf::Color::Transparent);
@@ -114,7 +175,7 @@ void Editor::init(std::string const& load_path) {
 	target.setFillColor(sf::Color{110, 90, 200, 80});
 	target.setOutlineColor(sf::Color{240, 230, 255, 100});
 	target.setOutlineThickness(-2);
-	target.setSize({canvas::CELL_SIZE, canvas::CELL_SIZE});
+	target.setSize({CELL_SIZE, CELL_SIZE});
 
 	backdrop.setFillColor(sf::Color{60, 40, 60, 40});
 	backdrop.setOutlineColor(sf::Color{240, 230, 255, 40});
@@ -122,124 +183,75 @@ void Editor::init(std::string const& load_path) {
 	backdrop.setSize(map.real_dimensions);
 
 	setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
-	std::cout << lookup::get_style_string.at(map.style) << "\n";
+	std::cout << get_style_string.at(map.style) << "\n";
 }
 
 void Editor::setTilesetTexture(sf::Texture& new_tex) { sprites.tileset.setTexture(new_tex); }
 
 void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 
-	ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive() ? svc::windowHoveredLocator.get() = true : svc::windowHoveredLocator.get() = false;
+	window_hovered = ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
 
-	svc::current_tool.get()->ready = !svc::windowHoveredLocator.get();
-	svc::secondary_tool.get()->ready = !svc::windowHoveredLocator.get();
+	current_tool.get()->ready = !window_hovered;
+	secondary_tool.get()->ready = !window_hovered;
 	if (event.type == sf::Event::EventType::KeyPressed) {
-		svc::current_tool.get()->ready = false;
-		svc::secondary_tool.get()->ready = false;
-		if (event.key.code == sf::Keyboard::C) { svc::current_tool.get()->handle_keyboard_events(map, event.key.code); }
+		current_tool.get()->ready = false;
+		secondary_tool.get()->ready = false;
+		if (event.key.code == sf::Keyboard::C) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
 		if (event.key.code == sf::Keyboard::V) {
-			svc::current_tool.get()->handle_keyboard_events(map, event.key.code);
-			map.save_state();
+			current_tool.get()->handle_keyboard_events(map, event.key.code);
+			map.save_state(*current_tool);
 		}
-		if (event.key.code == sf::Keyboard::Q) { svc::current_tool.get()->handle_keyboard_events(map, event.key.code); }
-		if (event.key.code == sf::Keyboard::LControl) { svc::current_tool.get()->handle_keyboard_events(map, event.key.code); }
+		if (event.key.code == sf::Keyboard::Q) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
+		if (event.key.code == sf::Keyboard::LControl) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
 	}
 	if (event.type == sf::Event::EventType::KeyReleased) {
-		svc::current_tool.get()->ready = false;
-		svc::secondary_tool.get()->ready = false;
+		current_tool.get()->ready = false;
+		secondary_tool.get()->ready = false;
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-		map.save_state();
-		svc::current_tool.get()->handle_events(map, event);
-		svc::current_tool.get()->active = true;
+		map.save_state(*current_tool);
+		current_tool.get()->handle_events(map, event);
+		current_tool.get()->active = true;
 	} else {
-		svc::current_tool.get()->active = false;
-		svc::current_tool.get()->just_clicked = true;
-		svc::current_tool.get()->clicked_position = {0.0f, 0.0f};
-		svc::current_tool.get()->scaled_clicked_position = {0, 0};
-		svc::current_tool.get()->relative_position = {0.0f, 0.0f};
+		current_tool.get()->active = false;
+		current_tool.get()->just_clicked = true;
+		current_tool.get()->clicked_position = {0.0f, 0.0f};
+		current_tool.get()->scaled_clicked_position = {0, 0};
+		current_tool.get()->relative_position = {0.0f, 0.0f};
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-		svc::secondary_tool.get()->handle_events(map, event);
-		svc::secondary_tool.get()->active = true;
+		secondary_tool.get()->handle_events(map, event);
+		secondary_tool.get()->active = true;
 	} else {
-		svc::secondary_tool.get()->active = false;
-		svc::secondary_tool.get()->just_clicked = true;
-		svc::secondary_tool.get()->clicked_position = {0.0f, 0.0f};
-		svc::secondary_tool.get()->scaled_clicked_position = {0, 0};
-		svc::secondary_tool.get()->relative_position = {0.0f, 0.0f};
+		secondary_tool.get()->active = false;
+		secondary_tool.get()->just_clicked = true;
+		secondary_tool.get()->clicked_position = {0.0f, 0.0f};
+		secondary_tool.get()->scaled_clicked_position = {0, 0};
+		secondary_tool.get()->relative_position = {0.0f, 0.0f};
 	}
 	// select tool gets special treatment, because it can be used without the mouse being pressed (copy/paste)
-	if (svc::current_tool.get()->type == tool::TOOL_TYPE::SELECT) { svc::current_tool.get()->handle_events(map, event); }
+	if (current_tool.get()->type == ToolType::select) { current_tool.get()->handle_events(map, event); }
 }
 
 void Editor::logic() {
-	if (svc::current_tool->trigger_switch) { svc::current_tool = std::move(std::make_unique<tool::Hand>()); }
-	svc::current_tool->update();
-	svc::secondary_tool->update();
-	if (svc::current_tool.get()->type == tool::TOOL_TYPE::HAND && svc::current_tool.get()->active) {
-		svc::cameraLocator.get().physics.position += svc::current_tool.get()->relative_position;
-		svc::cameraLocator.get().physics.velocity = {0.0f, 0.0f};
-		svc::cameraLocator.get().physics.acceleration = {0.0f, 0.0f};
-		svc::current_tool.get()->relative_position = {0.0f, 0.0f};
-	} else if (svc::secondary_tool.get()->type == tool::TOOL_TYPE::HAND && svc::secondary_tool.get()->active) {
-		svc::cameraLocator.get().physics.position += svc::secondary_tool.get()->relative_position;
-		svc::cameraLocator.get().physics.velocity = {0.0f, 0.0f};
-		svc::cameraLocator.get().physics.acceleration = {0.0f, 0.0f};
-		svc::secondary_tool.get()->relative_position = {0.0f, 0.0f};
+	map.active_layer = active_layer;
+	map.player_start = player_start;
+	if (current_tool->trigger_switch) { current_tool = std::move(std::make_unique<Hand>()); }
+	current_tool->update();
+	secondary_tool->update();
+	if (current_tool.get()->type == ToolType::hand && current_tool.get()->active) {
+		camera.move(current_tool.get()->relative_position);
+		current_tool.get()->relative_position = {0.0f, 0.0f};
+	} else if (secondary_tool.get()->type == ToolType::hand && secondary_tool.get()->active) {
+		camera.move(secondary_tool.get()->relative_position);
+		secondary_tool.get()->relative_position = {0.0f, 0.0f};
 	}
-	svc::cameraLocator.get().update();
-}
-
-void Metagrid::gui_render(sf::RenderWindow& win) {
-	bool* debug{};
-	float const PAD = 10.0f;
-	static int corner = 0;
-	ImGuiIO& io = ImGui::GetIO();
-	io.FontGlobalScale = 1.0;
-
-	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
-
-	ImGuiViewport const* viewport = ImGui::GetMainViewport();
-	ImVec2 work_pos = viewport->WorkPos; // Use work area to avoid menu-bar/task-bar, if any!
-	ImVec2 work_size = viewport->WorkSize;
-	ImVec2 window_pos, window_pos_pivot;
-	ImVec2 prev_window_pos{};
-	ImVec2 prev_window_size{};
-	window_pos.x = (corner & 1) ? (work_pos.x + work_size.x - PAD) : (work_pos.x + PAD);
-	window_pos.y = (corner & 2) ? (work_pos.y + work_size.y - PAD) : (work_pos.y + PAD);
-	window_pos_pivot.x = (corner & 1) ? 1.0f : 0.0f;
-	window_pos_pivot.y = (corner & 2) ? 1.0f : 0.0f;
-	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
-	window_flags |= ImGuiWindowFlags_NoMove;
-
-	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
-	if (ImGui::Begin("Debug Mode", debug, window_flags)) {
-		ImGui::Text("Pioneer (beta version 1.0.0) - Metagrid");
-		ImGui::Separator();
-		if (ImGui::IsMousePosValid()) {
-			ImGui::Text("Mouse Position: (%.1f,%.1f)", io.MousePos.x, io.MousePos.y);
-		} else {
-			ImGui::Text("Mouse Position: <invalid>");
-		}
-		prev_window_size = ImGui::GetWindowSize();
-		ImGui::End();
-	}
-	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
-	work_size = viewport->WorkSize;
-	window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
-	window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
-	ImGui::SetNextWindowPos(window_pos);
-	if (ImGui::Begin("Info", debug, window_flags)) {
-		prev_window_size = ImGui::GetWindowSize();
-		prev_window_pos = ImGui::GetWindowPos();
-
-		ImGui::End();
-	}
+	camera.update();
 }
 
 void Editor::render(sf::RenderWindow& win) {
-	backdrop.setPosition(svc::cameraLocator.get().physics.position.x, svc::cameraLocator.get().physics.position.y);
+	backdrop.setPosition(camera.position.x, camera.position.y);
 	backdrop.setSize(map.real_dimensions);
 	win.draw(backdrop);
 	if (!map.map_states.empty()) {
@@ -247,12 +259,12 @@ void Editor::render(sf::RenderWindow& win) {
 			box.setFillColor(sf::Color{static_cast<uint8_t>(layer.render_order * 30), 230, static_cast<uint8_t>(255 - layer.render_order * 30), 40});
 			for (auto& cell : layer.grid.cells) {
 				if (cell.value == 0) { continue; }
-				if (layer.render_order == svc::active_layer || show_all_layers) {
+				if (layer.render_order == active_layer || show_all_layers) {
 					sprites.tileset.setTextureRect(sf::IntRect{get_tile_coord(cell.value), {32, 32}});
-					sprites.tileset.setPosition(cell.position.x + svc::cameraLocator.get().physics.position.x, cell.position.y + svc::cameraLocator.get().physics.position.y);
+					sprites.tileset.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
 					win.draw(sprites.tileset);
 				} else {
-					box.setPosition(cell.position.x + svc::cameraLocator.get().physics.position.x, cell.position.y + svc::cameraLocator.get().physics.position.y);
+					box.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
 					win.draw(box);
 				}
 			}
@@ -261,44 +273,43 @@ void Editor::render(sf::RenderWindow& win) {
 	for (auto& portal : map.portals) {
 		for (int i = 0; i < portal.dimensions.x; ++i) {
 			for (int j = 0; j < portal.dimensions.y; ++j) {
-				portalbox.setPosition((portal.position.x + i) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (portal.position.y + j) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+				portalbox.setPosition((portal.position.x + i) * CELL_SIZE + camera.position.x, (portal.position.y + j) * CELL_SIZE + camera.position.y);
 				win.draw(portalbox);
 			}
 		}
 	}
 
 	for (auto& inspectable : map.inspectables) {
-		inspbox.setPosition((inspectable.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (inspectable.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		inspbox.setPosition((inspectable.position.x) * CELL_SIZE + camera.position.x, (inspectable.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(inspbox);
 	}
 
 	for (auto& block : map.switch_blocks) {
-		inspbox.setPosition((block.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (block.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		inspbox.setPosition((block.position.x) * CELL_SIZE + camera.position.x, (block.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(inspbox);
 	}
 	for (auto& button : map.switch_buttons) {
-		inspbox.setPosition((button.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (button.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		inspbox.setPosition((button.position.x) * CELL_SIZE + camera.position.x, (button.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(inspbox);
 	}
 
 	for (auto& chest : map.chests) {
-		chestbox.setPosition((chest.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (chest.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		chestbox.setPosition((chest.position.x) * CELL_SIZE + camera.position.x, (chest.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(chestbox);
 	}
 
 	if (map.save_point.placed) {
-		savebox.setPosition((map.save_point.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (map.save_point.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		savebox.setPosition((map.save_point.position.x) * CELL_SIZE + camera.position.x, (map.save_point.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(savebox);
 	}
-	
 
 	for (auto& platform : map.platforms) {
 		auto f_extent = platform.extent * 32.f;
 		platextent.setSize({f_extent, f_extent});
-		platextent.setPosition((platform.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x + platform.dimensions.x * 16.f,
-							   (platform.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y + platform.dimensions.y * 16.f);
+		platextent.setPosition((platform.position.x) * CELL_SIZE + camera.position.x + platform.dimensions.x * 16.f,
+							   (platform.position.y) * CELL_SIZE + camera.position.y + platform.dimensions.y * 16.f);
 		platbox.setSize({platform.dimensions.x * 32.f, platform.dimensions.y * 32.f});
-		platbox.setPosition((platform.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (platform.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		platbox.setPosition((platform.position.x) * CELL_SIZE + camera.position.x, (platform.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(platextent);
 		win.draw(platbox);
 	}
@@ -307,12 +318,12 @@ void Editor::render(sf::RenderWindow& win) {
 		int idx = critter.id;
 		sprites.current_enemy.setTextureRect(sf::IntRect({(idx * 16) % (64), (idx / 4) * 16}, {16, 16}));
 		sprites.current_enemy.setScale({2.0f, 2.0f});
-		sprites.current_enemy.setPosition((critter.position.x) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, (critter.position.y) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+		sprites.current_enemy.setPosition((critter.position.x) * CELL_SIZE + camera.position.x, (critter.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(sprites.current_enemy);
 	}
 
 	for (auto& animator : map.animators) {
-		sf::Vector2<float> anim_pos = {animator.position.x * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x, animator.position.y * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y};
+		sf::Vector2<float> anim_pos = {animator.position.x * CELL_SIZE + camera.position.x, animator.position.y * CELL_SIZE + camera.position.y};
 		box.setPosition(anim_pos.x, anim_pos.y);
 		if (show_all_layers) {
 			auto which = static_cast<int>(animator.id / 100);
@@ -329,47 +340,48 @@ void Editor::render(sf::RenderWindow& win) {
 				sprites.small_animator.setPosition(anim_pos.x, anim_pos.y);
 				win.draw(sprites.small_animator);
 			}
-		} else if ((svc::active_layer < 4 && animator.foreground) || (svc::active_layer >= 4 && !animator.foreground)) {
+		} else if ((active_layer < 4 && animator.foreground) || (active_layer >= 4 && !animator.foreground)) {
 			win.draw(box);
 		}
 	}
 
 	// player start
-	player_box.setPosition(static_cast<sf::Vector2<float>>(pi::svc::playerStartLocator.get()) * (float)CELL_SIZE + svc::cameraLocator.get().physics.position);
+	player_box.setPosition(static_cast<sf::Vector2<float>>(player_start) * (float)CELL_SIZE + camera.position);
 	win.draw(player_box);
 
 	if (show_grid && !map.map_states.empty()) {
 		if (map.map_states.back().layers.empty()) { return; }
 		for (auto& cell : map.map_states.back().layers.back().grid.cells) {
-			if (cell.position.x + svc::cameraLocator.get().bounding_box.left < 0) { continue; }
-			if (cell.position.x + svc::cameraLocator.get().bounding_box.left > screen_dimensions.x) { continue; }
-			if (cell.position.y + svc::cameraLocator.get().bounding_box.top < 0) { continue; }
-			if (cell.position.y + svc::cameraLocator.get().bounding_box.top > screen_dimensions.y) { continue; }
-			gridbox.setPosition(cell.position.x + svc::cameraLocator.get().physics.position.x, cell.position.y + svc::cameraLocator.get().physics.position.y);
+			if (cell.position.x + camera.bounding_box.left < 0) { continue; }
+			if (cell.position.x + camera.bounding_box.left > screen_dimensions.x) { continue; }
+			if (cell.position.y + camera.bounding_box.top < 0) { continue; }
+			if (cell.position.y + camera.bounding_box.top > screen_dimensions.y) { continue; }
+			gridbox.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
 			win.draw(gridbox);
 		}
 	}
 
-	if (svc::current_tool.get()->ready && svc::current_tool.get()->in_bounds(map.dimensions) &&
-		(svc::current_tool.get()->type == tool::TOOL_TYPE::BRUSH || svc::current_tool.get()->type == tool::TOOL_TYPE::FILL || svc::current_tool.get()->type == tool::TOOL_TYPE::ERASE ||
-		 svc::current_tool.get()->type == tool::TOOL_TYPE::ENTITY_PLACER)) {
-		for (int i = 0; i < svc::current_tool.get()->size; i++) {
-			for (int j = 0; j < svc::current_tool.get()->size; j++) {
-				target.setPosition((svc::current_tool.get()->scaled_position.x - i) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.x,
-								   (svc::current_tool.get()->scaled_position.y - j) * canvas::CELL_SIZE + svc::cameraLocator.get().physics.position.y);
+	if (current_tool.get()->ready && current_tool.get()->in_bounds(map.dimensions) &&
+		(current_tool.get()->type == ToolType::brush || current_tool.get()->type == ToolType::fill || current_tool.get()->type == ToolType::erase ||
+		 current_tool.get()->type == ToolType::entity_placer)) {
+		for (int i = 0; i < current_tool.get()->size; i++) {
+			for (int j = 0; j < current_tool.get()->size; j++) {
+				target.setPosition((current_tool.get()->scaled_position.x - i) * CELL_SIZE + camera.position.x,
+								   (current_tool.get()->scaled_position.y - j) * CELL_SIZE + camera.position.y);
 				win.draw(target);
 			}
 		}
 	}
 
-	svc::current_tool.get()->render(win, svc::cameraLocator.get().physics.position);
-	float tool_x = svc::current_tool.get()->position.x + svc::cameraLocator.get().physics.position.x;
-	float tool_y = svc::current_tool.get()->position.y + svc::cameraLocator.get().physics.position.y;
-	if (!svc::windowHoveredLocator.get()) {
-		sprites.tool.setTextureRect({{(int)svc::current_tool.get()->type * 32, 0}, {32, 32}});
+	current_tool.get()->render(win, camera.position);
+	float tool_x = current_tool.get()->position.x + camera.position.x;
+	float tool_y = current_tool.get()->position.y + camera.position.y;
+	if (!window_hovered) {
+		sprites.tool.setTextureRect({{(int)current_tool.get()->type * 32, 0}, {32, 32}});
 		sprites.tool.setPosition(tool_x, tool_y);
 		win.draw(sprites.tool);
 	}
+	gui_render(win);
 }
 
 void Editor::gui_render(sf::RenderWindow& win) {
@@ -379,10 +391,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	ImGuiIO& io = ImGui::GetIO();
 	io.FontGlobalScale = 1.0;
 
-	svc::current_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - svc::cameraLocator.get().physics.position;
-	svc::secondary_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - svc::cameraLocator.get().physics.position;
+	current_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - camera.position;
+	secondary_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - camera.position;
 
-	if (svc::current_tool.get()->type == tool::TOOL_TYPE::SELECT && !svc::windowHoveredLocator.get()) {
+	if (current_tool.get()->type == ToolType::select && !window_hovered) {
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 		ImGui::Text("Press `C` to copy selection.");
@@ -391,25 +403,24 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::EndTooltip();
 	}
 
-	if (svc::current_tool.get()->type == tool::TOOL_TYPE::ENTITY_PLACER && !svc::windowHoveredLocator.get()) {
+	if (current_tool.get()->type == ToolType::entity_placer && !window_hovered) {
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-		if (svc::current_tool.get()->ent_type == tool::ENTITY_TYPE::PORTAL) {
-			ImGui::Text("Click to place portal to room %i%s", svc::current_tool.get()->current_portal.destination_map_id, ".");
-			ImGui::Text("Portal size: width: %i, height: %i", svc::current_tool.get()->current_portal.dimensions.x, svc::current_tool.get()->current_portal.dimensions.y);
-			ImGui::Text("Activate on contact: %s", svc::current_tool.get()->current_portal.activate_on_contact ? "Yes" : "No");
+		if (current_tool.get()->ent_type == ENTITY_TYPE::PORTAL) {
+			ImGui::Text("Click to place portal to room %i%s", current_tool.get()->current_portal.destination_map_id, ".");
+			ImGui::Text("Portal size: width: %i, height: %i", current_tool.get()->current_portal.dimensions.x, current_tool.get()->current_portal.dimensions.y);
+			ImGui::Text("Activate on contact: %s", current_tool.get()->current_portal.activate_on_contact ? "Yes" : "No");
 			ImGui::TextUnformatted("Press 'Q' to cancel.");
-		} else if (svc::current_tool.get()->ent_type == tool::ENTITY_TYPE::INSPECTABLE) {
-			if (!svc::current_tool.get()->current_inspectable.suites.empty()) {
-				if (!svc::current_tool.get()->current_inspectable.suites.back().empty()) { ImGui::Text("Place an inspectable with message: %s", svc::current_tool.get()->current_inspectable.suites.back().back().c_str()); }
+		} else if (current_tool.get()->ent_type == ENTITY_TYPE::INSPECTABLE) {
+			if (!current_tool.get()->current_inspectable.suites.empty()) {
+				if (!current_tool.get()->current_inspectable.suites.back().empty()) { ImGui::Text("Place an inspectable with message: %s", current_tool.get()->current_inspectable.suites.back().back().c_str()); }
 			}
-			ImGui::Text("and with key: %s", svc::current_tool.get()->current_inspectable.key.c_str());
-			ImGui::Text("Activate on contact: %s", svc::current_tool.get()->current_inspectable.activate_on_contact ? "Yes" : "No");
+			ImGui::Text("and with key: %s", current_tool.get()->current_inspectable.key.c_str());
+			ImGui::Text("Activate on contact: %s", current_tool.get()->current_inspectable.activate_on_contact ? "Yes" : "No");
 			ImGui::TextUnformatted("Press 'Q' to cancel.");
-		} else if (svc::current_tool.get()->ent_type == tool::ENTITY_TYPE::CRITTER) {
-			ImGui::Text(lookup::get_critter_string.at(svc::current_tool.get()->current_critter.type));
-			ImGui::Text("id: %i", svc::current_tool.get()->current_critter.id);
-		} else if (svc::current_tool.get()->ent_type == tool::ENTITY_TYPE::ENTITY_EDITOR) {
+		} else if (current_tool.get()->ent_type == ENTITY_TYPE::CRITTER) {
+			ImGui::Text("id: %i", current_tool.get()->current_critter.id);
+		} else if (current_tool.get()->ent_type == ENTITY_TYPE::ENTITY_EDITOR) {
 			ImGui::Text("Erase Entity");
 		} else {
 			ImGui::Text("Place Entity");
@@ -465,10 +476,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					static int style_current = static_cast<int>(map.style);
 					static int bg_current = static_cast<int>(map.bg);
 
-					map = canvas::Canvas({static_cast<uint32_t>(width * canvas::CHUNK_SIZE), static_cast<uint32_t>(height * canvas::CHUNK_SIZE)});
-					map.style = static_cast<canvas::STYLE>(style_current);
+					map = Canvas({static_cast<uint32_t>(width * CHUNK_SIZE), static_cast<uint32_t>(height * CHUNK_SIZE)});
+					map.style = static_cast<STYLE>(style_current);
 					setTilesetTexture(tileset_textures.at(style_current));
-					map.bg = static_cast<canvas::BACKDROP>(bg_current);
+					map.bg = static_cast<BACKDROP>(bg_current);
 					filepath = folderpath + buffer;
 					map.save(filepath);
 					map.save(demopath);
@@ -553,7 +564,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					std::string savepath = folderpath + buffer;
 					map.save(savepath);
 					map.save(demopath);
-					//                    lookup::room_name_lookup.insert( {map.room_id, buffer} );
+					//                    room_name_lookup.insert( {map.room_id, buffer} );
 					ImGui::CloseCurrentPopup();
 				}
 
@@ -615,7 +626,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				if (ImGui::BeginTabItem("General")) {
 					ImGui::Text("Any Window Hovered: ");
 					ImGui::SameLine();
-					if (svc::windowHoveredLocator.get()) {
+					if (window_hovered) {
 						ImGui::Text("Yes");
 					} else {
 						ImGui::Text("No");
@@ -625,54 +636,53 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					auto const json = dj::Json::parse(text);
 					ImGui::Text("djson test: %i", json[1]);*/
 					ImGui::Text("Room ID: %u", map.room_id);
-					//                    ImGui::Text("Room Name: %s", lookup::room_name_lookup.at(map.room_id).c_str());
-					ImGui::Text("Camera Position: (%.1f,%.1f)", svc::cameraLocator.get().physics.position.x, svc::cameraLocator.get().physics.position.y);
-					ImGui::Text("Active Layer: %i", svc::active_layer);
+					//                    ImGui::Text("Room Name: %s", room_name_lookup.at(map.room_id).c_str());
+					ImGui::Text("Camera Position: (%.1f,%.1f)", camera.position.x, camera.position.y);
+					ImGui::Text("Active Layer: %i", active_layer);
 					ImGui::Text("Num Layers: %lu", map.map_states.back().layers.size());
-					ImGui::Text("Stored Tile Value: %u", svc::current_tool.get()->tile);
-					if (svc::current_tool.get()->in_bounds(map.dimensions)) {
-						ImGui::Text("Tile Value at Mouse Pos: %u", map.tile_val_at(svc::current_tool.get()->scaled_position.x, svc::current_tool.get()->scaled_position.y, svc::active_layer));
+					ImGui::Text("Stored Tile Value: %u", current_tool.get()->tile);
+					if (current_tool.get()->in_bounds(map.dimensions)) {
+						ImGui::Text("Tile Value at Mouse Pos: %u", map.tile_val_at(current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y, active_layer));
 					} else {
 						ImGui::Text("Tile Value at Mouse Pos: <invalid>");
 					}
 					ImGui::Separator();
-					ImGui::Text("Current State: %s", lookup::get_state_string.at(state).c_str());
-					ImGui::Text("Current Style: %s", lookup::get_style_string.at(map.style));
-					ImGui::Text("Current Backdrop: %s", lookup::get_backdrop_string.at(map.bg));
+					ImGui::Text("Current Style: %s", get_style_string.at(map.style));
+					ImGui::Text("Current Backdrop: %s", get_backdrop_string.at(map.bg));
 					ImGui::Text("Number of Portals: %i", map.portals.size());
 					ImGui::Text("Number of Inspectables: %i", map.inspectables.size());
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Tool")) {
-					ImGui::Text("Tool Position: (%.1f,%.1f)", svc::current_tool.get()->position.x, svc::current_tool.get()->position.y);
-					ImGui::Text("Clicked Position: (%.1f,%.1f)", svc::current_tool.get()->clicked_position.x, svc::current_tool.get()->clicked_position.y);
-					ImGui::Text("Relative Position: (%.1f,%.1f)", svc::current_tool.get()->relative_position.x, svc::current_tool.get()->relative_position.y);
-					ImGui::Text("Tool Position (scaled): (%i,%i)", svc::current_tool.get()->scaled_position.x, svc::current_tool.get()->scaled_position.y);
-					ImGui::Text("Tool Clicked Position (scaled): (%i,%i)", svc::current_tool.get()->scaled_clicked_position.x, svc::current_tool.get()->scaled_clicked_position.y);
+					ImGui::Text("Tool Position: (%.1f,%.1f)", current_tool.get()->position.x, current_tool.get()->position.y);
+					ImGui::Text("Clicked Position: (%.1f,%.1f)", current_tool.get()->clicked_position.x, current_tool.get()->clicked_position.y);
+					ImGui::Text("Relative Position: (%.1f,%.1f)", current_tool.get()->relative_position.x, current_tool.get()->relative_position.y);
+					ImGui::Text("Tool Position (scaled): (%i,%i)", current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y);
+					ImGui::Text("Tool Clicked Position (scaled): (%i,%i)", current_tool.get()->scaled_clicked_position.x, current_tool.get()->scaled_clicked_position.y);
 					ImGui::Text("Tool in Bounds: ");
 					ImGui::SameLine();
-					if (svc::current_tool.get()->in_bounds(map.dimensions)) {
+					if (current_tool.get()->in_bounds(map.dimensions)) {
 						ImGui::Text("Yes");
 					} else {
 						ImGui::Text("No");
 					};
 					ImGui::Text("Tool Ready: ");
 					ImGui::SameLine();
-					if (svc::current_tool.get()->ready) {
+					if (current_tool.get()->ready) {
 						ImGui::Text("Yes");
 					} else {
 						ImGui::Text("No");
 					};
 					ImGui::Text("Tool Active: ");
 					ImGui::SameLine();
-					if (svc::current_tool.get()->active) {
+					if (current_tool.get()->active) {
 						ImGui::Text("Yes");
 					} else {
 						ImGui::Text("No");
 					};
 
-					ImGui::Text("Current Tool: %s", lookup::get_tool_string.at(svc::current_tool->type).c_str());
-					ImGui::Text("Secondary Tool: %s", lookup::get_tool_string.at(svc::secondary_tool->type).c_str());
+					ImGui::Text("Current Tool: %s", get_tool_string.at(current_tool->type).c_str());
+					ImGui::Text("Secondary Tool: %s", get_tool_string.at(secondary_tool->type).c_str());
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Resources")) {
@@ -707,9 +717,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				ImGui::PushID(idx);
 				sprites.tileset.setTextureRect(sf::IntRect({{new_j, new_i}, {32, 32}}));
 				if (ImGui::ImageButton(sprites.tileset, 2)) {
-					svc::current_tool.get()->store_tile(idx);
-					svc::selectedBlockLocator.get() = idx;
-					if (!svc::current_tool.get()->is_paintable()) { svc::current_tool = std::move(std::make_unique<tool::Brush>()); }
+					current_tool.get()->store_tile(idx);
+					selected_block = idx;
+					if (!current_tool.get()->is_paintable()) { current_tool = std::move(std::make_unique<Brush>()); }
 				}
 				ImGui::PopID();
 				ImGui::SameLine();
@@ -735,10 +745,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				sprites.enemy_thumb.setTextureRect(sf::IntRect({{j * 16, i * 16}, {16, 16}}));
 				sprites.enemy_thumb.setScale({2.0f, 2.0f});
 				if (ImGui::ImageButton(sprites.enemy_thumb, 2)) {
-					svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-					svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::CRITTER;
-					svc::current_tool.get()->current_critter = canvas::Critter(static_cast<canvas::CRITTER_TYPE>(idx));
-					svc::current_tool.get()->current_critter.id = idx;
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::CRITTER;
+					current_tool.get()->current_critter = Critter(static_cast<CRITTER_TYPE>(idx));
+					current_tool.get()->current_critter.id = idx;
 				}
 				ImGui::PopID();
 				ImGui::SameLine();
@@ -769,9 +779,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					sprites.large_animator.setTextureRect(sf::IntRect({{idx * 64, 0}, {64, 64}}));
 					sprites.large_animator.setScale({0.5f, 0.5f});
 					if (ImGui::ImageButton(sprites.large_animator, 2)) {
-						svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-						svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
-						svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)2, (uint32_t)2}, idx + large_index_multiplier, false, svc::active_layer >= 4); // change booleans here later
+						current_tool = std::move(std::make_unique<EntityPlacer>());
+						current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
+						current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)2, (uint32_t)2}, idx + large_index_multiplier, false, active_layer >= 4); // change booleans here later
 						ImGui::CloseCurrentPopup();
 					}
 					ImGui::PopID();
@@ -788,9 +798,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					auto idx = j + i * num_cols;
 					sprites.small_animator.setTextureRect(sf::IntRect({{idx * 32, 0}, {32, 32}}));
 					if (ImGui::ImageButton(sprites.small_animator, 2)) {
-						svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-						svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
-						svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, idx + small_index_multiplier, false, svc::active_layer >= 4); // change booleans here later
+						current_tool = std::move(std::make_unique<EntityPlacer>());
+						current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
+						current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, idx + small_index_multiplier, false, active_layer >= 4); // change booleans here later
 						ImGui::CloseCurrentPopup();
 					}
 					ImGui::PopID();
@@ -803,8 +813,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		}
 	
 		if (ImGui::Button("Bed")) { 
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::BED;
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::BED;
 		}
 		if (ImGui::Button("Automatic Animators")) { ImGui::OpenPopup("Animator Specifications"); }
 		if (ImGui::BeginPopupModal("Animator Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -817,9 +827,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ANIMATOR;
-				svc::current_tool.get()->current_animator = canvas::Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, id, true, false, style);
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
+				current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, id, true, false, style);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -864,9 +874,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::PORTAL;
-				svc::current_tool.get()->current_portal = canvas::Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, map.room_id, destination, locked, key_id);
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::PORTAL;
+				current_tool.get()->current_portal = Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, map.room_id, destination, locked, key_id);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -895,10 +905,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::INSPECTABLE;
-				svc::current_tool.get()->current_inspectable = canvas::Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer);
-				svc::current_tool.get()->current_inspectable.suites.push_back(std::vector<std::string>{msgbuffer}); 
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::INSPECTABLE;
+				current_tool.get()->current_inspectable = Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer);
+				current_tool.get()->current_inspectable.suites.push_back(std::vector<std::string>{msgbuffer}); 
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -945,9 +955,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::PLATFORM;
-				svc::current_tool.get()->current_platform = canvas::Platform(sf::Vector2<uint32_t>{0, 0}, sf::Vector2<uint32_t>{(uint32_t)x, (uint32_t)y}, extent, style, typebuffer, start);
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::PLATFORM;
+				current_tool.get()->current_platform = Platform(sf::Vector2<uint32_t>{0, 0}, sf::Vector2<uint32_t>{(uint32_t)x, (uint32_t)y}, extent, style, typebuffer, start);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -997,9 +1007,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::CHEST;
-				svc::current_tool.get()->current_chest = canvas::Chest(id, item_id, type, rarity, amount);
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::CHEST;
+				current_tool.get()->current_chest = Chest(id, item_id, type, rarity, amount);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -1030,9 +1040,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::SWITCH_BUTTON;
-				svc::current_tool.get()->current_switch = canvas::SwitchButton(button_id, type);
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::SWITCH_BUTTON;
+				current_tool.get()->current_switch = SwitchButton(button_id, type);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -1063,9 +1073,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::Button("Create")) {
 				// switch to entity tool, and store the specified portal for placement
-				svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-				svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::SWITCH_BLOCK;
-				svc::current_tool.get()->current_switch_block = canvas::SwitchBlock(button_id, type);
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::SWITCH_BLOCK;
+				current_tool.get()->current_switch_block = SwitchBlock(button_id, type);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -1073,12 +1083,12 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::EndPopup();
 		}
 		if (ImGui::Button("Save Point")) {
-			svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-			svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::SAVE_POINT;
+			current_tool = std::move(std::make_unique<EntityPlacer>());
+			current_tool.get()->ent_type = ENTITY_TYPE::SAVE_POINT;
 		}
 		if (ImGui::Button("Player Placer")) {
-			svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-			svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::PLAYER_PLACER;
+			current_tool = std::move(std::make_unique<EntityPlacer>());
+			current_tool.get()->ent_type = ENTITY_TYPE::PLAYER_PLACER;
 		}
 
 		ImGui::End();
@@ -1109,22 +1119,22 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			if (ImGui::IsItemHovered()) {
 				ImGui::BeginTooltip();
 				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-				ImGui::Text(lookup::get_tool_string.at((tool::TOOL_TYPE)i).c_str());
+				ImGui::Text(get_tool_string.at((ToolType)i).c_str());
 				ImGui::PopTextWrapPos();
 				ImGui::EndTooltip();
 			}
 			if (ImGui::IsItemClicked()) {
-				switch ((tool::TOOL_TYPE)i) {
-				case tool::TOOL_TYPE::BRUSH: svc::current_tool = std::move(std::make_unique<tool::Brush>()); break;
-				case tool::TOOL_TYPE::FILL: svc::current_tool = std::move(std::make_unique<tool::Fill>()); break;
-				case tool::TOOL_TYPE::SELECT: svc::current_tool = std::move(std::make_unique<tool::SelectionRectangular>()); break;
-				case tool::TOOL_TYPE::ERASE: svc::current_tool = std::move(std::make_unique<tool::Erase>()); break;
-				case tool::TOOL_TYPE::HAND: svc::current_tool = std::move(std::make_unique<tool::Hand>()); break;
-				case tool::TOOL_TYPE::ENTITY_PLACER:
-					svc::current_tool = std::move(std::make_unique<tool::EntityPlacer>());
-					svc::current_tool.get()->ent_type = tool::ENTITY_TYPE::ENTITY_EDITOR;
+				switch ((ToolType)i) {
+				case ToolType::brush: current_tool = std::move(std::make_unique<Brush>()); break;
+				case ToolType::fill: current_tool = std::move(std::make_unique<Fill>()); break;
+				case ToolType::select: current_tool = std::move(std::make_unique<SelectionRectangular>()); break;
+				case ToolType::erase: current_tool = std::move(std::make_unique<Erase>()); break;
+				case ToolType::hand: current_tool = std::move(std::make_unique<Hand>()); break;
+				case ToolType::entity_placer:
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::ENTITY_EDITOR;
 					break;
-				default: svc::current_tool = std::move(std::make_unique<tool::Hand>()); break;
+				default: current_tool = std::move(std::make_unique<Hand>()); break;
 				}
 			}
 			ImGui::PopID();
@@ -1136,24 +1146,23 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 		ImGui::Separator();
 		ImGui::Text("Brush Size");
-		ImGui::SliderInt("##brushsz", &svc::current_tool.get()->size, 1, 16);
+		ImGui::SliderInt("##brushsz", &current_tool.get()->size, 1, 16);
 
 		ImGui::Separator();
 		ImGui::Text("Current Block:");
-		sprites.tileset.setTextureRect(sf::IntRect({get_tile_coord(svc::selectedBlockLocator.get()), {32, 32}}));
 		ImGui::Image(sprites.tileset);
 
 		ImGui::Text("Current Entity:");
-		switch (svc::current_tool.get()->ent_type) {
-		case tool::ENTITY_TYPE::PORTAL: ImGui::Text("Portal"); break;
-		case tool::ENTITY_TYPE::INSPECTABLE: ImGui::Text("Inspectable"); break;
-		case tool::ENTITY_TYPE::ANIMATOR: ImGui::Text("Animator"); break;
-		case tool::ENTITY_TYPE::CRITTER: ImGui::Text("Critter"); break;
-		case tool::ENTITY_TYPE::PLAYER_PLACER: ImGui::Text("Player Placer"); break;
+		switch (current_tool.get()->ent_type) {
+		case ENTITY_TYPE::PORTAL: ImGui::Text("Portal"); break;
+		case ENTITY_TYPE::INSPECTABLE: ImGui::Text("Inspectable"); break;
+		case ENTITY_TYPE::ANIMATOR: ImGui::Text("Animator"); break;
+		case ENTITY_TYPE::CRITTER: ImGui::Text("Critter"); break;
+		case ENTITY_TYPE::PLAYER_PLACER: ImGui::Text("Player Placer"); break;
 
-		case tool::ENTITY_TYPE::SAVE_POINT: ImGui::Text("Save Point"); break;
-		case tool::ENTITY_TYPE::CHEST: ImGui::Text("Chest"); break;
-		case tool::ENTITY_TYPE::ENTITY_EDITOR: ImGui::Text("Entity Editor"); break;
+		case ENTITY_TYPE::SAVE_POINT: ImGui::Text("Save Point"); break;
+		case ENTITY_TYPE::CHEST: ImGui::Text("Chest"); break;
+		case ENTITY_TYPE::ENTITY_EDITOR: ImGui::Text("Entity Editor"); break;
 		}
 
 		ImGui::Separator();
@@ -1171,7 +1180,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		if (ImGui::BeginMenu("Current Layer")) { ImGui::EndMenu(); }
 		ImGui::EndMenuBar();
 		for (int i = 0; i < 8; ++i) {
-			if (ImGui::Selectable(lookup::layer_name.at(i), svc::active_layer == i)) { svc::active_layer = i; }
+			if (ImGui::Selectable(layer_name.at(i), active_layer == i)) { active_layer = i; }
 		}
 		ImGui::EndChild();
 		ImGui::PopStyleVar();
@@ -1213,15 +1222,15 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::Text("Set Scene Style: ");
 		int style_current = static_cast<int>(map.style);
 		if (ImGui::Combo("##scenestyle", &style_current, styles, IM_ARRAYSIZE(styles))) {
-			map.style = static_cast<canvas::STYLE>(style_current);
+			map.style = static_cast<STYLE>(style_current);
 			setTilesetTexture(tileset_textures.at(style_current));
 		}
 		ImGui::Text("Set Scene Background: ");
 		int bg_current = static_cast<int>(map.bg);
-		if (ImGui::Combo("##scenebg", &bg_current, bgs, IM_ARRAYSIZE(bgs))) { map.bg = static_cast<canvas::BACKDROP>(bg_current); }
+		if (ImGui::Combo("##scenebg", &bg_current, bgs, IM_ARRAYSIZE(bgs))) { map.bg = static_cast<BACKDROP>(bg_current); }
 		if (ImGui::Button("Clear Layer")) {
 			map.map_states.push_back(map.map_states.back());
-			map.map_states.back().layers.at(svc::active_layer).clear();
+			map.map_states.back().layers.at(active_layer).clear();
 		}
 		if (ImGui::Button("Clear All Layers")) {
 			map.map_states.push_back(map.map_states.back());
@@ -1260,7 +1269,7 @@ void Editor::help_marker(char const* desc) {
 void Editor::export_layer_texture() {
 	screencap.clear(sf::Color::Transparent);
 	screencap.create(map.real_dimensions.x, map.real_dimensions.y);
-	for (int i = 0; i <= svc::active_layer; ++i) {
+	for (int i = 0; i <= active_layer; ++i) {
 		for (auto& cell : map.map_states.back().layers.at(i).grid.cells) {
 			if (cell.value > 0) {
 				int x_coord = (cell.value % 16) * TILE_WIDTH;
@@ -1286,13 +1295,12 @@ sf::Vector2<int> Editor::get_tile_coord(int lookup) {
 	return ret * 32;
 }
 
-void GameState::launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position) {
+void Editor::launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position) {
 	ImGui::SFML::Shutdown();
-	fornani::Game demo{argv};
+	fornani::Application demo{argv};
 	std::cout << "Editor path: " << path.string() << "\n";
-	demo.run(true, room_id, path, player_position);
+	demo.launch(argv);
+	//demo.run(true, room_id, path, player_position);
 }
-
-} // namespace automa
 
 } // namespace pi

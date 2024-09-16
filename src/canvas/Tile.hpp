@@ -10,7 +10,7 @@
 #include <SFML/Graphics.hpp>
 #include <stdio.h>
 
-namespace canvas {
+namespace pi {
 
 enum TILE_TYPE {
     TILE_NULL = -1,

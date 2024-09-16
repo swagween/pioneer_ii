@@ -1,9 +1,4 @@
-//
-//  Grid.hpp
-//  squid
-//
-//  Created by Alex Frasca on 12/26/22.
-//
+
 #pragma once
 
 #include "Tile.hpp"
@@ -11,7 +6,7 @@
 #include <vector>
 #include <cmath>
 
-namespace canvas {
+namespace pi {
 
 class Grid {
 public:
@@ -28,9 +23,6 @@ public:
     void update();
     
     void pushCells(int i);
-    
-    
-    TILE_TYPE lookupType(int idx);
     
 };
 

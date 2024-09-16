@@ -1,4 +1,3 @@
-#pragma once
 #include "AssetManager.hpp"
 
 namespace asset {
@@ -12,12 +11,14 @@ void AssetManager::import_textures() {
 	t_carl.loadFromFile(finder.resource_path + "/image/character/carl.png");
 	t_mirin.loadFromFile(finder.resource_path + "/image/character/mirin.png");
 	t_bit.loadFromFile(finder.resource_path + "/image/character/bit.png");
+	t_lady_nimbus.loadFromFile(finder.resource_path + "/image/character/lady_nimbus.png");
 	npcs.insert({"bryn", t_bryn});
 	npcs.insert({"gobe", t_gobe});
 	npcs.insert({"dr_go", t_dr_go});
 	npcs.insert({"carl", t_carl});
 	npcs.insert({"mirin", t_mirin});
 	npcs.insert({"bit", t_bit});
+	npcs.insert({"lady_nimbus", t_lady_nimbus});
 
 	t_palette_nani.loadFromFile(finder.resource_path + "/image/character/nani_palette_default.png");
 	t_palette_nanidiv.loadFromFile(finder.resource_path + "/image/character/nani_palette_divine.png");
@@ -33,6 +34,10 @@ void AssetManager::import_textures() {
 	t_minigus_inv.loadFromFile(finder.resource_path + "/image/boss/minigus_inv.png");
 	t_minigus_red.loadFromFile(finder.resource_path + "/image/boss/minigus_red.png");
 	t_minigus_blue.loadFromFile(finder.resource_path + "/image/boss/minigus_blue.png");
+	t_demon.loadFromFile(finder.resource_path + "/image/critter/demon.png");
+	t_demon_shield.loadFromFile(finder.resource_path + "/image/critter/demon_shield.png");
+	t_demon_spear.loadFromFile(finder.resource_path + "/image/critter/demon_spear.png");
+	t_demon_sword.loadFromFile(finder.resource_path + "/image/critter/demon_sword.png");
 	texture_lookup.insert({"frdog", t_frdog});
 	texture_lookup.insert({"hulmet", t_hulmet});
 	texture_lookup.insert({"tank", t_tank});
@@ -40,6 +45,7 @@ void AssetManager::import_textures() {
 	texture_lookup.insert({"eyebot", t_eyebot});
 	texture_lookup.insert({"eyebit", t_eyebit});
 	texture_lookup.insert({"minigus", t_minigus});
+	texture_lookup.insert({"demon", t_demon});
 
 	t_ui.loadFromFile(finder.resource_path + "/image/gui/simple_console.png");
 	t_hud_orb_font.loadFromFile(finder.resource_path + "/image/gui/HUD_orb_font.png");
@@ -119,6 +125,8 @@ void AssetManager::import_textures() {
 	particle_textures.insert({"twinkle", t_twinkle});
 
 	t_alphabet.loadFromFile(finder.resource_path + "/image/gui/alphabet.png");
+	t_blue_console.loadFromFile(finder.resource_path + "/image/gui/blue_console.png");
+	t_cream_console.loadFromFile(finder.resource_path + "/image/gui/cream_console.png");
 
 	t_platforms.loadFromFile(finder.resource_path + "/image/tile/platforms.png");
 	t_platform_night.loadFromFile(finder.resource_path + "/image/tile/platform_night.png");
@@ -133,10 +141,12 @@ void AssetManager::import_textures() {
 	animator_lookup.insert({0, t_automatic_animators_firstwind});
 
 	t_breakables.loadFromFile(finder.resource_path + "/image/tile/breakables.png");
+	t_pushables.loadFromFile(finder.resource_path + "/image/tile/pushables.png");
 	t_inspectable.loadFromFile(finder.resource_path + "/image/entity/inspectable.png");
 	t_switches.loadFromFile(finder.resource_path + "/image/tile/switches.png");
 	t_switch_blocks.loadFromFile(finder.resource_path + "/image/tile/switch_blocks.png");
 	t_indicator.loadFromFile(finder.resource_path + "/image/entity/arrow.png");
+	t_portals.loadFromFile(finder.resource_path + "/image/tile/portals.png");
 
 	// backgrounds
 	t_bg_dusk.loadFromFile(finder.resource_path + "/image/background/dusk.png");
@@ -181,6 +191,8 @@ void AssetManager::import_textures() {
 	t_inv_hit.loadFromFile(finder.resource_path + "/image/entity/inv_hit.png");
 	t_puff.loadFromFile(finder.resource_path + "/image/entity/puff.png");
 	t_bullet_hit.loadFromFile(finder.resource_path + "/image/entity/bullet_hit.png");
+	t_doublejump.loadFromFile(finder.resource_path + "/image/entity/doublejump.png");
+	t_dust.loadFromFile(finder.resource_path + "/image/entity/dust.png");
 	effect_lookup.insert({0, t_small_explosion});
 	effect_lookup.insert({1, t_large_explosion});
 	effect_lookup.insert({2, t_wall_hit});
@@ -190,6 +202,8 @@ void AssetManager::import_textures() {
 	effect_lookup.insert({6, t_inv_hit});
 	effect_lookup.insert({7, t_puff});
 	effect_lookup.insert({8, t_bullet_hit});
+	effect_lookup.insert({9, t_doublejump});
+	effect_lookup.insert({10, t_dust});
 
 	// title stuff
 	t_title.loadFromFile(finder.resource_path + "/image/gui/title.png");
@@ -248,6 +262,8 @@ void AssetManager::load_audio() {
 	gnat.setBuffer(b_gnat);
 	jump_buffer.loadFromFile(finder.resource_path + "/audio/sfx/jump.wav");
 	jump.setBuffer(jump_buffer);
+	slide_buffer.loadFromFile(finder.resource_path + "/audio/sfx/slide.wav");
+	slide.setBuffer(slide_buffer);
 
 	shatter_buffer.loadFromFile(finder.resource_path + "/audio/sfx/shatter.wav");
 	shatter.setBuffer(shatter_buffer);
@@ -269,6 +285,8 @@ void AssetManager::load_audio() {
 
 	heal_buffer.loadFromFile(finder.resource_path + "/audio/sfx/heal.wav");
 	heal.setBuffer(heal_buffer);
+	b_health_increase.loadFromFile(finder.resource_path + "/audio/sfx/health_increase.wav");
+	health_increase.setBuffer(b_health_increase);
 	orb_1_buffer.loadFromFile(finder.resource_path + "/audio/sfx/orb_1.wav");
 	orb_1.setBuffer(orb_1_buffer);
 	orb_2_buffer.loadFromFile(finder.resource_path + "/audio/sfx/orb_2.wav");
@@ -288,6 +306,8 @@ void AssetManager::load_audio() {
 	tank_hurt_2.setBuffer(tank_hurt2_buffer);
 	tank_death_buffer.loadFromFile(finder.resource_path + "/audio/sfx/tank_death.wav");
 	tank_death.setBuffer(tank_death_buffer);
+	b_demon_snort.loadFromFile(finder.resource_path + "/audio/sfx/demon/snort.wav");
+	snort.setBuffer(b_demon_snort);
 
 	// minigus
 
@@ -319,6 +339,28 @@ void AssetManager::load_audio() {
 	b_minigus_whatisit.loadFromFile(finder.resource_path + "/audio/sfx/minigus/mg_whatisit.wav");
 	b_minigus_woob.loadFromFile(finder.resource_path + "/audio/sfx/minigus/mg_woob.wav");
 
+	b_mirin_ah.loadFromFile(finder.resource_path + "/audio/sfx/mirin/mirin_ah.wav");
+	b_mirin_oh.loadFromFile(finder.resource_path + "/audio/sfx/mirin/mirin_oh.wav");
+	b_mirin_laugh.loadFromFile(finder.resource_path + "/audio/sfx/mirin/mirin_laugh.wav");
+	b_carl_huh.loadFromFile(finder.resource_path + "/audio/sfx/carl/carl_huh.wav");
+	b_carl_eh.loadFromFile(finder.resource_path + "/audio/sfx/carl/carl_eh.wav");
+	b_carl_and.loadFromFile(finder.resource_path + "/audio/sfx/carl/carl_and.wav");
+	vs_mirin.push_back(b_mirin_ah);
+	vs_mirin.push_back(b_mirin_oh);
+	vs_mirin.push_back(b_mirin_laugh);
+	npc_sounds.insert({"mirin", vs_mirin});
+	vs_hologus.push_back(b_minigus_pizza);
+	vs_hologus.push_back(b_minigus_dontlookatme);
+	vs_hologus.push_back(b_minigus_babyimhome);
+	vs_hologus.push_back(b_minigus_laugh);
+	vs_hologus.push_back(b_minigus_itsagreatday);
+	vs_hologus.push_back(b_minigus_ok_1);
+	npc_sounds.insert({"hologus", vs_hologus});
+	vs_carl.push_back(b_carl_huh);
+	vs_carl.push_back(b_carl_eh);
+	vs_carl.push_back(b_carl_and);
+	npc_sounds.insert({"carl", vs_carl});
+
 	b_heavy_land.loadFromFile(finder.resource_path + "/audio/sfx/deep/heavy_land.wav");
 	b_delay_crash.loadFromFile(finder.resource_path + "/audio/sfx/deep/delay_crash.wav");
 	b_delay_high.loadFromFile(finder.resource_path + "/audio/sfx/deep/delay_high.wav");
@@ -334,6 +376,20 @@ void AssetManager::load_audio() {
 	b_enemy_hit_high.loadFromFile(finder.resource_path + "/audio/sfx/enemy/hit_high.wav");
 	b_enemy_hit_squeak.loadFromFile(finder.resource_path + "/audio/sfx/enemy/hit_squeak.wav");
 	b_enemy_hit_inv.loadFromFile(finder.resource_path + "/audio/sfx/enemy/hit_inv.wav");
+	b_wall_hit.loadFromFile(finder.resource_path + "/audio/sfx/wall_hit.wav");
+	b_thud.loadFromFile(finder.resource_path + "/audio/sfx/thud.wav");
+	b_small_crash.loadFromFile(finder.resource_path + "/audio/sfx/small_crash.wav");
+	b_heavy_move.loadFromFile(finder.resource_path + "/audio/sfx/heavy_move.wav");
+	b_door_open.loadFromFile(finder.resource_path + "/audio/sfx/door_open.wav");
+	b_door_unlock.loadFromFile(finder.resource_path + "/audio/sfx/door_unlock.wav");
+	hard_hit.setBuffer(b_enemy_hit_inv);
+	wall_hit.setBuffer(b_wall_hit);
+	thud.setBuffer(b_thud);
+	small_crash.setBuffer(b_small_crash);
+	heavy_move.setBuffer(b_heavy_move);
+	door_open.setBuffer(b_door_open);
+	door_unlock.setBuffer(b_door_unlock);
+	
 
 	save_buffer.loadFromFile(finder.resource_path + "/audio/sfx/save_point.wav");
 	save.setBuffer(save_buffer);
@@ -344,9 +400,13 @@ void AssetManager::load_audio() {
 	soft_sparkle_buffer.loadFromFile(finder.resource_path + "/audio/sfx/soft_sparkle.wav");
 	soft_sparkle.setBuffer(soft_sparkle_buffer);
 	chest_buffer.loadFromFile(finder.resource_path + "/audio/sfx/chest.wav");
+	b_switch_press.loadFromFile(finder.resource_path + "/audio/sfx/switch_press.wav");
+	b_block_toggle.loadFromFile(finder.resource_path + "/audio/sfx/block_toggle.wav");
 	chest.setBuffer(chest_buffer);
 	breakable_hit.setBuffer(b_breakable_hit);
 	breakable_shatter.setBuffer(shatter_buffer);
+	switch_press.setBuffer(b_switch_press);
+	block_toggle.setBuffer(b_block_toggle);
 }
 
 } // namespace data
