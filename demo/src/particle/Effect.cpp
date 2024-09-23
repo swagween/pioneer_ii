@@ -8,6 +8,7 @@ Effect::Effect(automa::ServiceProvider& svc, sf::Vector2<float> pos, sf::Vector2
 	auto framerate{16};
 	switch (index) {
 	case 0:
+		//smoke
 		sprite_dimensions = {36, 36};
 		spritesheet_dimensions = {4, 7};
 		break;
@@ -41,6 +42,7 @@ Effect::Effect(automa::ServiceProvider& svc, sf::Vector2<float> pos, sf::Vector2
 		spritesheet_dimensions = {1, 4};
 		break;
 	case 7:
+		//smoke puff
 		sprite.setOrigin({16.f, 16.f});
 		sprite_dimensions = {32, 32};
 		spritesheet_dimensions = {4, 4};
@@ -50,6 +52,18 @@ Effect::Effect(automa::ServiceProvider& svc, sf::Vector2<float> pos, sf::Vector2
 		sprite.setOrigin({16.f, 16.f});
 		sprite_dimensions = {32, 32};
 		spritesheet_dimensions = {4, 4};
+		break;
+	case 9:
+		// doublejump
+		sprite.setOrigin({24.f, 24.f});
+		sprite_dimensions = {48, 48};
+		spritesheet_dimensions = {1, 6};
+		break;
+	case 10:
+		// dust
+		sprite.setOrigin({32.f, 32.f});
+		sprite_dimensions = {64, 64};
+		spritesheet_dimensions = {1, 6};
 		break;
 	}
 	animation.set_params({0, spritesheet_dimensions.y, framerate, 0});

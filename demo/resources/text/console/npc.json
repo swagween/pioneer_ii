@@ -50,7 +50,7 @@
   "minigus1": {
     "suite": [
       [ "&1Well, would you look at that!", "The sorry little Kariba has escaped her cell.", "You know, I'm not exactly surprised. The storms up here are getting worse, and the crew are more interested in staying alive than retaining prisoners.", "And yet a prisoner you shall remain, if I have anything to say about it.", "Now tell me, girl, what do you plan to do with that pathetic little pistol of yours?%0" ],
-      [ "&2I asked you a question.", "But I'll be kind, considering you haven't much longer to live. My name is Gus, and I lead Lady Numbus's feared Harpoon Squad.", "You see, we do whatever cleaning up needs to be done on this island.", "But anyway, I'm tired of talkin' to you. Get ready to die!$2" ],
+      [ "&2I asked you a question.", "But I'll be kind, considering you haven't much longer to live. My name is Gus, and I lead Lady Nimbus's feared Harpoon Squad.", "You see, we do whatever cleaning up needs to be done down on the island.", "But anyway, I'm tired of talkin' to you. Get ready to die!$2" ],
       [ "&3@2Hah! Tough talk for a scrawny little girl, but I respect it.", "@1So, let's see what you've got, then.$2" ],
       [ "...", "&4Your brother...?", "I guess even my trusty little gadget can't completely erase your memories.", "&6But either way, you'll get no further information from me on that front.", "Now, I'm tired of talkin' to you. Get ready to die!$2" ]
     ],
@@ -96,24 +96,24 @@
   },
   "mirin1": {
     "suite": [
-      [ "You must be one of the prisoners we scooped up some months back.", "You know, despite everything that's happened between our tribes, I would never wish any of this upon you.", "There's something about being so high up in the sky that tends to bring our people together." ]
+      [ "&1You must be one of the prisoners we scooped up some months back.", "@2You know, despite everything that's happened between our tribes, I would never wish any of this upon you.", "@1There's something about being so high up in the sky that tends to bring our people together." ]
     ],
     "responses": [
     ]
   },
   "mirin2": {
     "suite": [
-      [ "I'm not sure what you want me to tell you. I'm not exactly itching to chit-chat at a time like this.", "...", "Okay, that was a bit rude. Sorry.", "I've just been trying to come to terms with my impending death. I hope you understand." ]
+      [ "@2I'm not sure what you want me to tell you. I'm not exactly itching to chit-chat at a time like this.", "@1...", "&2@2Okay, that was a bit rude. Sorry.", "@1I've just been trying to come to terms with my impending death. I hope you understand." ]
     ],
     "responses": [
     ]
   },
   "mirin3": {
     "suite": [
-      [ "What's up?%0" ],
-      [ "I'm Mirin. I'm Dr. Go's daughter, and though I have no qualifications to be a nurse, that's what I am." ],
-      [ "If I knew the answer to that, we wouldn't be having this conversation.", "We're miles in the sky, and the last time I looked outside, I saw nothing but raging clouds." ],
-      [ "Godspeed, girl. If we somehow all make it out of this alive, I'll buy you a drink." ]
+      [ "&1@1What's up?%0" ],
+      [ "@2I'm Mirin. I'm Dr. Go's daughter, and though I have no qualifications to be a nurse, that's what I am." ],
+      [ "&3@3If I knew the answer to that, we wouldn't be having this conversation.", "@1We're miles in the sky, and the last time I looked outside, I saw nothing but raging clouds." ],
+      [ "&3@3Godspeed, girl. If we somehow all make it out of this alive, I'll buy you a drink." ]
     ],
     "responses": [
       [ "Who are you?%0", "How can I get back to the island?%1", "See you later.%2" ]
@@ -121,17 +121,17 @@
   },
   "carl1": {
     "suite": [
-      [ "What in the heck are my eyes seein' right now...?", "Now, I ain't know how you snuck your way down here, but I'm tellin' you now, it was a bad idea.", "The ship's goin' down, little lady.", "If I was you I'd find the nearest escape hatch and go for a swim in the clouds.", "Say, would you grab me a soda if you got nothin' else to do?" ]
+      [ "&1What in the heck are my eyes seein' right now...?", "Now, I ain't know how you snuck your way down here, but I'm tellin' you now, it was a bad idea.", "The ship's goin' down, little lady.", "If I was you I'd find the nearest escape hatch and go for a swim in the clouds.", "&3Say, would you grab me a soda if you got nothin' else to do?" ]
     ],
     "responses": [
     ]
   },
   "carl2": {
     "suite": [
-      [ "So... Any updates on that soda?%0" ],
-      [ "Name's Carl. I'm guardin' the cargo here, and my shift doesn't end for another six months.", "I'm a simple man. I have a job to do, and I'm gon' do it until it's done. Even if it kills me." ],
-      [ "Why, it's the cargo room! Unless you were speakin' in more general terms, in which case, this is the Firstwind.", "She's an old research vessel that Skycorps... er... borrowed.", "Anyhow, I been livin' and workin' here for the better part of three months on a long-term contract, as they call it." ],
-      [ "Say, would you grab me a soda if you got nothin' else to do?" ]
+      [ "&2So... Any updates on that soda?%0" ],
+      [ "&1Name's Carl. I'm guardin' the cargo here, and my shift doesn't end for another six months.", "I'm a simple man. I have a job to do, and I'm gon' do it until it's done. Even if it kills me." ],
+      [ "&3Why, it's the cargo room! Unless you were speakin' in more general terms, in which case, this is the Firstwind.", "She's an old research vessel that Skycorps... er... borrowed.", "Anyhow, I been livin' and workin' here for the better part of three months on a long-term contract, as they call it." ],
+      [ "&3Say, would you grab me a soda if you got nothin' else to do?" ]
     ],
     "responses": [
       [ "Who are you?%0", "What is this place?%1" ]
@@ -201,6 +201,69 @@
   "bit8": {
     "suite": [
       [ "Thanks again for helping me. Stay safe out there!" ]
+    ],
+    "responses": [
+    ]
+  },
+  "lady_nimbus1": {
+    "suite": [
+      [ "Gus... Gus...?", "Gus, do you copy?" ]
+    ],
+    "responses": [
+    ]
+  },
+  "hologus1": {
+    "suite": [
+      [ "&1My Lady...?", "I'm here. I have an unstable connection here, and I can barely hear you.", "I had to flee Firstwind." ]
+    ],
+    "responses": [
+    ]
+  },
+  "lady_nimbus2": {
+    "suite": [
+      [ "Flee?!", "What do you mean?", "The ship has been securely ours for months." ]
+    ],
+    "responses": [
+    ]
+  },
+  "hologus2": {
+    "suite": [
+      [ "&2My mask was compromised. And besides, the storms up here are ferocious.", "And I have even worse news...", "The Kariba girl escaped." ]
+    ],
+    "responses": [
+    ]
+  },
+  "lady_nimbus3": {
+    "suite": [
+      [ "...", "It is unlike you to fail me so, Gus." ]
+    ],
+    "responses": [
+    ]
+  },
+  "hologus3": {
+    "suite": [
+      [ "&5I got nothing at all to say. She had a gun, and she's pretty nimble.", "I won't underestimate her again.", "And, by the way, it seems like her memories might be coming back, so I'd bet my next paycheck she's going to try to find her brother." ]
+    ],
+    "responses": [
+    ]
+  },
+  "lady_nimbus4": {
+    "suite": [
+      [ "Your next paycheck isn't going to exist, I'm afraid." ]
+    ],
+    "responses": [
+    ]
+  },
+  "hologus4": {
+    "suite": [
+      [ "&4@2I set myself up for that one, I guess.", "&6@1Anyway, do us both a favor and get someone else to deal with the Kariba for now.", "I'll need to properly prepare for the next time I fight her, if it comes to that." ]
+    ],
+    "responses": [
+    ]
+  },
+  "lady_nimbus5": {
+    "suite": [
+      [ "I'll see to it that it won't.", "I have no interest in wasting any more time dealing with Nani.", "I'm sending Lynx after her, and that'll be the end of it." ]
     ],
     "responses": [
     ]

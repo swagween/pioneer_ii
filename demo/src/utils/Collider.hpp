@@ -16,17 +16,17 @@ namespace shape {
 
 float const default_dim = 24.0f;
 float const vicinity_pad = 32.f;
-float const wallslide_pad = 2.f;
+float const wallslide_pad = 5.f;
 
 float const default_jumpbox_height = 4.0f;
 float const default_detector_width = 4.f;
 float const default_detector_height = 18.f;
 
 enum class General { ignore_resolution, complex, pushable, soft };
-enum class Animation { just_landed };
-enum class State { just_collided, is_any_jump_collision, is_any_collision, just_landed, ceiling_collision, grounded, world_grounded, on_ramp, ledge_left, ledge_right, left_wallslide_collision, right_wallslide_collision };
-enum class ExternalState { grounded, collider_collision, vert_collider_collision, horiz_collider_collision, world_collision, horiz_world_collision, vert_world_collision, world_grounded };
-enum class PermaFlags { world_grounded };
+enum class Animation { just_landed, sliding };
+enum class State { just_collided, is_any_jump_collision, is_any_collision, just_landed, ceiling_collision, grounded, world_grounded, on_ramp, ledge_left, ledge_right, left_wallslide_collision, right_wallslide_collision, on_flat_surface };
+enum class ExternalState { grounded, collider_collision, vert_collider_collision, horiz_collider_collision, world_collision, horiz_world_collision, vert_world_collision, world_grounded, jumped_into };
+enum class PermaFlags { world_grounded, downhill };
 
 enum class Collision {
 	any_collision,
@@ -73,15 +73,18 @@ class Collider {
 	bool has_vertical_collision() const;
 	bool has_left_wallslide_collision() const;
 	bool has_right_wallslide_collision() const;
+	bool has_jump_collision() const;
 	bool horizontal_squish() const;
 	bool vertical_squish() const;
+	bool pushes(Collider& other) const;
 
-	void flush_positions() { position_history.clear(); }
 	sf::Vector2<float> get_average_tick_position();
+	sf::Vector2<float> snap_to_grid(float size = 1.f, float scale = 32.f, float factor = 2.f);
 
 	[[nodiscard]] auto grounded() const -> bool { return flags.external_state.test(ExternalState::grounded); }
 	[[nodiscard]] auto world_grounded() const -> bool { return flags.state.test(State::world_grounded); }
 	[[nodiscard]] auto external_world_grounded() const -> bool { return flags.external_state.test(ExternalState::world_grounded); }
+	[[nodiscard]] auto jumped_into() -> bool { return flags.external_state.consume(ExternalState::jumped_into); }
 	[[nodiscard]] auto perma_grounded() const -> bool { return flags.perma_state.test(PermaFlags::world_grounded); }
 	[[nodiscard]] auto crushed() const -> bool { return collision_depths ? collision_depths.value().crushed() : false; }
 	[[nodiscard]] auto get_center() const -> sf::Vector2<float> { return physics.position + dimensions * 0.5f; }
@@ -90,6 +93,7 @@ class Collider {
 	[[nodiscard]] auto right() const -> float { return bounding_box.right(); }
 	[[nodiscard]] auto top() const -> float { return bounding_box.top(); }
 	[[nodiscard]] auto bottom() const -> float { return bounding_box.bottom(); }
+	[[nodiscard]] auto downhill() const -> bool { return flags.perma_state.test(PermaFlags::downhill); }
 
 	float compute_length(sf::Vector2<float> const v);
 
@@ -127,6 +131,10 @@ class Collider {
 		sf::Vector2<float> actual{};
 	} mtvs{};
 
+	struct {
+		sf::Color local{};
+	} colors{};
+
 	float landed_threshold{6.0f};
 	float horizontal_detector_buffer{1.0f};
 	float vertical_detector_buffer{1.0f};
@@ -135,7 +143,7 @@ class Collider {
 	sf::Vector2<float> dimensions{};
 	sf::Vector2<float> sprite_offset{};
 	sf::Vector2<float> hurtbox_offset{};
-	std::deque<sf::Vector2<float>> position_history{};
+	float maximum_ramp_height{};
 
 
 	bool spike_trigger{};

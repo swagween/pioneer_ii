@@ -6,10 +6,12 @@ void Jump::update() {
 	cooldown.update();
 	if (!cooldown.is_complete()) {
 		states.set(JumpState::jump_began);
+		coyote_time.cancel();
 	} else {
 		states.reset(JumpState::jump_began);
 	}
 	request.update();
+	coyote_time.update();
 }
 
 void Jump::reset_triggers() { triggers = {}; }
@@ -23,10 +25,11 @@ void Jump::request_jump() { request.start(request_time); }
 
 void Jump::prevent() { request.cancel(); }
 
+void Jump::doublejump() { jump_counter.update(); }
+
 void Jump::start() {
 	cooldown.start(cooldown_time);
 	states.set(player::JumpState::jumping);
-	//states.reset(player::JumpState::can_jump);
 	triggers.reset(player::JumpTrigger::just_jumped);
 }
 

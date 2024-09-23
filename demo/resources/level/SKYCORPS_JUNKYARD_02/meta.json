@@ -2,8 +2,8 @@
   "meta": {
     "room_id": 3002,
     "metagrid": [
-      0,
-      0
+      23,
+      20
     ],
     "dimensions": [
       16,
@@ -18,6 +18,12 @@
     "music": "",
     "styles": {
       "breakables": 0
+    },
+    "cutscene_on_entry": {
+      "flag": true,
+      "type": 8,
+      "id": 3002,
+      "source": 3002
     }
   },
   "portals": [
@@ -31,7 +37,7 @@
         13
       ],
       "source_id": 3002,
-      "destination_id": 0,
+      "destination_id": 3001,
       "activate_on_contact": false,
       "already_open": true,
       "locked": false,

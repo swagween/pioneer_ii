@@ -3,67 +3,66 @@
     "new": false
   },
   "player_data": {
-    "max_hp": 3.000000,
-    "hp": 3.000000,
-    "orbs": 617,
+    "max_hp": 4.000000,
+    "hp": 4.000000,
+    "orbs": 56,
     "position": {
-      "x": 454.914581,
-      "y": 107.000000
+      "x": 174.142914,
+      "y": 1387.000000
     },
     "arsenal": [
-      0,
-      9
+      0
     ],
-    "equipped_gun": 1,
+    "equipped_gun": 0,
     "abilities": [
 
     ],
     "items": [
       {
-        "id": 11,
+        "id": 16,
         "quantity": 1
       },
       {
-        "id": 16,
+        "id": 29,
         "quantity": 1
       }
     ],
     "stats": {
-      "death_count": 3,
-      "bullets_fired": 246,
-      "guns_collected": 2,
+      "death_count": 45,
+      "bullets_fired": 76,
+      "guns_collected": 1,
       "items_collected": 2,
-      "orbs_collected": 617,
+      "orbs_collected": 56,
       "blue_orbs": 0,
-      "highest_indicator_amount": 228,
-      "enemies_killed": 29,
-      "rooms_discovered": 13,
-      "seconds_played": 429.041901,
+      "highest_indicator_amount": 38,
+      "enemies_killed": 2,
+      "rooms_discovered": 17,
+      "seconds_played": 330.232697,
       "time_trials": {
-        "bryns_gun": 126.453796
+        "bryns_gun": 25.041019
       }
     }
   },
-  "save_point_id": 115,
+  "save_point_id": 200,
   "unlocked_doors": [
-    11
+
   ],
   "opened_chests": [
-    5768,
     377,
-    56790
+    567911,
+    1240
+  ],
+  "activated_switches": [
+    445,
+    1
+  ],
+  "destroyed_blocks": [
+
   ],
   "quest_progressions": [
     [
-      0,
-      0,
-      0,
       1,
-      0
-    ],
-    [
-      63,
-      1,
+      111,
       1,
       1,
       0
@@ -86,22 +85,26 @@
     "jump": true,
     "shoot": true,
     "sprint": true,
-    "map": true,
+    "map": false,
     "inventory": true
   },
   "discovered_rooms": [
     100,
     101,
     102,
-    104,
-    106,
-    107,
-    116,
-    108,
-    109,
     110,
-    121,
+    108,
+    116,
+    107,
+    106,
     117,
-    115
+    105,
+    199,
+    103,
+    121,
+    124,
+    224,
+    299,
+    200
   ]
 }

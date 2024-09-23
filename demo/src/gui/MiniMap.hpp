@@ -45,7 +45,8 @@ class MiniMap {
 	float scale{8.f};
 	float global_ratio{};
 	float ratio{};
-	float speed{};
+	float speed{1.5f};
+	float window_scale{0.85f};
 	sf::Vector2<float> position{};
 	sf::Vector2<float> previous_position{};
 	sf::Vector2<float> center_position{};

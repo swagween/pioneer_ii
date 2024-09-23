@@ -21,6 +21,9 @@ Inventory::Inventory() {
 	item_labels.insert({14, "staple_box"});
 	item_labels.insert({15, "boiler_key"});
 	item_labels.insert({16, "radar_device"});
+	item_labels.insert({22, "ashtown_raspberry_preserves"});
+	item_labels.insert({29, "heart_keychain"});
+	item_labels.insert({30, "stationary_rat"});
 }
 
 void Inventory::update(automa::ServiceProvider& svc) {
@@ -47,6 +50,16 @@ void Inventory::add_item(automa::ServiceProvider& svc, int item_id, int amount) 
 		svc.stats.player.items_collected.update();
 	}
 	update(svc);
+}
+
+void Inventory::remove_item(automa::ServiceProvider& svc, int item_id, int amount) {
+	bool depleted{};
+	for (auto& item : items) {
+		if (item.get_id() == item_id) {
+			item.subtract_item(amount);
+		}
+	}
+	std::erase_if(items, [](auto const& i) { return i.depleted(); });
 }
 
 void Inventory::reveal_item(int item_id) {

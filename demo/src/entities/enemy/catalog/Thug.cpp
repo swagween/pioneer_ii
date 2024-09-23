@@ -29,19 +29,19 @@ void Thug::unique_update(automa::ServiceProvider& svc, world::Map& map, player::
 		Enemy::update(svc, map, player);
 		return;
 	}
-	if (direction.lr == dir::LR::left) {
+	if (directions.actual.lr == dir::LR::left) {
 		attacks.punch.set_position(Enemy::collider.physics.position);
 		attacks.rush.set_position(Enemy::collider.physics.position);
 		attacks.punch.origin.x = -10.f;
-		attacks.rush.origin.x = 40.f;
-		attacks.rush.hit_offset.x = -20.f;
+		attacks.rush.origin.x = 20.f;
+		attacks.rush.hit_offset.x = 0.f;
 	} else {
 		sf::Vector2<float> dir_offset{Enemy::collider.bounding_box.dimensions.x, 0.f};
 		attacks.punch.set_position(Enemy::collider.physics.position + dir_offset);
 		attacks.rush.set_position(Enemy::collider.physics.position + dir_offset);
 		attacks.punch.origin.x = 10.f;
-		attacks.rush.origin.x = -40.f;
-		attacks.rush.hit_offset.x = 20.f;
+		attacks.rush.origin.x = -20.f;
+		attacks.rush.hit_offset.x = 0.f;
 	}
 
 	cooldowns.rush_hit.update();
@@ -52,7 +52,7 @@ void Thug::unique_update(automa::ServiceProvider& svc, world::Map& map, player::
 	attacks.rush.handle_player(player);
 	if (state == ThugState::rush && attacks.rush.sensor.active() && !cooldowns.rush_hit.running()) {
 		auto sign = directions.actual.lr == dir::LR::left ? -1.f : 1.f;
-		if (sign == -1.f && player_behind(player) || sign == 1.f && !player_behind(player)) {
+		if ((sign == -1.f && player_behind(player)) || (sign == 1.f && !player_behind(player))) {
 			player.hurt(1);
 			player.accumulated_forces.push_back({sign * 2.f, -2.f});
 			attacks.rush.sensor.deactivate();

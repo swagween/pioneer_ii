@@ -20,6 +20,9 @@ void Soundboard::play_sounds(automa::ServiceProvider& svc) {
 	if (flags.console.test(Console::menu_open)) { svc.assets.menu_open.play(); }
 	if (flags.console.test(Console::speech)) { repeat(svc, svc.assets.menu_shift, 16, 0.2f); }
 
+	//transmission
+	if (flags.transmission.test(Transmission::statics)) { svc.assets.small_crash.play(); }
+
 	// always play console and menu sounds
 	if (status == SoundboardState::off) {
 		flags = {};
@@ -28,12 +31,25 @@ void Soundboard::play_sounds(automa::ServiceProvider& svc) {
 	}
 
 	// world
-	if (flags.world.test(World::load)) { svc.assets.load.play(); }
+	if (flags.world.test(World::load)) { play_at_volume(svc.assets.load, 60); }
 	if (flags.world.test(World::save)) { svc.assets.save.play(); }
 	if (flags.world.test(World::soft_sparkle)) { svc.assets.soft_sparkle.play(); }
 	if (flags.world.test(World::chest)) { svc.assets.chest.play(); }
 	if (flags.world.test(World::breakable_shatter)) { svc.assets.breakable_shatter.play(); }
 	if (flags.world.test(World::breakable_hit)) { randomize(svc, svc.assets.breakable_hit, 0.1f); }
+	cooldowns.hard_hit.update();
+	if (flags.world.test(World::hard_hit) && !cooldowns.hard_hit.running()) {
+		randomize(svc, svc.assets.hard_hit, 0.1f, 60.f);
+		cooldowns.hard_hit.start();
+	}
+	if (flags.world.test(World::wall_hit)) { randomize(svc, svc.assets.wall_hit, 0.1f); }
+	if (flags.world.test(World::thud)) { randomize(svc, svc.assets.thud, 0.1f); }
+	if (flags.world.test(World::small_crash)) { randomize(svc, svc.assets.small_crash, 0.1f); }
+	if (flags.world.test(World::switch_press)) { svc.assets.switch_press.play(); }
+	if (flags.world.test(World::block_toggle)) { svc.assets.block_toggle.play(); }
+	if (flags.world.test(World::door_open)) { svc.assets.door_open.play(); }
+	if (flags.world.test(World::door_unlock)) { svc.assets.door_unlock.play(); }
+	if (flags.world.test(World::pushable)) { repeat(svc, svc.assets.heavy_move, 80); }
 
 	//frdog
 	if (flags.frdog.test(Frdog::death)) { svc.assets.enem_death_1.play(); }
@@ -50,7 +66,10 @@ void Soundboard::play_sounds(automa::ServiceProvider& svc) {
 	if (flags.thug.test(Thug::hurt_2)) { play_at_volume(svc.assets.tank_hurt_2, 50); }
 	if (flags.thug.test(Thug::death)) { svc.assets.tank_death.play(); }
 
-	//minigus
+	//demon
+	if (flags.demon.test(Demon::hurt)) { svc.assets.enem_hit.play(); }
+	if (flags.demon.test(Demon::death)) { svc.assets.enem_death_1.play(); }
+	if (flags.demon.test(Demon::snort)) { randomize(svc, svc.assets.snort, 0.2f); }
 
 	//item
 	if (flags.item.test(Item::heal)) { svc.assets.heal.play(); }
@@ -58,6 +77,7 @@ void Soundboard::play_sounds(automa::ServiceProvider& svc) {
 	if (flags.item.test(Item::orb_medium)) { svc.assets.orb_2.play(); }
 	if (flags.item.test(Item::orb_high)) { svc.assets.orb_3.play(); }
 	if (flags.item.test(Item::orb_max)) { svc.assets.orb_4.play(); }
+	if (flags.item.test(Item::health_increase)) { svc.assets.health_increase.play(); }
 
 	// player
 	if (flags.player.test(Player::land)) { svc.assets.landed.play(); }
@@ -67,6 +87,7 @@ void Soundboard::play_sounds(automa::ServiceProvider& svc) {
 	if (flags.player.test(Player::hurt)) { svc.assets.hurt.play(); }
 	if (flags.player.test(Player::death)) { svc.assets.player_death.play(); }
 	if (flags.player.test(Player::shield_drop)) { randomize(svc, svc.assets.bubble, 0.2f, 60); }
+	if (flags.player.test(Player::slide)) { play_at_volume(svc.assets.slide, 30.f); }
 
 	// gun
 	if (flags.weapon.test(Weapon::bryns_gun)) { svc.assets.bg_shot.play(); }

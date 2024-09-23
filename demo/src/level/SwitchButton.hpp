@@ -29,7 +29,7 @@ enum class SwitchButtonState { unpressed, pressed };
 
 class SwitchButton {
   public:
-	SwitchButton(automa::ServiceProvider& svc, sf::Vector2<float> position, int id, int type);
+	SwitchButton(automa::ServiceProvider& svc, sf::Vector2<float> position, int id, int type, Map& map);
 	void update(automa::ServiceProvider& svc, Map& map, player::Player& player);
 	void handle_collision(shape::Collider& other) const;
 	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam);
@@ -54,6 +54,7 @@ class SwitchButton {
 	SwitchType type{};
 	SwitchButtonState state{};
 	SwitchButtonState external{};
+	util::BitFlags<SwitchButtonState> triggers{};
 	shape::Collider collider{};
 	shape::Shape sensor{};
 	anim::AnimatedSprite sprite{};

@@ -5,119 +5,109 @@
 namespace automa {
 
 SettingsMenu::SettingsMenu(ServiceProvider& svc, player::Player& player, std::string_view scene, int id) : GameState(svc, player, scene, id) {
-	left_dot.set_position(options.at(current_selection).left_offset);
-	right_dot.set_position(options.at(current_selection).right_offset);
+	console = gui::Console(svc);
+	console.set_source(svc.text.basic);
+	player.map_reset();
+	left_dot.set_position(options.at(current_selection.get()).left_offset);
+	right_dot.set_position(options.at(current_selection.get()).right_offset);
 	toggle_options.enabled.setString("Enabled");
 	toggle_options.disabled.setString("Disabled");
 
-	toggleables.autosprint = options.at(0).label;
-	toggleables.keyboard = options.at(1).label;
-	toggleables.gamepad = options.at(2).label;
-	music_label = options.at(3).label;
-	options.at(0).label.setString(toggleables.autosprint.getString() + (svc.controller_map.hard_toggles.test(config::Toggles::autosprint) ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
-	options.at(1).label.setString(toggleables.keyboard.getString() + (svc.controller_map.hard_toggles.test(config::Toggles::keyboard) ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
-	options.at(2).label.setString(toggleables.gamepad.getString() + (svc.controller_map.hard_toggles.test(config::Toggles::gamepad) ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
-	options.at(3).label.setString(music_label.getString() + std::to_string(static_cast<int>(svc.music.volume.multiplier * 100.f)) + "%");
+	toggleables.autosprint = options.at(static_cast<int>(Toggles::autosprint)).label;
+	toggleables.tutorial = options.at(static_cast<int>(Toggles::tutorial)).label;
+	toggleables.gamepad = options.at(static_cast<int>(Toggles::gamepad)).label;
+	music_label = options.at(static_cast<int>(Toggles::music)).label;
+	toggleables.fullscreen = options.at(static_cast<int>(Toggles::fullscreen)).label;
+	options.at(static_cast<int>(Toggles::autosprint)).label.setString(toggleables.autosprint.getString() + (svc.controller_map.is_autosprint_enabled() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
+	options.at(static_cast<int>(Toggles::tutorial)).label.setString(toggleables.tutorial.getString() + (svc.tutorial() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
+	options.at(static_cast<int>(Toggles::gamepad)).label.setString(toggleables.gamepad.getString() + (svc.controller_map.is_gamepad_input_enabled() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
+	options.at(static_cast<int>(Toggles::music)).label.setString(music_label.getString() + std::to_string(static_cast<int>(svc.music.volume.multiplier * 100.f)) + "%");
+	options.at(static_cast<int>(Toggles::fullscreen)).label.setString(toggleables.fullscreen.getString() + (svc.fullscreen() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
 }
 
 void SettingsMenu::init(ServiceProvider& svc, int room_number) {}
 
-void SettingsMenu::handle_events(ServiceProvider& svc, sf::Event& event) {
-	svc.controller_map.handle_mouse_events(event);
-	svc.controller_map.handle_joystick_events(event);
-	if (event.type == sf::Event::EventType::KeyPressed) { svc.controller_map.handle_press(event.key.code); }
-	if (event.type == sf::Event::EventType::KeyReleased) { svc.controller_map.handle_release(event.key.code); }
-
-	if (svc.controller_map.label_to_control.at("down").triggered()) {
-		++current_selection;
-		constrain_selection();
-		mode_flags.reset(MenuMode::adjust);
-		svc.soundboard.flags.menu.set(audio::Menu::shift);
-	}
-	if (svc.controller_map.label_to_control.at("up").triggered()) {
-		--current_selection;
-		constrain_selection();
-		mode_flags.reset(MenuMode::adjust);
-		svc.soundboard.flags.menu.set(audio::Menu::shift);
-	}
-	if (svc.controller_map.label_to_control.at("left").triggered()) {
-		if (adjust_mode()) {
-		} else {
-			svc.state_controller.submenu = menu_type::options;
-			svc.state_controller.actions.set(Actions::exit_submenu);
-			svc.soundboard.flags.menu.set(audio::Menu::backward_switch);
-		}
-	}
-	if (svc.controller_map.label_to_control.at("main_action").triggered() && !adjust_mode()) {
-		svc.soundboard.flags.menu.set(audio::Menu::forward_switch);
-		switch (current_selection) {
-		case 0:
-			if (svc.controller_map.hard_toggles.test(config::Toggles::autosprint)) {
-				svc.controller_map.hard_toggles.reset(config::Toggles::autosprint);
-			} else {
-				svc.controller_map.hard_toggles.set(config::Toggles::autosprint);
-			}
-			break;
-		case 1:
-			if (svc.controller_map.hard_toggles.test(config::Toggles::keyboard)) {
-				svc.controller_map.hard_toggles.reset(config::Toggles::keyboard);
-				if (svc.controller_map.hard_toggles_off()) { svc.controller_map.hard_toggles.set(config::Toggles::keyboard); }
-			} else {
-				svc.controller_map.hard_toggles.set(config::Toggles::keyboard);
-			}
-			break;
-		case 2:
-			if (svc.controller_map.hard_toggles.test(config::Toggles::gamepad)) {
-				svc.controller_map.hard_toggles.reset(config::Toggles::gamepad);
-				if (svc.controller_map.hard_toggles_off()) { svc.controller_map.hard_toggles.set(config::Toggles::gamepad); }
-			} else {
-				svc.controller_map.hard_toggles.set(config::Toggles::gamepad);
-			}
-			break;
-		case 3: adjust_mode() ? mode_flags.reset(MenuMode::adjust) : mode_flags.set(MenuMode::adjust);
-			break;
-		}
-		if (!svc.controller_map.gamepad_connected()) { svc.controller_map.hard_toggles.set(config::Toggles::keyboard); }
-		options.at(0).label.setString(toggleables.autosprint.getString() + (svc.controller_map.hard_toggles.test(config::Toggles::autosprint) ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
-		options.at(1).label.setString(toggleables.keyboard.getString() + (svc.controller_map.hard_toggles.test(config::Toggles::keyboard) ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
-		options.at(2).label.setString(toggleables.gamepad.getString() + (svc.controller_map.hard_toggles.test(config::Toggles::gamepad) ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
-	}
-	if (svc.controller_map.label_to_control.at("right").triggered()) {}
-	if (svc.controller_map.label_to_control.at("menu_forward").triggered()) {}
-	if (svc.controller_map.label_to_control.at("menu_back").triggered()) {
-		svc.state_controller.actions.set(Actions::exit_submenu);
-		svc.soundboard.flags.menu.set(audio::Menu::backward_switch);
-	}
-	svc.controller_map.reset_triggers();
-}
+void SettingsMenu::handle_events(ServiceProvider& svc, sf::Event& event) {}
 
 void SettingsMenu::tick_update(ServiceProvider& svc) {
+	svc.controller_map.set_action_set(config::ActionSet::Menu);
+	if (!console.active()) {
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_down).triggered) {
+			current_selection.modulate(1);
+			if (mode_flags.test(MenuMode::adjust)) { svc.soundboard.flags.menu.set(audio::Menu::backward_switch); }
+			mode_flags.reset(MenuMode::adjust);
+			svc.soundboard.flags.menu.set(audio::Menu::shift);
+		}
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_up).triggered) {
+			current_selection.modulate(-1);
+			if (mode_flags.test(MenuMode::adjust)) { svc.soundboard.flags.menu.set(audio::Menu::backward_switch); }
+			mode_flags.reset(MenuMode::adjust);
+			svc.soundboard.flags.menu.set(audio::Menu::shift);
+		}
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_cancel).triggered) {
+			if (adjust_mode()) {
+				mode_flags.reset(MenuMode::adjust);
+			} else {
+				svc.state_controller.submenu = menu_type::options;
+				svc.state_controller.actions.set(Actions::exit_submenu);
+				svc.soundboard.flags.menu.set(audio::Menu::backward_switch);
+				svc.data.save_settings();
+			}
+			svc.soundboard.flags.menu.set(audio::Menu::backward_switch);
+		}
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_select).triggered && !adjust_mode()) {
+			svc.soundboard.flags.menu.set(audio::Menu::forward_switch);
+			switch (current_selection.get()) {
+			case static_cast<int>(Toggles::autosprint): svc.controller_map.enable_autosprint(!svc.controller_map.is_autosprint_enabled()); break;
+			case static_cast<int>(Toggles::tutorial): svc.toggle_tutorial(); break;
+			case static_cast<int>(Toggles::gamepad): svc.controller_map.enable_gamepad_input(!svc.controller_map.is_gamepad_input_enabled()); break;
+			case static_cast<int>(Toggles::music): adjust_mode() ? mode_flags.reset(MenuMode::adjust) : mode_flags.set(MenuMode::adjust); break;
+			case static_cast<int>(Toggles::fullscreen):
+				svc.toggle_fullscreen();
+				console.load_and_launch("fullscreen");
+				break;
+			}
+			options.at(static_cast<int>(Toggles::autosprint)).label.setString(toggleables.autosprint.getString() + (svc.controller_map.is_autosprint_enabled() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
+			options.at(static_cast<int>(Toggles::tutorial)).label.setString(toggleables.tutorial.getString() + (svc.tutorial() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
+			options.at(static_cast<int>(Toggles::gamepad)).label.setString(toggleables.gamepad.getString() + (svc.controller_map.is_gamepad_input_enabled() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
+			options.at(static_cast<int>(Toggles::fullscreen)).label.setString(toggleables.fullscreen.getString() + (svc.fullscreen() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
+		}
+	}
 	left_dot.update(svc);
 	right_dot.update(svc);
-	left_dot.set_target_position(options.at(current_selection).left_offset);
-	right_dot.set_target_position(options.at(current_selection).right_offset);
+	left_dot.set_target_position(options.at(current_selection.get()).left_offset);
+	right_dot.set_target_position(options.at(current_selection.get()).right_offset);
 	for (auto& option : options) {
-		option.update(svc, current_selection);
+		option.update(svc, current_selection.get());
 		option.label.setLetterSpacing(1.2f);
 	}
 	if (svc.ticker.every_x_ticks(16)) {
-		if (svc.controller_map.label_to_control.at("left").held() && adjust_mode()) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier - 0.01f, 0.f, 1.f); }
-		if (svc.controller_map.label_to_control.at("right").held() && adjust_mode()) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier + 0.01f, 0.f, 1.f); }
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_left).held && adjust_mode()) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier - 0.01f, 0.f, 1.f); }
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_right).held && adjust_mode()) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier + 0.01f, 0.f, 1.f); }
 	}
+	console.update(svc);
+	player->controller.update(svc);
+	player->update_transponder(console, inventory_window);
+	player->controller.clean();
+	player->flags.triggers = {};
+	console.end_tick();
 	svc.soundboard.play_sounds(svc);
-	svc.controller_map.reset_triggers();
 }
 
 void SettingsMenu::frame_update(ServiceProvider& svc) {}
 
 void SettingsMenu::render(ServiceProvider& svc, sf::RenderWindow& win) {
+	auto index = static_cast<int>(Toggles::music);
 
-	adjust_mode() ? options.at(3).label.setColor(svc.styles.colors.red) : options.at(3).label.setColor(options.at(3).label.getFillColor());
-	options.at(3).label.setString(music_label.getString() + std::to_string(static_cast<int>(svc.music.volume.multiplier * 100.f)) + "%");
+	adjust_mode() ? options.at(index).label.setFillColor(svc.styles.colors.red) : options.at(index).label.setFillColor(options.at(index).label.getFillColor());
+	options.at(index).label.setString(music_label.getString() + std::to_string(static_cast<int>(svc.music.volume.multiplier * 100.f)) + "%");
+
 	for (auto& option : options) { win.draw(option.label); }
 
 	left_dot.render(svc, win, {0, 0});
 	right_dot.render(svc, win, {0, 0});
+	if (console.flags.test(gui::ConsoleFlags::active)) { console.render(win); }
+	console.write(win, false);
 }
 
 } // namespace automa

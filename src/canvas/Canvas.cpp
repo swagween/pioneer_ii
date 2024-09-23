@@ -1,15 +1,10 @@
-//
-//  Canvas.cpp
-//  Pioneer-Lab
-//
-//  Created by Alex Frasca on 9/30/20.
-//
 
 #include "Canvas.hpp"
-#include "../util/ServiceLocator.hpp"
 #include "../util/Lookup.hpp"
+#include "../tool/Tool.hpp"
+#include <cassert>
 
-namespace canvas {
+namespace pi {
 
 Canvas::Canvas() {
 }
@@ -21,10 +16,7 @@ Canvas::Canvas(sf::Vector2<uint32_t> dim) {
     chunk_dimensions.y = dim.y / CHUNK_SIZE;
     clear();
     map_states.push_back(Map());
-    for(int i = 0; i < NUM_LAYERS; ++i) {
-        map_states.back().layers.push_back(Layer( i, (i == MIDDLEGROUND), dim ));
-        map_states.back().layers.back().grid.initialize();
-    }
+	for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dim)); }
 }
 
 void Canvas::load(const std::string& path) {
@@ -87,9 +79,9 @@ void Canvas::load(const std::string& path) {
             p.dimensions.y = entry["dimensions"][1].as<int>();
             p.source_map_id = entry["source_id"].as<int>();
             p.destination_map_id = entry["destination_id"].as<int>();
-			p.activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
-			p.already_open = (bool)entry["already_open"].as_bool();
-			p.locked = (bool)entry["locked"].as_bool();
+			p.activate_on_contact = static_cast<bool>(entry["activate_on_contact"].as_bool());
+			p.already_open = static_cast<bool>(entry["already_open"].as_bool());
+			p.locked = static_cast<bool>(entry["locked"].as_bool());
 			p.key_id = entry["key_id"].as<int>();
             portals.push_back(p);
         }
@@ -104,7 +96,7 @@ void Canvas::load(const std::string& path) {
             n.position.x = entry["position"][0].as<int>();
             n.position.y = entry["position"][1].as<int>();
             n.id = entry["id"].as<int>();
-			n.background = (bool)entry["background"].as_bool();
+			n.background = static_cast<bool>(entry["background"].as_bool());
 			for (auto& suite : entry["suites"].array_view()) {
 				std::vector<std::string> in_set{};
 				for (auto& set : suite.array_view()) {
@@ -123,8 +115,8 @@ void Canvas::load(const std::string& path) {
             a.dimensions.y = entry["dimensions"][1].as<int>();
 			a.id = entry["id"].as<int>();
 			a.style = entry["style"].as<int>();
-            a.automatic = (bool)entry["automatic"].as_bool();
-            a.foreground = (bool)entry["foreground"].as_bool();
+			a.automatic = static_cast<bool>(entry["automatic"].as_bool());
+            a.foreground = static_cast<bool>(entry["foreground"].as_bool());
             animators.push_back(a);
 		}
 		for (auto& entry : data.meta["beds"].array_view()) { beds.push_back(Bed{{entry["position"][0].as<uint32_t>(), entry["position"][1].as<uint32_t>()}}); }
@@ -206,7 +198,6 @@ void Canvas::load(const std::string& path) {
             layer.grid.cells.at(cell_counter).type = lookup_type(cell.as<int>());
             ++cell_counter;
         }
-        layer.grid.update();
         ++layer_counter;
     }
     
@@ -424,12 +415,12 @@ void Canvas::clear() {
     }
 }
 
-void Canvas::save_state() {
-    auto const& type = pi::svc::current_tool.get()->type;
-    auto undoable_tool = type == tool::TOOL_TYPE::BRUSH || type == tool::TOOL_TYPE::FILL || type == tool::TOOL_TYPE::SELECT || type == tool::TOOL_TYPE::ERASE;
-    auto just_clicked = !pi::svc::current_tool.get()->active && pi::svc::current_tool.get()->ready;
+void Canvas::save_state(Tool& tool) {
+    auto const& type = tool.type;
+    auto undoable_tool = type == ToolType::brush || type == ToolType::fill || type == ToolType::select || type == ToolType::erase;
+    auto just_clicked = !tool.active && tool.ready;
     if (undoable_tool && just_clicked) {
-        map_states.emplace_back(canvas::Map(map_states.back()));
+        map_states.emplace_back(Map(map_states.back()));
         clear_redo_states();
     }
 }
@@ -456,30 +447,6 @@ bool Canvas::has_switch_block_at(sf::Vector2<uint32_t> pos) const {
 		if (s.position.x == pos.x && s.position.y == pos.y) { return true; };
 	}
 	return false;
-}
-
-void Canvas::update_dimensions() {
-    if(dimensions.x / chunk_dimensions.x == CHUNK_SIZE && dimensions.y / chunk_dimensions.y == CHUNK_SIZE) {
-        return;
-    }
-    if(dimensions.x / chunk_dimensions.x != CHUNK_SIZE) {
-        dimensions.x = chunk_dimensions.x * CHUNK_SIZE;
-        real_dimensions.x = dimensions.x * CELL_SIZE;
-        for(auto& layer : map_states.back().layers) {
-            layer.erase();
-            layer.grid.initialize();
-            layer.grid.update();
-        }
-    }
-    if(dimensions.y / chunk_dimensions.y != CHUNK_SIZE) {
-        dimensions.y = chunk_dimensions.y * CHUNK_SIZE;
-        real_dimensions.y = dimensions.y * CELL_SIZE;
-        for(auto& layer : map_states.back().layers) {
-            layer.erase();
-            layer.grid.initialize();
-            layer.grid.update();
-        }
-    }
 }
 
 void Canvas::edit_tile_at(int i, int j, int new_val, int layer_index) {

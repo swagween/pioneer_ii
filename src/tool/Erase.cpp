@@ -6,27 +6,26 @@
 //
 
 #include "Tool.hpp"
-#include "../util/ServiceLocator.hpp"
 
-namespace tool {
+namespace pi {
 
-void Erase::handle_events(canvas::Canvas& canvas, sf::Event& e) {
+void Erase::handle_events(Canvas& canvas, sf::Event& e) {
     if(in_bounds(canvas.dimensions) && ready) {
         for(int i = 0; i < size; i++) {
             for(int j = 0; j < size; j++) {
-                canvas.edit_tile_at(scaled_position.x - i, scaled_position.y - j, 0, pi::svc::active_layer);
+                canvas.edit_tile_at(scaled_position.x - i, scaled_position.y - j, 0, canvas.active_layer);
             }
         }
     }
     update();
 }
 
-void Erase::handle_keyboard_events(canvas::Canvas& canvas, sf::Keyboard::Key& key) {
+void Erase::handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key) {
     
 }
 
 void Erase::update() {
-    tool::Tool::update();
+    Tool::update();
 }
 
 void Erase::render(sf::RenderWindow& win, sf::Vector2<float> offset) {

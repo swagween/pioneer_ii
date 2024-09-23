@@ -184,7 +184,7 @@ void Minigus::unique_update(automa::ServiceProvider& svc, world::Map& map, playe
 		}
 		if (state == MinigusState::rush && attacks.rush.sensor.active() && !cooldowns.player_punch.running()) {
 			auto sign = Enemy::direction.lr == dir::LR::left ? -1.f : 1.f;
-			if (sign == -1.f && player_behind(player) || sign == 1.f && !player_behind(player)) {
+			if ((sign == -1.f && player_behind(player)) || (sign == 1.f && !player_behind(player))) {
 				player.hurt(1);
 				player.accumulated_forces.push_back({sign * 10.f, -4.f});
 				attacks.rush.sensor.deactivate();
@@ -214,11 +214,6 @@ void Minigus::unique_update(automa::ServiceProvider& svc, world::Map& map, playe
 	Enemy::direction = post_direction;
 
 	pre_direction.lr = player_behind(player) ? dir::LR::left : dir::LR::right;
-	if (post_direction.lr != pre_direction.lr) {
-		if (svc.ticker.every_x_ticks(100)) {
-			// std::cout << "mismatch\n";
-		}
-	}
 	Enemy::update(svc, map, player);
 
 	secondary_collider.physics.position = Enemy::collider.physics.position;
@@ -825,6 +820,8 @@ fsm::StateFunction Minigus::update_rush() {
 fsm::StateFunction Minigus::update_struggle() {
 	if (animation.just_started() && anim_debug) { std::cout << "struggle\n"; }
 
+	minigun.animation.set_params(minigun.neutral);
+	minigun.state = MinigunState::neutral;
 	// always do
 	sf::Vector2<float> pos = secondary_collider.physics.position + m_services->random.random_vector_float(0.f, 50.f);
 	if (m_services->ticker.every_x_ticks(80)) { m_map->effects.push_back(entity::Effect(*m_services, pos, {}, 3, 0)); }
@@ -864,6 +861,7 @@ fsm::StateFunction Minigus::update_struggle() {
 			cooldowns.exit.start();
 		}
 		post_death.start(afterlife);
+		flags.state.set(StateFlags::special_death_mode);
 
 		if (cooldowns.exit.is_complete() && status.test(MinigusFlags::exit_scene)) {
 			triggers.set(npc::NPCTrigger::distant_interact);
@@ -891,7 +889,6 @@ fsm::StateFunction Minigus::update_exit() {
 		animation.set_params(jumpsquat);
 		m_services->music.load("dusken_cove");
 		m_services->music.play_looped(30);
-		m_map->end_demo.start();
 		return MINIGUS_BIND(update_jumpsquat);
 	}
 	state = MinigusState::exit;

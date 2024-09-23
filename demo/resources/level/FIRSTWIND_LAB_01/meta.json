@@ -15,10 +15,7 @@
     ],
     "style": 0,
     "background": 5,
-    "music": "abandoned",
-    "styles": {
-      "breakables": 0
-    }
+    "music": "abandoned"
   },
   "portals": [
     {
@@ -48,8 +45,7 @@
         6
       ],
       "activate_on_contact": false,
-      "key": "bookshelf",
-      "alternates": 0
+      "key": "bookshelf"
     },
     {
       "dimensions": [
@@ -62,7 +58,8 @@
       ],
       "activate_on_contact": false,
       "key": "computer",
-      "alternates": 0
+      "alternates": 1,
+      "native_id": 111
     },
     {
       "dimensions": [
@@ -75,7 +72,7 @@
       ],
       "activate_on_contact": false,
       "key": "computer_on",
-      "alternates": 0
+      "alternates": 2
     },
     {
       "dimensions": [
@@ -87,8 +84,7 @@
         7
       ],
       "activate_on_contact": false,
-      "key": "guest_shelf",
-      "alternates": 0
+      "key": "guest_shelf"
     },
     {
       "dimensions": [
@@ -100,8 +96,7 @@
         12
       ],
       "activate_on_contact": false,
-      "key": "comp3",
-      "alternates": 0
+      "key": "comp3"
     },
     {
       "dimensions": [
@@ -113,8 +108,7 @@
         7
       ],
       "activate_on_contact": false,
-      "key": "book3",
-      "alternates": 0
+      "key": "book3"
     },
     {
       "dimensions": [
@@ -126,8 +120,7 @@
         12
       ],
       "activate_on_contact": false,
-      "key": "open_book",
-      "alternates": 0
+      "key": "open_book"
     },
     {
       "dimensions": [
@@ -139,13 +132,12 @@
         6
       ],
       "activate_on_contact": false,
-      "key": "open_book_2",
-      "alternates": 0
+      "key": "open_book_2"
     }
   ],
   "animators": [
     {
-      "id": 230,
+      "id": 5,
       "style": 0,
       "dimensions": [
         1,
@@ -155,7 +147,7 @@
         15,
         6
       ],
-      "automatic": false,
+      "automatic": true,
       "foreground": false
     },
     {
@@ -201,7 +193,7 @@
       "foreground": false
     },
     {
-      "id": 9,
+      "id": 3,
       "style": 0,
       "dimensions": [
         1,
@@ -227,26 +219,6 @@
       ],
       "automatic": true,
       "foreground": false
-    }
-  ],
-  "beds": [
-    {
-      "position": [
-        25,
-        7
-      ]
-    },
-    {
-      "position": [
-        17,
-        7
-      ]
-    },
-    {
-      "position": [
-        13,
-        6
-      ]
     }
   ],
   "chests": [
@@ -279,5 +251,34 @@
       5,
       12
     ]
-  }
+  },
+  "destroyers": [
+    {
+      "quest_id": 110,
+      "position": [
+        24,
+        4
+      ]
+    }
+  ],
+  "beds": [
+    {
+      "position": [
+        25,
+        7
+      ]
+    },
+    {
+      "position": [
+        17,
+        7
+      ]
+    },
+    {
+      "position": [
+        13,
+        6
+      ]
+    }
+  ]
 }

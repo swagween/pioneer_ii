@@ -19,7 +19,7 @@
 #include <iostream>
 #include <djson/json.hpp>
 
-namespace canvas {
+namespace pi {
 
 const int NUM_LAYERS{8};
 const int CHUNK_SIZE{16};
@@ -99,6 +99,7 @@ enum class CRITTER_TYPE {
 const int NUM_STYLES{20};
 const int NUM_BGS{18};
 const int CELL_SIZE{32};
+float const f_cell_size{32.f};
 
 
 struct Portal {
@@ -200,6 +201,8 @@ struct Map {
     std::vector<Layer> layers{};
 };
 
+class Tool;
+
 class Canvas {
     
 public:
@@ -209,13 +212,12 @@ public:
     void load(const std::string& path);
     bool save(const std::string& path);
     void clear();
-    void save_state();
+	void save_state(Tool& tool);
     void undo();
     void redo();
     void clear_redo_states();
 	bool has_switch_block_at(sf::Vector2<uint32_t> pos) const;
 
-    void update_dimensions();
     void edit_tile_at(int i, int j, int new_val, int layer_index);
     int tile_val_at(int i, int j, int layer);
     TILE_TYPE lookup_type(int idx);
@@ -265,6 +267,9 @@ public:
 		int id{};
 		int source{};
     } cutscene{};
+
+	sf::Vector2u player_start{};
+    int active_layer{};
     
     STYLE style{};
     BACKDROP bg{};

@@ -1,9 +1,4 @@
-//
-//  Grid.hpp
-//  squid
-//
-//  Created by Alex Frasca on 12/26/22.
-//
+
 #pragma once
 
 #include "Tile.hpp"
@@ -11,27 +6,14 @@
 #include <vector>
 #include <cmath>
 
-namespace canvas {
+namespace pi {
 
 class Grid {
-public:
-    
-    Grid();
-    Grid(sf::Vector2<uint32_t> d);
-    
-    sf::Vector2<uint32_t> dimensions{};
-    float spacing{};
-    
-    std::vector<Tile> cells{};
-    
-    void initialize();
-    void update();
-    
-    void pushCells(int i);
-    
-    
-    TILE_TYPE lookupType(int idx);
-    
+  public:
+	Grid(sf::Vector2<uint32_t> d);
+	sf::Vector2<uint32_t> dimensions{};
+	float spacing{};
+	std::vector<Tile> cells{};
 };
 
-}
+} // namespace pi

@@ -18,12 +18,6 @@
     "music": "dusken_cove",
     "styles": {
       "breakables": 0
-    },
-    "cutscene_on_entry": {
-      "flag": false,
-      "type": 0,
-      "id": 0,
-      "source": 0
     }
   },
   "portals": [
@@ -39,7 +33,6 @@
       "source_id": 115,
       "destination_id": 112,
       "activate_on_contact": false,
-      "already_open": false,
       "locked": false,
       "key_id": 0
     },
@@ -55,7 +48,6 @@
       "source_id": 115,
       "destination_id": 122,
       "activate_on_contact": true,
-      "already_open": false,
       "locked": false,
       "key_id": 0
     }
@@ -64,11 +56,11 @@
     {
       "dimensions": [
         1,
-        1
+        10
       ],
       "position": [
         72,
-        9
+        0
       ],
       "activate_on_contact": true,
       "key": "leap",
