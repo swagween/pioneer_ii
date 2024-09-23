@@ -12,7 +12,7 @@ Editor::Editor(char** argv, WindowManager& window, ResourceFinder& finder) : win
 void Editor::run() {
 
 	// load textures
-	std::string resource_path = finder->find_resources(args[0]).string();
+	auto& resource_path = finder->resource_path;
 	int const TILE_WIDTH = 32;
 
 	// load the tilesets!
@@ -100,10 +100,7 @@ void Editor::init(std::string const& load_path) {
 	large_animator_textures.loadFromFile(demo_resources + "/animators/large_animators_01.png");
 	large_animator_thumbs.loadFromFile(load_path + "../../../animators/large_animator_thumbs.png");
 	small_animator_textures.loadFromFile(load_path + "../../../animators/small_animators_01.png");
-	small_animator_thumbs.loadFromFile(demo_resources + "/animators/small_animator_thumbs.png");
 	enemy_thumbnails.loadFromFile(load_path + "../../../enemies/thumbnails.png");
-	t_chest.loadFromFile(load_path + "../../../entity/chest.png");
-	t_npc.loadFromFile(load_path + "../../../entity/npc.png");
 
 	map.map_states.back().layers.at(MIDDLEGROUND).active = true;
 
@@ -236,10 +233,11 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 
 void Editor::logic() {
 	map.active_layer = active_layer;
-	map.player_start = player_start;
+	player_start = map.player_start;
 	if (current_tool->trigger_switch) { current_tool = std::move(std::make_unique<Hand>()); }
 	current_tool->update();
 	secondary_tool->update();
+	current_tool->tile = selected_block;
 	if (current_tool.get()->type == ToolType::hand && current_tool.get()->active) {
 		camera.move(current_tool.get()->relative_position);
 		current_tool.get()->relative_position = {0.0f, 0.0f};
@@ -271,8 +269,8 @@ void Editor::render(sf::RenderWindow& win) {
 		}
 	}
 	for (auto& portal : map.portals) {
-		for (int i = 0; i < portal.dimensions.x; ++i) {
-			for (int j = 0; j < portal.dimensions.y; ++j) {
+		for (uint32_t i = 0; i < portal.dimensions.x; ++i) {
+			for (uint32_t j = 0; j < portal.dimensions.y; ++j) {
 				portalbox.setPosition((portal.position.x + i) * CELL_SIZE + camera.position.x, (portal.position.y + j) * CELL_SIZE + camera.position.y);
 				win.draw(portalbox);
 			}
@@ -455,9 +453,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				static int width{0};
 				static int height{0};
 				static int room_id{0};
+				static int metagrid_x{};
+				static int metagrid_y{};
 
 				ImGui::InputInt("Width", &width);
-				ImGui::Separator();
 				ImGui::NewLine();
 
 				ImGui::InputInt("Height", &height);
@@ -465,6 +464,14 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				ImGui::NewLine();
 
 				ImGui::InputInt("Room ID", &room_id);
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::Text("Metagrid Position");
+				ImGui::InputInt("X", &metagrid_x);
+				ImGui::SameLine();
+
+				ImGui::InputInt("Y", &metagrid_y);
 				ImGui::Separator();
 				ImGui::NewLine();
 
@@ -480,6 +487,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					map.style = static_cast<STYLE>(style_current);
 					setTilesetTexture(tileset_textures.at(style_current));
 					map.bg = static_cast<BACKDROP>(bg_current);
+					map.metagrid_coordinates = {metagrid_x, metagrid_y};
 					filepath = folderpath + buffer;
 					map.save(filepath);
 					map.save(demopath);
@@ -842,8 +850,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			static int width{0};
 			static int height{0};
 			static int destination{0};
-			static bool activate_on_contact{false};
-			static bool locked{false};
+			static bool activate_on_contact{};
+			static bool already_open{};
+			static bool locked{};
 			static int key_id{};
 
 			ImGui::InputInt("Width", &width);
@@ -857,6 +866,12 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::InputInt("Destination Room ID", &destination);
 			ImGui::SameLine();
 			help_marker("Must be an existing room before being activated in-game. By convention, choose a three-digit number where the first digit indicates the region.");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::Checkbox("Already open?", &already_open);
+			ImGui::SameLine();
+			help_marker("Only applies to 1x1 portals that are not activated on contact (doors). If true, the door will appear open.");
 			ImGui::Separator();
 			ImGui::NewLine();
 
@@ -876,7 +891,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				// switch to entity tool, and store the specified portal for placement
 				current_tool = std::move(std::make_unique<EntityPlacer>());
 				current_tool.get()->ent_type = ENTITY_TYPE::PORTAL;
-				current_tool.get()->current_portal = Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, map.room_id, destination, locked, key_id);
+				current_tool.get()->current_portal = Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, already_open, map.room_id, destination, locked, key_id);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -1150,6 +1165,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 		ImGui::Separator();
 		ImGui::Text("Current Block:");
+		sprites.tileset.setTextureRect(sf::IntRect({get_tile_coord(selected_block), {32, 32}}));
 		ImGui::Image(sprites.tileset);
 
 		ImGui::Text("Current Entity:");
@@ -1268,14 +1284,15 @@ void Editor::help_marker(char const* desc) {
 
 void Editor::export_layer_texture() {
 	screencap.clear(sf::Color::Transparent);
-	screencap.create(map.real_dimensions.x, map.real_dimensions.y);
+	sf::Vector2u mapdim{map.real_dimensions};
+	screencap.create(mapdim.x, mapdim.y);
 	for (int i = 0; i <= active_layer; ++i) {
 		for (auto& cell : map.map_states.back().layers.at(i).grid.cells) {
 			if (cell.value > 0) {
-				int x_coord = (cell.value % 16) * TILE_WIDTH;
-				int y_coord = std::floor(cell.value / 16) * TILE_WIDTH;
+				auto x_coord = (cell.value % 16) * TILE_WIDTH;
+				auto y_coord = std::floor(cell.value / 16) * TILE_WIDTH;
 				tile_sprite.setTexture(tileset_textures.at(static_cast<int>(map.style)));
-				tile_sprite.setTextureRect(sf::IntRect({x_coord, y_coord}, {32, 32}));
+				tile_sprite.setTextureRect(sf::IntRect({static_cast<int>(x_coord), static_cast<int>(y_coord)}, {32, 32}));
 				tile_sprite.setPosition(cell.position);
 				screencap.draw(tile_sprite);
 			}
@@ -1290,17 +1307,17 @@ void Editor::export_layer_texture() {
 
 sf::Vector2<int> Editor::get_tile_coord(int lookup) {
 	sf::Vector2<int> ret{};
-	ret.x = lookup % 16;
-	ret.y = std::floor(lookup / 16);
+	ret.x = static_cast<int>(lookup % 16);
+	ret.y = static_cast<int>(std::floor(lookup / 16));
 	return ret * 32;
 }
 
 void Editor::launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position) {
+	trigger_demo = false;
 	ImGui::SFML::Shutdown();
 	fornani::Application demo{argv};
 	std::cout << "Editor path: " << path.string() << "\n";
-	demo.launch(argv);
-	//demo.run(true, room_id, path, player_position);
+	demo.launch(argv, true, room_id, path, player_position);
 }
 
 } // namespace pi

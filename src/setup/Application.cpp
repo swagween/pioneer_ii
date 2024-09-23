@@ -14,8 +14,6 @@ Application::Application(char** argv) {
 	game_info = dj::Json::from_file((finder.resource_path + "/data/config/version.json").c_str());
 	assert(!game_info.is_null());
 
-	t_loading.loadFromFile(finder.resource_path + "/gui/loading.png");
-	loading.setTexture(t_loading);
 	metadata.title = game_info["title"].as_string();
 	metadata.build = game_info["build"].as_string();
 	metadata.major = game_info["version"]["major"].as<int>();
@@ -37,7 +35,6 @@ Application::Application(char** argv) {
 
 	ImGui::SFML::Init(window.get());
 	window.get().clear();
-	window.get().draw(loading);
 	window.get().display();
 }
 

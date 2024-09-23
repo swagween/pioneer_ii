@@ -27,7 +27,7 @@ enum TILE_TYPE {
     TILE_ICY
 };
 
-const float DEFAULT_SPACING = 32.0;
+const float DEFAULT_SPACING = 32.f;
 
 const int CEIL_SLANT_INDEX = 192;
 const int FLOOR_SLANT_INDEX = 208;

@@ -13,8 +13,6 @@ class Application {
 	void launch(char** argv);
 
   private:
-	sf::Texture t_loading{};
-	sf::Sprite loading{};
 	dj::Json game_info{};
 	dj::Json app_settings{};
 	ResourceFinder finder{};

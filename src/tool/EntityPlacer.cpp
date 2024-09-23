@@ -37,17 +37,17 @@ namespace pi {
 				if (!canvas.has_switch_block_at(current_switch_block.position)) { canvas.switch_blocks.push_back(current_switch_block); }
 				break;
 
-				// for editing existing entities
+				// for erasing existing entities
 			case ENTITY_TYPE::ENTITY_EDITOR:
-				std::erase_if(canvas.animators, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.critters, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.inspectables, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.portals, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.platforms, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.chests, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.switch_blocks, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.switch_buttons, [this](auto&& const c) { return c.position == scaled_position; });
-				std::erase_if(canvas.beds, [this](auto&& const c) { return c.position == scaled_position; });
+				std::erase_if(canvas.animators, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.critters, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.inspectables, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.portals, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.platforms, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.chests, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.switch_blocks, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.switch_buttons, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.beds, [this](auto& c) { return c.position == scaled_position; });
 				break;
 			}
 			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR && ent_type != ENTITY_TYPE::PLATFORM && ent_type != ENTITY_TYPE::SWITCH_BLOCK) { trigger_switch = true; }
@@ -82,15 +82,15 @@ namespace pi {
 		box.setSize({ CELL_SIZE, CELL_SIZE });
 
 		if (ent_type == ENTITY_TYPE::PORTAL) {
-			for (int i = 0; i < current_portal.dimensions.x; ++i) {
-				for (int j = 0; j < current_portal.dimensions.y; ++j) {
+			for (uint32_t i = 0; i < current_portal.dimensions.x; ++i) {
+				for (uint32_t j = 0; j < current_portal.dimensions.y; ++j) {
 					box.setPosition(current_portal.position.x * CELL_SIZE + i * CELL_SIZE + offset.x, current_portal.position.y * CELL_SIZE + j * CELL_SIZE + offset.y);
 					win.draw(box);
 				}
 			}
 		} else if(ent_type == ENTITY_TYPE::ANIMATOR) {
-			for (int i = 0; i < current_animator.dimensions.x; ++i) {
-				for (int j = 0; j < current_animator.dimensions.y; ++j) {
+			for (uint32_t i = 0; i < current_animator.dimensions.x; ++i) {
+				for (uint32_t j = 0; j < current_animator.dimensions.y; ++j) {
 					box.setPosition(current_animator.position.x * CELL_SIZE + i * CELL_SIZE + offset.x, current_animator.position.y * CELL_SIZE + j * CELL_SIZE + offset.y);
 					win.draw(box);
 				}

@@ -52,11 +52,12 @@ void Game::run(bool demo, int room_id, std::filesystem::path levelpath, sf::Vect
 		flags.set(GameFlags::in_game);
 		game_state.get_current_state().target_folder.paths.scene = levelpath;
 		services.music.turn_off();
-		services.data.load_blank_save(player);
+		services.data.load_progress(player, 0);
 		game_state.set_current_state(std::make_unique<automa::Dojo>(services, player, "dojo"));
 		// TODO: fix this
 		game_state.get_current_state().init(services, room_id, levelpath.filename().string());
 		services.state_controller.demo_level = room_id;
+		std::cout << "Launching demo in room " << room_id << "from folder " << levelpath.filename() << "\n";
 		//
 		services.state_controller.player_position = player_position;
 		player.set_position(player_position);

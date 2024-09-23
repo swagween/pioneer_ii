@@ -9,21 +9,11 @@
 namespace pi {
 
 class Grid {
-public:
-    
-    Grid();
-    Grid(sf::Vector2<uint32_t> d);
-    
-    sf::Vector2<uint32_t> dimensions{};
-    float spacing{};
-    
-    std::vector<Tile> cells{};
-    
-    void initialize();
-    void update();
-    
-    void pushCells(int i);
-    
+  public:
+	Grid(sf::Vector2<uint32_t> d);
+	sf::Vector2<uint32_t> dimensions{};
+	float spacing{};
+	std::vector<Tile> cells{};
 };
 
-}
+} // namespace pi
