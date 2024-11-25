@@ -9,7 +9,7 @@ namespace pi {
 
 enum class ToolType { brush, fill, select, erase, hand, entity_placer };
 
-enum class ENTITY_TYPE { PORTAL, INSPECTABLE, CRITTER, CHEST, ANIMATOR, ENTITY_EDITOR, PLAYER_PLACER, PLATFORM, SAVE_POINT, SWITCH_BUTTON, SWITCH_BLOCK, BED };
+enum class ENTITY_TYPE { PORTAL, INSPECTABLE, CRITTER, CHEST, ANIMATOR, ENTITY_EDITOR, PLAYER_PLACER, PLATFORM, SAVE_POINT, SWITCH_BUTTON, SWITCH_BLOCK, BED, INTERACTIVE_SCENERY, SCENERY };
 
 class Tool {
   public:
@@ -51,6 +51,8 @@ class Tool {
 	Chest current_chest{};
 	SwitchBlock current_switch_block{};
 	SwitchButton current_switch{};
+	InteractiveScenery current_interactive_scenery{};
+	Scenery current_scenery{};
 
 	ToolType type{};
 	ENTITY_TYPE ent_type{};

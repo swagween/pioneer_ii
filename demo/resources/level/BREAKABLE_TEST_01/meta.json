@@ -1,20 +1,20 @@
 {
   "meta": {
-    "room_id": 0,
+    "room_id": 20095,
     "metagrid": [
-      39,
-      13
+      0,
+      0
     ],
     "dimensions": [
-      16,
-      16
+      48,
+      32
     ],
     "chunk_dimensions": [
-      1,
-      1
+      3,
+      2
     ],
-    "style": 0,
-    "background": 5,
+    "style": 1,
+    "background": 3,
     "music": "",
     "styles": {
       "breakables": 0
@@ -25,5 +25,12 @@
       "id": 0,
       "source": 0
     }
+  },
+  "save_point": {
+    "id": 20095,
+    "position": [
+      39,
+      18
+    ]
   }
 }

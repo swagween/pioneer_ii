@@ -25,7 +25,7 @@ const int NUM_LAYERS{8};
 const int CHUNK_SIZE{16};
 const int num_critter_types{ 17 };
 
-enum class BACKDROP {
+enum class Backdrop {
     BG_DUSK,
     BG_SUNRISE,
     BG_OPEN_SKY,
@@ -44,7 +44,9 @@ enum class BACKDROP {
     BG_RUINS,
     BG_CREVASSE,
     BG_DEEP,
-    BG_GROVE
+    BG_GROVE,
+
+    END
 };
 
 enum LAYER_ORDER {
@@ -53,28 +55,7 @@ enum LAYER_ORDER {
     FOREGROUND = 7,
 };
 
-enum class STYLE {
-    FIRSTWIND,  // in progress
-    OVERTURNED, // in progress
-    GRUB,       // in progress
-    TOXIC,      // done
-    BASE,       // in progress
-    FROZEN,     // done
-    NIGHT,      // done
-    WORM,       // not started
-    SKY,        //
-    ASH,
-    GREATWING,
-    ICE,
-    SNOW,
-    STONE,
-    ABANDONED,
-    ANCIENT,
-    FACTORY,
-    SHADOW,
-    HOARDER,
-    MANSION
-};
+enum class Style { firstwind, overturned, base, factory, greatwing, provisional, END };
 
 enum class CRITTER_TYPE {
     hulmet,
@@ -96,8 +77,6 @@ enum class CRITTER_TYPE {
     moth
 };
 
-const int NUM_STYLES{20};
-const int NUM_BGS{18};
 const int CELL_SIZE{32};
 float const f_cell_size{32.f};
 
@@ -140,6 +119,23 @@ struct Animator {
 };
 
 struct Bed {
+	sf::Vector2<uint32_t> position{};
+};
+
+struct Scenery {
+	int style{};
+	int layer{};
+    int variant{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct InteractiveScenery {
+	int length{};
+	int size{};
+	bool foreground{};
+	int type{};
+	bool has_platform{};
+	std::vector<int> link_indeces{};
 	sf::Vector2<uint32_t> position{};
 };
 
@@ -242,6 +238,8 @@ public:
 	std::vector<SwitchBlock> switch_blocks{};
 	std::vector<SwitchButton> switch_buttons{};
 	std::vector<Bed> beds{};
+	std::vector<InteractiveScenery> interactive_scenery{};
+	std::vector<Scenery> scenery{};
 	std::vector<Destroyer> destroyers{};
 	SavePoint save_point{};
 	std::string music{};
@@ -271,8 +269,8 @@ public:
 	sf::Vector2u player_start{};
     int active_layer{};
     
-    STYLE style{};
-    BACKDROP bg{};
+    Style style{};
+    Backdrop bg{};
     
     uint32_t room_id{}; // should be assigned to its constituent chunks
     

@@ -17,6 +17,8 @@ namespace pi {
 			case ENTITY_TYPE::PORTAL: canvas.portals.push_back(current_portal); break;
 			case ENTITY_TYPE::INSPECTABLE: canvas.inspectables.push_back(current_inspectable); break;
 			case ENTITY_TYPE::BED: canvas.beds.push_back(Bed(scaled_position)); break;
+			case ENTITY_TYPE::INTERACTIVE_SCENERY: canvas.interactive_scenery.push_back(current_interactive_scenery); break;
+			case ENTITY_TYPE::SCENERY: canvas.scenery.push_back(current_scenery); break;
 			case ENTITY_TYPE::PLATFORM: canvas.platforms.push_back(current_platform); break;
 			case ENTITY_TYPE::PLAYER_PLACER: canvas.player_start = scaled_position; break;
 			case ENTITY_TYPE::SAVE_POINT:
@@ -48,9 +50,14 @@ namespace pi {
 				std::erase_if(canvas.switch_blocks, [this](auto& c) { return c.position == scaled_position; });
 				std::erase_if(canvas.switch_buttons, [this](auto& c) { return c.position == scaled_position; });
 				std::erase_if(canvas.beds, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.interactive_scenery, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.scenery, [this](auto& c) { return c.position == scaled_position; });
 				break;
 			}
-			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR && ent_type != ENTITY_TYPE::PLATFORM && ent_type != ENTITY_TYPE::SWITCH_BLOCK) { trigger_switch = true; }
+			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR && ent_type != ENTITY_TYPE::PLATFORM && ent_type != ENTITY_TYPE::SWITCH_BLOCK &&
+				ent_type != ENTITY_TYPE::INTERACTIVE_SCENERY && ent_type != ENTITY_TYPE::SCENERY) {
+				trigger_switch = true;
+			}
 		}
 		update();
 	}
@@ -71,6 +78,8 @@ namespace pi {
 		current_chest.position = scaled_position;
 		current_switch.position = scaled_position;
 		current_switch_block.position = scaled_position;
+		current_interactive_scenery.position = scaled_position;
+		current_scenery.position = scaled_position;
 	}
 
 	void EntityPlacer::render(sf::RenderWindow& win, sf::Vector2<float> offset) {

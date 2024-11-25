@@ -26,8 +26,8 @@ namespace pi {
 
 class ResourceFinder;
 
-inline char const* styles[NUM_STYLES];
-inline char const* bgs[NUM_BGS];
+inline char const* styles[static_cast<size_t>(Style::END)];
+inline char const* bgs[static_cast<size_t>(Backdrop::END)];
 inline std::string_view const& style_list{};
 inline std::string styles_str{};
 
@@ -97,6 +97,8 @@ class Editor {
 	sf::RectangleShape platextent{};
 	sf::RectangleShape target{};
 	sf::RectangleShape backdrop{};
+	sf::RectangleShape vinebox{};
+	sf::RectangleShape scenerybox{};
 
 	int large_index_multiplier{100};
 	int small_index_multiplier{200};

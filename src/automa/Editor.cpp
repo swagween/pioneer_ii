@@ -112,17 +112,17 @@ void Editor::init(std::string const& load_path) {
 	sprites.small_animator.setTexture(small_animator_textures);
 	sprites.small_animator_thumb.setTexture(small_animator_thumbs);
 
-	for (int i = 0; i < NUM_STYLES; ++i) {
-		char const* next = get_style_string.at(static_cast<STYLE>(i));
+	for (int i = 0; i < static_cast<int>(Style::END); ++i) {
+		char const* next = get_style_string.at(static_cast<Style>(i));
 		styles[i] = next;
 	}
-	for (int i = 0; i < NUM_BGS; ++i) {
-		char const* next = get_backdrop_string.at(static_cast<BACKDROP>(i));
+	for (int i = 0; i < static_cast<int>(Backdrop::END); ++i) {
+		char const* next = get_backdrop_string.at(static_cast<Backdrop>(i));
 		bgs[i] = next;
 	}
-	for (int i = 0; i < NUM_STYLES; ++i) {
+	for (int i = 0; i < static_cast<int>(Style::END); ++i) {
 		tileset_textures.push_back(sf::Texture());
-		std::string style = get_style_string.at(static_cast<STYLE>(i));
+		std::string style = get_style_string.at(static_cast<Style>(i));
 		tileset_textures.back().loadFromFile(load_path + "../../../tile/" + style + "_tiles.png");
 	}
 
@@ -161,6 +161,11 @@ void Editor::init(std::string const& load_path) {
 	inspbox.setOutlineThickness(-1);
 	inspbox.setSize({CELL_SIZE, CELL_SIZE});
 
+	vinebox.setOutlineColor(sf::Color{240, 230, 80, 80});
+	vinebox.setOutlineThickness(-1);
+
+	scenerybox.setOutlineColor(sf::Color{20, 20, 180, 30});
+	scenerybox.setOutlineThickness(-1);
 	
 	platextent.setFillColor(sf::Color::Transparent);
 	platextent.setOutlineColor(sf::Color{240, 230, 55, 80});
@@ -286,6 +291,7 @@ void Editor::render(sf::RenderWindow& win) {
 		inspbox.setPosition((block.position.x) * CELL_SIZE + camera.position.x, (block.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(inspbox);
 	}
+
 	for (auto& button : map.switch_buttons) {
 		inspbox.setPosition((button.position.x) * CELL_SIZE + camera.position.x, (button.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(inspbox);
@@ -294,6 +300,28 @@ void Editor::render(sf::RenderWindow& win) {
 	for (auto& chest : map.chests) {
 		chestbox.setPosition((chest.position.x) * CELL_SIZE + camera.position.x, (chest.position.y) * CELL_SIZE + camera.position.y);
 		win.draw(chestbox);
+	}
+	for (auto& scenery : map.scenery) {
+		scenerybox.setPosition((scenery.position.x) * CELL_SIZE + camera.position.x, (scenery.position.y) * CELL_SIZE + camera.position.y);
+		win.draw(scenerybox);
+	}
+
+	for (auto& scenery : map.interactive_scenery) {
+		vinebox.setPosition((scenery.position.x) * CELL_SIZE + camera.position.x, (scenery.position.y) * CELL_SIZE + camera.position.y);
+		scenery.type == 0 ? vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * CELL_SIZE})
+						  : vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * CELL_SIZE});
+		scenery.foreground ? vinebox.setFillColor(sf::Color{90, 120, 80, 88}) : vinebox.setFillColor(sf::Color{220, 120, 80, 88});
+		scenery.type == 0 ? vinebox.setOutlineColor(sf::Color::White) : vinebox.setOutlineColor(sf::Color::Blue);
+		win.draw(vinebox);
+		if (scenery.has_platform) {
+			for (auto& link : scenery.link_indeces) {
+				vinebox.setSize({64, 16});
+				vinebox.setOrigin({32, 0});
+				vinebox.setPosition(vinebox.getPosition() + sf::Vector2<float>(0.f, CELL_SIZE * link));
+				win.draw(vinebox);
+			}
+		}
+		vinebox.setOrigin({});
 	}
 
 	if (map.save_point.placed) {
@@ -437,7 +465,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			if (ImGui::BeginPopupModal("New File", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 				ImGui::Text("Please enter a new room name.");
-				ImGui::Text("Convention is all caps, snake-case, and of the format `STYLE_NAME_INDEX`.");
+				ImGui::Text("Convention is all caps, snake-case, and of the format `Style_NAME_INDEX`.");
 				ImGui::Separator();
 				ImGui::NewLine();
 				static char buffer[128] = "";
@@ -484,19 +512,19 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					static int bg_current = static_cast<int>(map.bg);
 
 					map = Canvas({static_cast<uint32_t>(width * CHUNK_SIZE), static_cast<uint32_t>(height * CHUNK_SIZE)});
-					map.style = static_cast<STYLE>(style_current);
+					map.style = static_cast<Style>(style_current);
 					setTilesetTexture(tileset_textures.at(style_current));
-					map.bg = static_cast<BACKDROP>(bg_current);
+					map.bg = static_cast<Backdrop>(bg_current);
 					map.metagrid_coordinates = {metagrid_x, metagrid_y};
 					filepath = folderpath + buffer;
 					map.save(filepath);
-					map.save(demopath);
 					map.load(filepath);
+					camera.set_position({});
 					map.room_id = room_id;
 					std::filesystem::path room_dir = filepath;
 					room = room_dir.filename().string();
 					room_id = map.room_id;
-					demopath = "../../../demo/resources/level/" + room;
+					//demopath = "../../../demo/resources/level/" + room;
 					ImGui::CloseCurrentPopup();
 				}
 				ImGui::EndPopup();
@@ -521,6 +549,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					std::string mapdata = "/meta.json";
 					std::string loaddir = loadpath.substr(0, loadpath.size() - mapdata.size());
 					map.load(loaddir);
+					camera.set_position({});
 					filepath = loaddir;
 					setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
 					std::filesystem::path room_dir = loaddir;
@@ -557,7 +586,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			if (ImGui::Button("Save As")) { ImGui::OpenPopup("Save As"); }
 			if (ImGui::BeginPopupModal("Save As", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 				ImGui::Text("Please enter a unique room name.");
-				ImGui::Text("Convention is all caps, snake-case, and of the format `STYLE_NAME_INDEX`.");
+				ImGui::Text("Convention is all caps, snake-case, and of the format `Style_NAME_INDEX`.");
 				ImGui::Separator();
 				ImGui::NewLine();
 				static char buffer[128] = "";
@@ -572,7 +601,6 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					std::string savepath = folderpath + buffer;
 					map.save(savepath);
 					map.save(demopath);
-					//                    room_name_lookup.insert( {map.room_id, buffer} );
 					ImGui::CloseCurrentPopup();
 				}
 
@@ -713,6 +741,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	ImGui::SetNextWindowSizeConstraints(ImVec2{work_size.x / 12, work_size.y / 4 - prev_window_size.y - PAD * 4}, ImVec2{work_size.x / 2, work_size.y - prev_window_size.y - PAD * 4});
 	ImGui::SetNextWindowPos(window_pos);
 	if (ImGui::Begin("Tile Palette", debug, window_flags)) {
+		if (ImGui::IsWindowHovered()) { ImGui::SetWindowFocus(); }
 		prev_window_size = ImGui::GetWindowSize();
 		prev_window_pos = ImGui::GetWindowPos();
 		int num_cols = 16;
@@ -1031,6 +1060,70 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
 			ImGui::EndPopup();
 		}
+		if (ImGui::Button("Vine")) { ImGui::OpenPopup("Vine Specifications"); }
+		if (ImGui::BeginPopupModal("Vine Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+			static int length{};
+			static int size{};
+			static bool foreground{};
+			static int type{};
+			static int platform{};
+
+			ImGui::SameLine();
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Length", &length);
+			ImGui::InputInt("Size", &size);
+			ImGui::InputInt("Platform Indeces", &platform);
+			ImGui::SameLine();
+			help_marker("Either 1 (1x1) or 2 (2x2)");
+			ImGui::Checkbox("Foreground?", &foreground);
+			ImGui::InputInt("Type", &type);
+			ImGui::SameLine();
+			help_marker("0 : vine, 1 : grass");
+
+			ImGui::NewLine();
+
+			if (ImGui::Button("Create")) {
+				// switch to entity tool, and store the specified portal for placement
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::INTERACTIVE_SCENERY;
+				current_tool.get()->current_interactive_scenery = InteractiveScenery(length, size, foreground, type, platform != 0, {platform});
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::EndPopup();
+		}
+		if (ImGui::Button("Scenery")) { ImGui::OpenPopup("Scenery Specifications"); }
+		if (ImGui::BeginPopupModal("Scenery Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+			static int style{};
+			static int layer{};
+			static int variant{};
+
+			ImGui::SameLine();
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Style", &style);
+			ImGui::InputInt("Layer", &layer);
+			ImGui::InputInt("Variant", &variant);
+
+			ImGui::NewLine();
+
+			if (ImGui::Button("Create")) {
+				// switch to entity tool, and store the specified portal for placement
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::SCENERY;
+				current_tool.get()->current_scenery = Scenery(style, layer, variant);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::EndPopup();
+		}
 		if (ImGui::Button("Switch")) { ImGui::OpenPopup("Switch Specifications"); }
 		if (ImGui::BeginPopupModal("Switch Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 
@@ -1238,12 +1331,12 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::Text("Set Scene Style: ");
 		int style_current = static_cast<int>(map.style);
 		if (ImGui::Combo("##scenestyle", &style_current, styles, IM_ARRAYSIZE(styles))) {
-			map.style = static_cast<STYLE>(style_current);
+			map.style = static_cast<Style>(style_current);
 			setTilesetTexture(tileset_textures.at(style_current));
 		}
 		ImGui::Text("Set Scene Background: ");
 		int bg_current = static_cast<int>(map.bg);
-		if (ImGui::Combo("##scenebg", &bg_current, bgs, IM_ARRAYSIZE(bgs))) { map.bg = static_cast<BACKDROP>(bg_current); }
+		if (ImGui::Combo("##scenebg", &bg_current, bgs, IM_ARRAYSIZE(bgs))) { map.bg = static_cast<Backdrop>(bg_current); }
 		if (ImGui::Button("Clear Layer")) {
 			map.map_states.push_back(map.map_states.back());
 			map.map_states.back().layers.at(active_layer).clear();

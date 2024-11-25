@@ -50,8 +50,8 @@ void Canvas::load(const std::string& path) {
         for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
 
         auto style_value = meta["style"].as<int>();
-        style = static_cast<STYLE>(meta["style"].as<int>());
-		bg = static_cast<BACKDROP>(meta["background"].as<int>());
+        style = static_cast<Style>(meta["style"].as<int>());
+		bg = static_cast<Backdrop>(meta["background"].as<int>());
 		music = meta["music"].as_string();
 		styles.breakable = meta["styles"]["breakables"].as<int>();
 		cutscene.flag = static_cast<bool>(meta["cutscene_on_entry"]["flag"].as_bool());
@@ -120,7 +120,40 @@ void Canvas::load(const std::string& path) {
             animators.push_back(a);
 		}
 		for (auto& entry : data.meta["beds"].array_view()) { beds.push_back(Bed{{entry["position"][0].as<uint32_t>(), entry["position"][1].as<uint32_t>()}}); }
-		for (auto& entry : data.meta["switch_blocks"].array_view()) {
+		for (auto& entry : data.meta["scenery"]["vines"].array_view()) {
+			InteractiveScenery i{};
+			i.position.x = entry["position"][0].as<int>();
+			i.position.y = entry["position"][1].as<int>();
+			i.length = entry["length"].as<int>();
+			i.size = entry["size"].as<int>();
+			i.foreground = static_cast<bool>(entry["foreground"].as_bool());
+			if (entry["platform"]) {
+				for (auto& index : entry["platform"]["link_indeces"].array_view()) { i.link_indeces.push_back(index.as<int>()); }
+				i.has_platform = !i.link_indeces.empty();
+			}
+			i.type = 0;
+			interactive_scenery.push_back(i);
+		}
+		for (auto& entry : data.meta["scenery"]["basic"].array_view()) {
+			Scenery s{};
+			s.position.x = entry["position"][0].as<int>();
+			s.position.y = entry["position"][1].as<int>();
+			s.style = entry["style"].as<int>();
+			s.variant = entry["variant"].as<int>();
+			s.layer = entry["layer"].as<int>();
+			scenery.push_back(s);
+		}
+		for (auto& entry : data.meta["scenery"]["grass"].array_view()) {
+			InteractiveScenery i{};
+			i.position.x = entry["position"][0].as<int>();
+			i.position.y = entry["position"][1].as<int>();
+			i.length = entry["length"].as<int>();
+			i.size = entry["size"].as<int>();
+			i.foreground = static_cast<bool>(entry["foreground"].as_bool());
+			i.type = 1;
+			interactive_scenery.push_back(i);
+		}
+        for (auto& entry : data.meta["switch_blocks"].array_view()) {
 			SwitchBlock s{};
 			s.position.x = entry["position"][0].as<int>();
 			s.position.y = entry["position"][1].as<int>();
@@ -306,6 +339,30 @@ bool Canvas::save(const std::string& path) {
 		++ctr;
 	}
 	ctr = 0;
+	for (auto& s : scenery) {
+		data.meta["scenery"]["basic"].push_back(wipe);
+		data.meta["scenery"]["basic"][ctr]["position"][0] = s.position.x;
+		data.meta["scenery"]["basic"][ctr]["position"][1] = s.position.y;
+		data.meta["scenery"]["basic"][ctr]["style"] = s.style;
+		data.meta["scenery"]["basic"][ctr]["variant"] = s.variant;
+		data.meta["scenery"]["basic"][ctr]["layer"] = s.layer;
+		++ctr;
+	}
+	ctr = 0;
+	for (auto& scenery : interactive_scenery) {
+		std::string key = scenery.type == 0 ? "vines" : "grass";
+		data.meta["scenery"][key].push_back(wipe);
+		data.meta["scenery"][key][ctr]["position"][0] = scenery.position.x;
+		data.meta["scenery"][key][ctr]["position"][1] = scenery.position.y;
+		data.meta["scenery"][key][ctr]["length"] = scenery.length;
+		data.meta["scenery"][key][ctr]["size"] = scenery.size;
+		data.meta["scenery"][key][ctr]["foreground"] = dj::Boolean{scenery.foreground};
+		if (scenery.has_platform) {
+			for (auto& index : scenery.link_indeces) { data.meta["scenery"][key][ctr]["platform"]["link_indeces"].push_back(index); }
+		}
+		++ctr;
+	}
+	ctr = 0;
 	for (auto& destroyer : destroyers) {
 		data.meta["destroyers"].push_back(wipe);
 		data.meta["destroyers"][ctr]["quest_id"] = destroyer.id;
@@ -410,6 +467,7 @@ void Canvas::clear() {
         switch_blocks.clear();
 		switch_buttons.clear();
 		beds.clear();
+		interactive_scenery.clear();
 		destroyers.clear();
 		save_point.placed = false;
     }
