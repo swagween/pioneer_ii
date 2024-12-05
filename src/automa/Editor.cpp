@@ -3,6 +3,7 @@
 #include "../../demo/src/setup/Application.hpp"
 #include "../util/Lookup.hpp"
 #include "Editor.hpp"
+#include "../gui/Console.hpp"
 #include <filesystem>
 
 namespace pi {
@@ -86,6 +87,7 @@ void Editor::init(std::string const& load_path) {
 	folderpath = load_path + "../../../level/";
 	filepath = load_path;
 	map.load(load_path);
+	window->get().setMouseCursorVisible(false);
 
 	room = {};
 	demopath = {};
@@ -192,29 +194,47 @@ void Editor::setTilesetTexture(sf::Texture& new_tex) { sprites.tileset.setTextur
 
 void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 
-	window_hovered = ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
-
 	current_tool.get()->ready = !window_hovered;
 	secondary_tool.get()->ready = !window_hovered;
 	if (event.type == sf::Event::EventType::KeyPressed) {
 		current_tool.get()->ready = false;
 		secondary_tool.get()->ready = false;
-		if (event.key.code == sf::Keyboard::C) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
-		if (event.key.code == sf::Keyboard::V) {
-			current_tool.get()->handle_keyboard_events(map, event.key.code);
-			map.save_state(*current_tool);
+		if (control_pressed()) {
+			if (event.key.code == sf::Keyboard::X) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
+			if (event.key.code == sf::Keyboard::C) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
+			if (event.key.code == sf::Keyboard::V) {
+				current_tool.get()->handle_keyboard_events(map, event.key.code);
+				map.save_state(*current_tool);
+			}
 		}
 		if (event.key.code == sf::Keyboard::Q) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
-		if (event.key.code == sf::Keyboard::LControl) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
+		if (event.key.code == sf::Keyboard::LShift || event.key.code == sf::Keyboard::RShift) { pressed_keys.set(PressedKeys::shift); }
+		if (event.key.code == sf::Keyboard::LControl || event.key.code == sf::Keyboard::RControl) {
+			current_tool.get()->handle_keyboard_events(map, event.key.code);
+			pressed_keys.set(PressedKeys::control);
+		}
+		if (event.key.code == sf::Keyboard::LAlt) {
+			if (current_tool->type == ToolType::brush) { current_tool = std::move(std::make_unique<Eyedropper>()); }
+		}
+		if (event.key.code == sf::Keyboard::Z) {
+			if (control_pressed() && !shift_pressed()) { map.undo(); }
+			if (control_pressed() && shift_pressed()) { map.redo(); }
+		}
 	}
 	if (event.type == sf::Event::EventType::KeyReleased) {
 		current_tool.get()->ready = false;
 		secondary_tool.get()->ready = false;
+		if (event.key.code == sf::Keyboard::LShift || event.key.code == sf::Keyboard::RShift) { pressed_keys.reset(PressedKeys::shift); }
+		if (event.key.code == sf::Keyboard::LControl || event.key.code == sf::Keyboard::RControl) { pressed_keys.reset(PressedKeys::control); }
+		if (event.key.code == sf::Keyboard::LAlt) {
+			if (current_tool->type == ToolType::eyedropper) { current_tool = std::move(std::make_unique<Brush>()); }
+		}
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
 		map.save_state(*current_tool);
 		current_tool.get()->handle_events(map, event);
 		current_tool.get()->active = true;
+		if (current_tool->type == ToolType::eyedropper) { selected_block = current_tool->tile; }
 	} else {
 		current_tool.get()->active = false;
 		current_tool.get()->just_clicked = true;
@@ -237,6 +257,8 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 }
 
 void Editor::logic() {
+
+	window_hovered = ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
 	map.active_layer = active_layer;
 	player_start = map.player_start;
 	if (current_tool->trigger_switch) { current_tool = std::move(std::make_unique<Hand>()); }
@@ -403,7 +425,7 @@ void Editor::render(sf::RenderWindow& win) {
 	float tool_x = current_tool.get()->position.x + camera.position.x;
 	float tool_y = current_tool.get()->position.y + camera.position.y;
 	if (!window_hovered) {
-		sprites.tool.setTextureRect({{(int)current_tool.get()->type * 32, 0}, {32, 32}});
+		sprites.tool.setTextureRect({{static_cast<int>(current_tool.get()->type) * 32, 0}, {32, 32}});
 		sprites.tool.setPosition(tool_x, tool_y);
 		win.draw(sprites.tool);
 	}
@@ -423,8 +445,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	if (current_tool.get()->type == ToolType::select && !window_hovered) {
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-		ImGui::Text("Press `C` to copy selection.");
-		ImGui::Text("Press `V` to paste selection.");
+		ImGui::Text("Press `Ctrl+X` to cut selection.");
+		ImGui::Text("Press `Ctrl+C` to copy selection.");
+		ImGui::Text("Press `Ctrl+V` to paste selection.");
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
@@ -457,81 +480,17 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 	// Main Menu
 	if (ImGui::BeginMainMenuBar()) {
+		bool new_popup{};
+		bool save_popup{};
+		bool save_as_popup{};
 		if (ImGui::BeginMenu("File")) {
-			if (ImGui::Button("New")) { ImGui::OpenPopup("New File"); }
+			if (ImGui::MenuItem("New", NULL, &new_popup)) {}
+
 			// Always center this window when appearing
 			ImVec2 center(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
 			ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-			if (ImGui::BeginPopupModal("New File", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-				ImGui::Text("Please enter a new room name.");
-				ImGui::Text("Convention is all caps, snake-case, and of the format `Style_NAME_INDEX`.");
-				ImGui::Separator();
-				ImGui::NewLine();
-				static char buffer[128] = "";
-
-				ImGui::InputTextWithHint("Folder Name", "DOJO_CORRIDOR_01", buffer, IM_ARRAYSIZE(buffer));
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				ImGui::Text("Please specify the dimensions of the level in chunks (16x16 tiles). Please note, these dimensions cannot be changed once the level is created.");
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				static int width{0};
-				static int height{0};
-				static int room_id{0};
-				static int metagrid_x{};
-				static int metagrid_y{};
-
-				ImGui::InputInt("Width", &width);
-				ImGui::NewLine();
-
-				ImGui::InputInt("Height", &height);
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				ImGui::InputInt("Room ID", &room_id);
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				ImGui::Text("Metagrid Position");
-				ImGui::InputInt("X", &metagrid_x);
-				ImGui::SameLine();
-
-				ImGui::InputInt("Y", &metagrid_y);
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
-				ImGui::SameLine();
-				if (ImGui::Button("Create")) {
-
-					// set new bg to current one to make it easier to design multiple rooms
-					static int style_current = static_cast<int>(map.style);
-					static int bg_current = static_cast<int>(map.bg);
-
-					map = Canvas({static_cast<uint32_t>(width * CHUNK_SIZE), static_cast<uint32_t>(height * CHUNK_SIZE)});
-					map.style = static_cast<Style>(style_current);
-					setTilesetTexture(tileset_textures.at(style_current));
-					map.bg = static_cast<Backdrop>(bg_current);
-					map.metagrid_coordinates = {metagrid_x, metagrid_y};
-					filepath = folderpath + buffer;
-					map.save(filepath);
-					map.load(filepath);
-					camera.set_position({});
-					map.room_id = room_id;
-					std::filesystem::path room_dir = filepath;
-					room = room_dir.filename().string();
-					room_id = map.room_id;
-					//demopath = "../../../demo/resources/level/" + room;
-					ImGui::CloseCurrentPopup();
-				}
-				ImGui::EndPopup();
-			}
-
-			if (ImGui::Button("Open")) {
-
+			ImGui::Separator();
+			if (ImGui::MenuItem("Open")) {
 				char filename[MAX_PATH];
 				OPENFILENAME ofn;
 				ZeroMemory(&filename, sizeof(filename));
@@ -577,56 +536,116 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					}
 				}
 			}
-
-			if (ImGui::Button("Save")) {
-				map.save(filepath);
-				map.save(demopath);
-				ImGui::OpenPopup("Notice");
-			}
-			if (ImGui::Button("Save As")) { ImGui::OpenPopup("Save As"); }
-			if (ImGui::BeginPopupModal("Save As", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-				ImGui::Text("Please enter a unique room name.");
-				ImGui::Text("Convention is all caps, snake-case, and of the format `Style_NAME_INDEX`.");
-				ImGui::Separator();
-				ImGui::NewLine();
-				static char buffer[128] = "";
-
-				ImGui::InputTextWithHint("Folder Name", "DOJO_CORRIDOR_01", buffer, IM_ARRAYSIZE(buffer));
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
-				ImGui::SameLine();
-				if (ImGui::Button("Create")) {
-					std::string savepath = folderpath + buffer;
-					map.save(savepath);
-					map.save(demopath);
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::TextUnformatted(buffer);
-
-				ImGui::EndPopup();
-			}
-			if (ImGui::BeginPopupModal("Notice", NULL, ImGuiWindowFlags_Modal)) {
-				ImGui::Text("File saved successfully.");
-				if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
-				ImGui::EndPopup();
-			}
-			if (ImGui::BeginPopupModal("Notice: Error", NULL, ImGuiWindowFlags_Modal)) {
-				ImGui::Text("ERROR: File failed to save.");
-				if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
-				ImGui::EndPopup();
-			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Save", NULL, &save_popup)) {}
+			if (ImGui::MenuItem("Save As", NULL, &save_as_popup)) {}
 			ImGui::EndMenu();
+		}
+		if (save_popup) {
+			map.save(filepath);
+			map.save(demopath);
+			console.add_log("File saved successfully.\n");
+		}
+		if (new_popup) { ImGui::OpenPopup("New File"); }
+		if (ImGui::BeginPopupModal("New File", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+			ImGui::Text("Please enter a new room name.");
+			ImGui::Text("Convention is all caps, snake-case, and of the format `REGION_ROOM_NUMBER`.");
+			ImGui::Separator();
+			ImGui::NewLine();
+			static char buffer[128] = "";
+
+			ImGui::InputTextWithHint("Folder Name", "DOJO_CORRIDOR_01", buffer, IM_ARRAYSIZE(buffer));
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::Text("Please specify the dimensions of the level in chunks (16x16 tiles). Please note, these dimensions cannot be changed once the level is created.");
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			static int width{0};
+			static int height{0};
+			static int room_id{0};
+			static int metagrid_x{};
+			static int metagrid_y{};
+
+			ImGui::InputInt("Width", &width);
+			ImGui::NewLine();
+
+			ImGui::InputInt("Height", &height);
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::InputInt("Room ID", &room_id);
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			ImGui::Text("Metagrid Position");
+			ImGui::InputInt("X", &metagrid_x);
+			ImGui::SameLine();
+
+			ImGui::InputInt("Y", &metagrid_y);
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::SameLine();
+			if (ImGui::Button("Create")) {
+
+				// set new bg to current one to make it easier to design multiple rooms
+				static int style_current = static_cast<int>(map.style);
+				static int bg_current = static_cast<int>(map.bg);
+
+				map = Canvas({static_cast<uint32_t>(width * CHUNK_SIZE), static_cast<uint32_t>(height * CHUNK_SIZE)});
+				map.style = static_cast<Style>(style_current);
+				setTilesetTexture(tileset_textures.at(style_current));
+				map.bg = static_cast<Backdrop>(bg_current);
+				map.metagrid_coordinates = {metagrid_x, metagrid_y};
+				filepath = folderpath + buffer;
+				map.save(filepath);
+				map.load(filepath);
+				camera.set_position({});
+				map.room_id = room_id;
+				std::filesystem::path room_dir = filepath;
+				room = room_dir.filename().string();
+				room_id = map.room_id;
+				// demopath = "../../../demo/resources/level/" + room;
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndPopup();
+		}
+		if (save_as_popup) { ImGui::OpenPopup("Save As"); }
+		if (ImGui::BeginPopupModal("Save As", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+			ImGui::Text("Please enter a unique room name.");
+			ImGui::Text("Convention is all caps, snake-case, and of the format `Style_NAME_INDEX`.");
+			ImGui::Separator();
+			ImGui::NewLine();
+			static char buffer[128] = "";
+
+			ImGui::InputTextWithHint("Folder Name", "DOJO_CORRIDOR_01", buffer, IM_ARRAYSIZE(buffer));
+			ImGui::Separator();
+			ImGui::NewLine();
+
+			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+			ImGui::SameLine();
+			if (ImGui::Button("Create")) {
+				std::string savepath = folderpath + buffer;
+				map.save(savepath);
+				map.save(demopath);
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::TextUnformatted(buffer);
+
+			ImGui::EndPopup();
 		}
 		// none of the below have been implemented and will likely be removed
 		if (ImGui::BeginMenu("Edit")) {
-			if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
-			ImGui::Separator();
-			if (ImGui::MenuItem("Cut", "CTRL+X")) {}
-			if (ImGui::MenuItem("Copy", "CTRL+C")) {}
-			if (ImGui::MenuItem("Paste", "CTRL+V")) {}
+			if (ImGui::MenuItem("Undo", "CTRL+Z")) { map.undo(); }
+			if (ImGui::MenuItem("Redo", "CTRL+SHIFT+Z")) { map.redo(); }
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Help")) {
+			ImGui::Text("Eyedropper Tool: Alt");
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -966,7 +985,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			static int y{};
 			static int extent{};
 			static int style{};
-			static char typebuffer[128] = "";
+			std::string type{};
 			static float start{};
 
 			ImGui::InputInt("X Dimensions", &x);
@@ -986,8 +1005,13 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			help_marker("Must not exceed number of styles.");
 			ImGui::Separator();
 			ImGui::NewLine();
-
-			ImGui::InputTextWithHint("Type", "Must exist in platforms.json", typebuffer, IM_ARRAYSIZE(typebuffer));
+			if (ImGui::BeginMenu("Platform Type")) {
+				if (ImGui::MenuItem("Up-Down")) { type = "standard_up_down"; }
+				if (ImGui::MenuItem("Side-to-Side")) { type = "standard_side_to_side"; }
+				if (ImGui::MenuItem("Square")) { type = "standard_square"; }
+				if (ImGui::MenuItem("Activated Up-Down")) { type = "standard_activated_up_down"; }
+				if (ImGui::MenuItem("Activated Side-to-Side")) { type = "standard_activated_side_to_side"; }
+			}
 			ImGui::Separator();
 			ImGui::NewLine();
 
@@ -1001,7 +1025,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				// switch to entity tool, and store the specified portal for placement
 				current_tool = std::move(std::make_unique<EntityPlacer>());
 				current_tool.get()->ent_type = ENTITY_TYPE::PLATFORM;
-				current_tool.get()->current_platform = Platform(sf::Vector2<uint32_t>{0, 0}, sf::Vector2<uint32_t>{(uint32_t)x, (uint32_t)y}, extent, style, typebuffer, start);
+				current_tool.get()->current_platform = Platform(sf::Vector2<uint32_t>{0, 0}, sf::Vector2<uint32_t>{(uint32_t)x, (uint32_t)y}, extent, style, type, start);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -1023,7 +1047,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			ImGui::InputInt("Type", &type);
 			ImGui::SameLine();
-			help_marker("0 for gun, 1 for item, 2 for chest");
+			help_marker("1 for gun, 2 for orbs, 3 for item");
 			ImGui::Separator();
 			ImGui::NewLine();
 
@@ -1255,33 +1279,37 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::Separator();
 		ImGui::Text("Brush Size");
 		ImGui::SliderInt("##brushsz", &current_tool.get()->size, 1, 16);
-
+		if (current_tool->type == ToolType::select) {
+			if (ImGui::Checkbox("Include All Layers in Selection", &current_tool->pervasive)) { current_tool->clear(); }
+		} else {
+			ImGui::NewLine();
+		}
 		ImGui::Separator();
 		ImGui::Text("Current Block:");
 		sprites.tileset.setTextureRect(sf::IntRect({get_tile_coord(selected_block), {32, 32}}));
 		ImGui::Image(sprites.tileset);
-
-		ImGui::Text("Current Entity:");
-		switch (current_tool.get()->ent_type) {
-		case ENTITY_TYPE::PORTAL: ImGui::Text("Portal"); break;
-		case ENTITY_TYPE::INSPECTABLE: ImGui::Text("Inspectable"); break;
-		case ENTITY_TYPE::ANIMATOR: ImGui::Text("Animator"); break;
-		case ENTITY_TYPE::CRITTER: ImGui::Text("Critter"); break;
-		case ENTITY_TYPE::PLAYER_PLACER: ImGui::Text("Player Placer"); break;
-
-		case ENTITY_TYPE::SAVE_POINT: ImGui::Text("Save Point"); break;
-		case ENTITY_TYPE::CHEST: ImGui::Text("Chest"); break;
-		case ENTITY_TYPE::ENTITY_EDITOR: ImGui::Text("Entity Editor"); break;
+		if (current_tool->type == ToolType::entity_placer) {
+			ImGui::Text("Current Entity:");
+			switch (current_tool.get()->ent_type) {
+			case ENTITY_TYPE::PORTAL: ImGui::Text("Portal"); break;
+			case ENTITY_TYPE::INSPECTABLE: ImGui::Text("Inspectable"); break;
+			case ENTITY_TYPE::ANIMATOR: ImGui::Text("Animator"); break;
+			case ENTITY_TYPE::CRITTER: ImGui::Text("Critter"); break;
+			case ENTITY_TYPE::PLAYER_PLACER: ImGui::Text("Player Placer"); break;
+			case ENTITY_TYPE::SAVE_POINT: ImGui::Text("Save Point"); break;
+			case ENTITY_TYPE::CHEST: ImGui::Text("Chest"); break;
+			case ENTITY_TYPE::ENTITY_EDITOR: ImGui::Text("Entity Editor"); break;
+			}
+		}
+		if (current_tool.get()->in_bounds(map.dimensions)) {
+			ImGui::Text("Tool Position : (%i,%i)", current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y);
+		} else {
+			ImGui::Text("Tool Position : ---");
 		}
 
 		ImGui::Separator();
-
 		ImGui::Text("Canvas Settings");
 		ImGui::Separator();
-		ImGui::NewLine();
-
-		ImGui::Checkbox("Show Grid", &show_grid);
-		ImGui::Checkbox("Show All Layers", &show_all_layers);
 
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
 		ImGui::BeginChild("ChildS", ImVec2(320, 172), true, window_flags);
@@ -1294,29 +1322,28 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::EndChild();
 		ImGui::PopStyleVar();
 
+		ImGui::Separator();
 		ImGui::Text("General Settings");
 		ImGui::Separator();
-		ImGui::NewLine();
 
-		ImGui::Checkbox("Show Overlay", &show_overlay);
+		ImGui::Checkbox("Debug Overlay", &show_overlay);
+		ImGui::Checkbox("Show Grid", &show_grid);
+		ImGui::Checkbox("Show All Layers", &show_all_layers);
 
 		ImGui::NewLine();
 		ImGui::Separator();
 		ImGui::Text("Actions");
 		ImGui::Separator();
-		ImGui::NewLine();
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.5, 0.6f, 0.5f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.5, 0.7f, 0.6f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.5, 0.8f, 0.7f));
 
-		ImGui::Text("Demo Room: %s", room.c_str());
 		if (ImGui::Button("Launch Demo")) {
 			trigger_demo = true;
 			map.save(filepath);
 			map.save(demopath);
 		};
 		ImGui::PopStyleColor(3);
-		ImGui::NewLine();
 		if (ImGui::Button("Export Layer to .png")) {
 			screencap.create(win.getSize().x, win.getSize().y);
 			export_layer_texture();
@@ -1324,17 +1351,14 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		if (ImGui::Button("Undo")) { map.undo(); }
 		ImGui::SameLine();
 		if (ImGui::Button("Redo")) { map.redo(); }
-		ImGui::Text("Map States Size: %i", map.map_states.size());
-		ImGui::Text("Redo Queue Size: %i", map.redo_states.size());
-		ImGui::NewLine();
 
-		ImGui::Text("Set Scene Style: ");
+		ImGui::Text("Scene Style: ");
 		int style_current = static_cast<int>(map.style);
 		if (ImGui::Combo("##scenestyle", &style_current, styles, IM_ARRAYSIZE(styles))) {
 			map.style = static_cast<Style>(style_current);
 			setTilesetTexture(tileset_textures.at(style_current));
 		}
-		ImGui::Text("Set Scene Background: ");
+		ImGui::Text("Scene Background: ");
 		int bg_current = static_cast<int>(map.bg);
 		if (ImGui::Combo("##scenebg", &bg_current, bgs, IM_ARRAYSIZE(bgs))) { map.bg = static_cast<Backdrop>(bg_current); }
 		if (ImGui::Button("Clear Layer")) {
@@ -1358,10 +1382,12 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			map.switch_buttons.clear();
 			map.save_point.placed = false;
 		}
+		ImGui::Separator();
 		prev_window_size = ImGui::GetWindowSize();
 		prev_window_pos = ImGui::GetWindowPos();
 		ImGui::End();
 	}
+	console.write_console(prev_window_size, prev_window_pos);
 }
 
 void Editor::help_marker(char const* desc) {
@@ -1395,7 +1421,10 @@ void Editor::export_layer_texture() {
 	std::string filedate = std::asctime(std::localtime(&now));
 	std::erase_if(filedate, [](auto const& c) { return c == ':' || isspace(c); });
 	std::string filename = "screenshot_" + filedate + ".png";
-	if (screencap.getTexture().copyToImage().saveToFile(filename)) { std::cout << "screenshot saved to " << filename << std::endl; }
+	if (screencap.getTexture().copyToImage().saveToFile(filename)) {
+		std::string log = "Screenshot saved to " + filename + "\n";
+		console.add_log(log.data());
+	}
 }
 
 sf::Vector2<int> Editor::get_tile_coord(int lookup) {

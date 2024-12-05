@@ -14,8 +14,10 @@
 #include <imgui.h>
 #include "../canvas/Canvas.hpp"
 #include "../util/Camera.hpp"
+#include "../util/BitFlags.hpp"
 #include "../tool/Tool.hpp"
 #include "../setup/WindowManager.hpp"
+#include "../gui/Console.hpp"
 #include <SFML/OpenGL.hpp>
 #include <imgui-SFML.h>
 #include <sstream>
@@ -25,6 +27,8 @@
 namespace pi {
 
 class ResourceFinder;
+
+enum class PressedKeys { control, shift };
 
 inline char const* styles[static_cast<size_t>(Style::END)];
 inline char const* bgs[static_cast<size_t>(Backdrop::END)];
@@ -46,6 +50,8 @@ class Editor {
 	void help_marker(char const* desc);
 	void export_layer_texture();
 	void launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position);
+	[[nodiscard]] auto control_pressed() const -> bool { return pressed_keys.test(PressedKeys::control); }
+	[[nodiscard]] auto shift_pressed() const -> bool { return pressed_keys.test(PressedKeys::shift); }
 	sf::Vector2<int> get_tile_coord(int lookup);
 
 	Canvas map{};
@@ -121,7 +127,9 @@ class Editor {
 	Camera camera = Camera();
 	std::unique_ptr<Tool> current_tool = std::make_unique<Hand>();
 	std::unique_ptr<Tool> secondary_tool = std::make_unique<Hand>();
+	util::BitFlags<PressedKeys> pressed_keys{};
 	char** args{};
+	Console console{};
 };
 
 } // namespace pi

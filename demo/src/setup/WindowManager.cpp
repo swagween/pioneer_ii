@@ -15,7 +15,6 @@ void WindowManager::set() {
 	game_port = is_fullscreen ? sf::FloatRect{offset.x, offset.y, resize_ratio.x, resize_ratio.y} : sf::FloatRect(0.f, 0.f, 1.f, 1.f);
 	game_view.setViewport(game_port);
 	window.setView(game_view);
-	if (is_fullscreen) { window.setMouseCursorVisible(false); }
 
 	screencap.create(window.getSize().x, window.getSize().y);
 	window.setVerticalSyncEnabled(true);

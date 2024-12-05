@@ -30,51 +30,6 @@
     "basic": [
       {
         "position": [
-          0,
-          0
-        ],
-        "style": 0,
-        "variant": 3,
-        "layer": 0
-      },
-      {
-        "position": [
-          5,
-          9
-        ],
-        "style": 0,
-        "variant": 0,
-        "layer": 0
-      },
-      {
-        "position": [
-          6,
-          8
-        ],
-        "style": 0,
-        "variant": 3,
-        "layer": 0
-      },
-      {
-        "position": [
-          11,
-          7
-        ],
-        "style": 0,
-        "variant": 2,
-        "layer": 0
-      },
-      {
-        "position": [
-          9,
-          7
-        ],
-        "style": 0,
-        "variant": 2,
-        "layer": 0
-      },
-      {
-        "position": [
           5,
           9
         ],

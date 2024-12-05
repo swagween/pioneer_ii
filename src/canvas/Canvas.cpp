@@ -497,8 +497,9 @@ void Canvas::redo() {
     }
 }
 
-void Canvas::clear_redo_states() {
-    redo_states.clear(); }
+void Canvas::clear_redo_states() { redo_states.clear(); }
+
+Map& Canvas::get_layers() { return map_states.back(); }
 
 bool Canvas::has_switch_block_at(sf::Vector2<uint32_t> pos) const {
 	for (auto& s : switch_blocks) {
@@ -512,6 +513,8 @@ void Canvas::edit_tile_at(int i, int j, int new_val, int layer_index) {
     if((i + j * dimensions.x) >= map_states.back().layers.at(layer_index).grid.cells.size()) { return; };
     map_states.back().layers.at(layer_index).grid.cells.at(i + j * dimensions.x).value = new_val;
 }
+
+void Canvas::erase_at(int i, int j, int layer_index) { edit_tile_at(i, j, 0, layer_index); }
 
 int Canvas::tile_val_at(int i, int j, int layer) {
     return map_states.back().layers.at(layer).grid.cells.at(i + j * dimensions.x).value;

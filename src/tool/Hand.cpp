@@ -40,4 +40,6 @@ void Hand::store_tile(int index) {
 
 }
 
+void Hand::clear() {}
+
 }

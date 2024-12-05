@@ -13,7 +13,7 @@ void Erase::handle_events(Canvas& canvas, sf::Event& e) {
     if(in_bounds(canvas.dimensions) && ready) {
         for(int i = 0; i < size; i++) {
             for(int j = 0; j < size; j++) {
-                canvas.edit_tile_at(scaled_position.x - i, scaled_position.y - j, 0, canvas.active_layer);
+                canvas.erase_at(scaled_position.x - i, scaled_position.y - j, canvas.active_layer);
             }
         }
     }
@@ -33,7 +33,8 @@ void Erase::render(sf::RenderWindow& win, sf::Vector2<float> offset) {
 }
 
 void Erase::store_tile(int index) {
-    tile = index;
-}
+    tile = index; }
+
+void Erase::clear() {}
 
 }

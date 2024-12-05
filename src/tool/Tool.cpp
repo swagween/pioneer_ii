@@ -14,9 +14,9 @@ bool Tool::in_bounds(sf::Vector2<uint32_t>& bounds) const { return scaled_positi
 bool Tool::is_paintable() const { return type == ToolType::brush || type == ToolType::fill; }
 
 void Tool::update() {
-	uint32_t posx = (uint32_t)position.x / CELL_SIZE;
-	uint32_t posy = (uint32_t)position.y / CELL_SIZE;
-	scaled_position = sf::Vector2<uint32_t>{posx, posy};
+	auto posx = static_cast<uint32_t>(position.x / CELL_SIZE);
+	auto posy = static_cast<uint32_t>(position.y / CELL_SIZE);
+	scaled_position = {posx, posy};
 }
 
 } // namespace pi

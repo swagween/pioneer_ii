@@ -35,4 +35,6 @@ void Fill::fill_section(uint8_t const prev_val, uint8_t const new_val, uint32_t 
 
 void Fill::store_tile(int index) { tile = index; }
 
+void Fill::clear() {}
+
 } // namespace pi

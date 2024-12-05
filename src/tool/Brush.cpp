@@ -26,4 +26,6 @@ void Brush::render(sf::RenderWindow& win, sf::Vector2<float> offset) {}
 
 void Brush::store_tile(int index) { tile = index; }
 
+void Brush::clear() {}
+
 } // namespace pi

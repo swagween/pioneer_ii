@@ -2,13 +2,14 @@
 #pragma once
 
 #include <stdio.h>
+#include <optional>
 #include "../canvas/Canvas.hpp"
 #include "../canvas/Clipboard.hpp"
+#include "../util/BitFlags.hpp"
 
 namespace pi {
 
-enum class ToolType { brush, fill, select, erase, hand, entity_placer };
-
+enum class ToolType { brush, fill, select, erase, hand, entity_placer, eyedropper };
 enum class ENTITY_TYPE { PORTAL, INSPECTABLE, CRITTER, CHEST, ANIMATOR, ENTITY_EDITOR, PLAYER_PLACER, PLATFORM, SAVE_POINT, SWITCH_BUTTON, SWITCH_BLOCK, BED, INTERACTIVE_SCENERY, SCENERY };
 
 class Tool {
@@ -19,10 +20,12 @@ class Tool {
 	virtual void update() = 0;
 	virtual void render(sf::RenderWindow& win, sf::Vector2<float> offset) = 0;
 	virtual void store_tile(int index) = 0;
+	virtual void clear() = 0;
 
 	bool in_bounds(sf::Vector2<uint32_t>& bounds) const;
 	bool is_paintable() const;
 
+	bool pervasive{};
 	bool active{};
 	bool ready{};
 	bool just_clicked = true;
@@ -66,6 +69,7 @@ class Hand : public Tool {
 	void update();
 	void render(sf::RenderWindow& win, sf::Vector2<float> offset);
 	void store_tile(int index);
+	void clear();
 };
 
 class Brush : public Tool {
@@ -76,6 +80,7 @@ class Brush : public Tool {
 	void update();
 	void render(sf::RenderWindow& win, sf::Vector2<float> offset);
 	void store_tile(int index);
+	void clear();
 
   private:
 };
@@ -88,6 +93,7 @@ class Erase : public Tool {
 	void update();
 	void render(sf::RenderWindow& win, sf::Vector2<float> offset);
 	void store_tile(int index);
+	void clear();
 
   private:
 };
@@ -100,6 +106,7 @@ class Fill : public Tool {
 	void update();
 	void render(sf::RenderWindow& win, sf::Vector2<float> offset);
 	void store_tile(int index);
+	void clear();
 
 	void fill_section(uint8_t const prev_val, uint8_t const new_val, uint32_t i, uint32_t j, Canvas& canvas);
 };
@@ -116,6 +123,7 @@ class EntityPlacer : public Tool {
 	void store_critter(CRITTER_TYPE type);
 	void store_animator(sf::Vector2<uint32_t> dim, int id, bool automatic, bool foreground);
 	void store_tile(int index);
+	void clear();
 };
 
 struct SelectBox {
@@ -138,12 +146,25 @@ class SelectionRectangular : public Tool {
 	void update();
 	void render(sf::RenderWindow& win, sf::Vector2<float> offset);
 	void store_tile(int index);
+	void cut(Canvas& canvas);
 	void copy(Canvas& canvas);
 	void paste(Canvas& canvas);
+	void clear();
 
   private:
 	SelectBox selection{};
-	Clipboard clipboard{};
+	std::optional<Clipboard> clipboard{};
+};
+
+class Eyedropper : public Tool {
+  public:
+	Eyedropper() { type = ToolType::eyedropper; }
+	void handle_events(Canvas& canvas, sf::Event& e);
+	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
+	void update();
+	void render(sf::RenderWindow& win, sf::Vector2<float> offset);
+	void store_tile(int index);
+	void clear();
 };
 
 } // namespace pi

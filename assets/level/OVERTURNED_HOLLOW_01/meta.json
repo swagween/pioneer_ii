@@ -71,6 +71,53 @@
     }
   ],
   "scenery": {
+    "basic": [
+      {
+        "position": [
+          5,
+          9
+        ],
+        "style": 1,
+        "variant": 3,
+        "layer": 2
+      },
+      {
+        "position": [
+          10,
+          7
+        ],
+        "style": 1,
+        "variant": 3,
+        "layer": 2
+      },
+      {
+        "position": [
+          14,
+          8
+        ],
+        "style": 1,
+        "variant": 3,
+        "layer": 2
+      },
+      {
+        "position": [
+          6,
+          8
+        ],
+        "style": 1,
+        "variant": 1,
+        "layer": 1
+      },
+      {
+        "position": [
+          12,
+          7
+        ],
+        "style": 1,
+        "variant": 1,
+        "layer": 1
+      }
+    ],
     "vines": [
       {
         "position": [

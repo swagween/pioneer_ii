@@ -128,4 +128,6 @@ namespace pi {
 
 	void EntityPlacer::store_tile(int index) {}
 
+	void EntityPlacer::clear() {}
+
 }

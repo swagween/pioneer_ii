@@ -15,18 +15,18 @@
 namespace pi {
 
 class Clipboard {
-    
-public:
-    
-    Clipboard();
-    
-    void write_to_clipboard(std::vector<uint8_t>& selection);
-    void clear_clipboard();
-    uint8_t get_value_at(uint32_t i, uint32_t j);
-    
-    sf::Vector2<uint32_t> dimensions{};
-    std::vector<uint8_t> cell_values;
-    
+
+  public:
+	Clipboard(sf::Vector2<uint32_t> dimensions);
+	void write_to_clipboard(uint8_t value, size_t i, size_t j, size_t layer);
+	void clear_clipboard();
+	uint8_t get_value_at(size_t i, size_t j);
+	uint8_t get_value_at(size_t i, size_t j, size_t layer);
+	[[nodiscard]] auto empty() const -> bool { return cell_values.empty(); }
+
+  private:
+	sf::Vector2<uint32_t> dimensions{};
+	std::vector<std::vector<uint8_t>> cell_values{};
 };
 
-}
+} // namespace pi

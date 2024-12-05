@@ -212,9 +212,11 @@ public:
     void undo();
     void redo();
     void clear_redo_states();
+	Map& get_layers();
 	bool has_switch_block_at(sf::Vector2<uint32_t> pos) const;
 
     void edit_tile_at(int i, int j, int new_val, int layer_index);
+	void erase_at(int i, int j, int layer_index);
     int tile_val_at(int i, int j, int layer);
     TILE_TYPE lookup_type(int idx);
     
