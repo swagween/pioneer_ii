@@ -1,17 +1,17 @@
 {
   "meta": {
-    "room_id": 20094,
+    "room_id": 0,
     "metagrid": [
       0,
       0
     ],
     "dimensions": [
-      48,
-      32
+      32,
+      16
     ],
     "chunk_dimensions": [
-      3,
-      2
+      2,
+      1
     ],
     "style": 1,
     "background": 5,
@@ -26,86 +26,45 @@
       "source": 0
     }
   },
-  "animators": [
+  "inspectables": [
     {
-      "id": 106,
-      "style": 0,
-      "dimensions": [
-        2,
-        2
-      ],
-      "position": [
-        11,
-        19
-      ],
-      "automatic": false,
-      "foreground": false
-    },
-    {
-      "id": 206,
-      "style": 0,
       "dimensions": [
         1,
         1
       ],
       "position": [
-        8,
-        20
+        22,
+        9
       ],
-      "automatic": false,
-      "foreground": false
+      "activate_on_contact": false,
+      "key": "sign",
+      "alternates": 0
     },
     {
-      "id": 109,
-      "style": 0,
       "dimensions": [
-        2,
-        2
+        1,
+        1
       ],
       "position": [
         6,
-        19
+        7
       ],
-      "automatic": false,
-      "foreground": false
+      "activate_on_contact": false,
+      "key": "computer",
+      "alternates": 0
+    },
+    {
+      "dimensions": [
+        1,
+        1
+      ],
+      "position": [
+        11,
+        7
+      ],
+      "activate_on_contact": false,
+      "key": "brke",
+      "alternates": 0
     }
-  ],
-  "scenery": {
-    "vines": [
-      {
-        "position": [
-          25,
-          6
-        ],
-        "length": 12,
-        "size": 2,
-        "foreground": true
-      },
-      {
-        "position": [
-          27,
-          2
-        ],
-        "length": 12,
-        "size": 2,
-        "foreground": true
-      },
-      {
-        "position": [
-          24,
-          7
-        ],
-        "length": 12,
-        "size": 2,
-        "foreground": true
-      }
-    ]
-  },
-  "save_point": {
-    "id": 20094,
-    "position": [
-      40,
-      12
-    ]
-  }
+  ]
 }
