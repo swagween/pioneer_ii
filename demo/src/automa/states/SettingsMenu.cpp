@@ -10,8 +10,8 @@ SettingsMenu::SettingsMenu(ServiceProvider& svc, player::Player& player, std::st
 	player.map_reset();
 	left_dot.set_position(options.at(current_selection.get()).left_offset);
 	right_dot.set_position(options.at(current_selection.get()).right_offset);
-	toggle_options.enabled.setString("Enabled");
-	toggle_options.disabled.setString("Disabled");
+	toggle_options.enabled.setString("enabled");
+	toggle_options.disabled.setString("disabled");
 
 	toggleables.autosprint = options.at(static_cast<int>(Toggles::autosprint)).label;
 	toggleables.tutorial = options.at(static_cast<int>(Toggles::tutorial)).label;
@@ -73,6 +73,7 @@ void SettingsMenu::tick_update(ServiceProvider& svc) {
 			options.at(static_cast<int>(Toggles::fullscreen)).label.setString(toggleables.fullscreen.getString() + (svc.fullscreen() ? toggle_options.enabled.getString() : toggle_options.disabled.getString()));
 		}
 	}
+
 	left_dot.update(svc);
 	right_dot.update(svc);
 	left_dot.set_target_position(options.at(current_selection.get()).left_offset);
@@ -81,9 +82,10 @@ void SettingsMenu::tick_update(ServiceProvider& svc) {
 		option.update(svc, current_selection.get());
 		option.label.setLetterSpacing(1.2f);
 	}
-	if (svc.ticker.every_x_ticks(16)) {
-		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_left).held && adjust_mode()) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier - 0.01f, 0.f, 1.f); }
-		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_right).held && adjust_mode()) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier + 0.01f, 0.f, 1.f); }
+	if (adjust_mode()) {
+		auto const update_volume = svc.ticker.every_x_ticks(16);
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_left).held && update_volume) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier - 0.01f, 0.f, 1.f); }
+		if (svc.controller_map.digital_action_status(config::DigitalAction::menu_right).held && update_volume) { svc.music.volume.multiplier = std::clamp(svc.music.volume.multiplier + 0.01f, 0.f, 1.f); }
 	}
 	console.update(svc);
 	player->controller.update(svc);

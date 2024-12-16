@@ -24,6 +24,10 @@ NPC::NPC(automa::ServiceProvider& svc, int id) : id(id), animation_machine(std::
 
 	sprite.setOrigin(in_data["sprite_origin"][0].as<float>(), in_data["sprite_origin"][1].as<float>());
 
+	if (in_data["vendor"] && svc.data.marketplace.contains(id)) {
+		vendor = &svc.data.marketplace.at(id);
+	}
+
 	collider = shape::Collider(dimensions);
 	collider.sync_components();
 
@@ -39,6 +43,10 @@ NPC::NPC(automa::ServiceProvider& svc, int id) : id(id), animation_machine(std::
 }
 
 void NPC::update(automa::ServiceProvider& svc, world::Map& map, gui::Console& console, player::Player& player) {
+	if (piggybacking()) { current_location = -1; }
+	svc.data.set_npc_location(id, current_location);
+	if (state_flags.test(NPCState::hidden)) { return; }
+	svc.player_dat.piggy_id == id ? state_flags.set(NPCState::piggybacking) : state_flags.reset(NPCState::piggybacking); 
 	direction.lr = (player.collider.physics.position.x < collider.physics.position.x) ? dir::LR::left : dir::LR::right;
 	Entity::update(svc, map);
 	if (abs(collider.physics.velocity.x) > physical.walk_threshold) { animation_machine->animation_flags.set(NPCAnimState::walk); }
@@ -85,6 +93,7 @@ void NPC::update(automa::ServiceProvider& svc, world::Map& map, gui::Console& co
 }
 
 void NPC::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> campos) {
+	if (state_flags.test(NPCState::hidden)) { return; }
 	sprite.setPosition(collider.physics.position.x - campos.x + sprite_offset.x, collider.physics.position.y - campos.y + sprite_offset.y);
 	if (spritesheet_dimensions.y > 0) {
 		int u = (int)(animation_machine->animation.get_frame() / spritesheet_dimensions.y) * sprite_dimensions.x;

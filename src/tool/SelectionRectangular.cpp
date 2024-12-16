@@ -12,6 +12,8 @@ void SelectionRectangular::handle_events(Canvas& canvas, sf::Event& e) {
 				scaled_clicked_position.x = static_cast<uint32_t>(clicked_position.x / f_cell_size);
 				scaled_clicked_position.y = static_cast<uint32_t>(clicked_position.y / f_cell_size);
 				selection = SelectBox(scaled_clicked_position, {0, 0});
+				clipboard = {};
+				mode = SelectMode::select;
 				just_clicked = false;
 			}
 			// I'm being long-winded here to provision for the mouse
@@ -45,21 +47,30 @@ void SelectionRectangular::handle_keyboard_events(Canvas& canvas, sf::Keyboard::
 	}
 }
 
-void SelectionRectangular::update() { Tool::update(); }
+void SelectionRectangular::update() {
+	Tool::update();
+}
 
-void SelectionRectangular::render(sf::RenderWindow& win, sf::Vector2<float> offset) {
+void SelectionRectangular::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {
+	if (!transformed) { offset = {}; }
 	sf::RectangleShape box{};
-
-	box.setOutlineColor(sf::Color{200, 200, 200, 80});
-	box.setFillColor(sf::Color{150, 190, 110, 80});
-	box.setOutlineThickness(-2);
-	box.setSize({CELL_SIZE, CELL_SIZE});
-
-	for (uint32_t i = 0; i < selection.dimensions.x; ++i) {
-		for (uint32_t j = 0; j < selection.dimensions.y; ++j) {
-			box.setPosition(selection.position.x * CELL_SIZE + i * CELL_SIZE + offset.x, selection.position.y * CELL_SIZE + j * CELL_SIZE + offset.y);
-			win.draw(box);
-		}
+	switch (mode) {
+	case SelectMode::clipboard:
+		box.setOutlineColor(sf::Color{200, 200, 200, 40});
+		box.setFillColor(sf::Color{150, 190, 110, 40});
+		box.setOutlineThickness(-2);
+		if (clipboard) { box.setSize(clipboard.value().real_dimensions() * f_cell_size); }
+		if (clipboard) { box.setPosition(f_scaled_position() * f_cell_size + offset - clipboard.value().real_dimensions() * f_cell_size + sf::Vector2<float>{32.f, 32.f}); }
+		win.draw(box);
+		[[fallthrough]];
+	case SelectMode::select:
+		box.setOutlineColor(sf::Color{200, 200, 200, 80});
+		box.setFillColor(sf::Color{110, 100, 180, 40});
+		box.setOutlineThickness(-2);
+		box.setSize({selection.dimensions.x * f_cell_size, selection.dimensions.y * f_cell_size});
+		box.setPosition(selection.f_position() * f_cell_size + offset);
+		win.draw(box);
+		break;
 	}
 }
 
@@ -67,6 +78,8 @@ void SelectionRectangular::store_tile(int index) {}
 
 void SelectionRectangular::cut(Canvas& canvas) {
 	if (!clipboard) { return; }
+	mode = SelectMode::clipboard;
+	canvas.save_state(*this, true);
 	clipboard.value().clear_clipboard();
 	for (uint32_t i = 0; i < selection.dimensions.x; ++i) {
 		for (uint32_t j = 0; j < selection.dimensions.y; ++j) {
@@ -81,6 +94,7 @@ void SelectionRectangular::cut(Canvas& canvas) {
 
 void SelectionRectangular::copy(Canvas& canvas) {
 	if (!clipboard) { return; }
+	mode = SelectMode::clipboard;
 	clipboard.value().clear_clipboard();
 	for (uint32_t i = 0; i < selection.dimensions.x; ++i) {
 		for (uint32_t j = 0; j < selection.dimensions.y; ++j) {
@@ -94,14 +108,16 @@ void SelectionRectangular::copy(Canvas& canvas) {
 
 void SelectionRectangular::paste(Canvas& canvas) {
 	if (!clipboard) { return; }
-	canvas.save_state(*this);
+	canvas.save_state(*this, true);
 	for (uint32_t i = 0; i < selection.dimensions.x; ++i) {
 		for (uint32_t j = 0; j < selection.dimensions.y; ++j) {
-			if (scaled_position.x + i < canvas.dimensions.x && scaled_position.y + j < canvas.dimensions.y) {
+			auto edit_x = scaled_position.x + i - clipboard.value().scaled_dimensions().x + 1;
+			auto edit_y = scaled_position.y + j - clipboard.value().scaled_dimensions().y + 1;
+			if (edit_x < canvas.dimensions.x && edit_y < canvas.dimensions.y) {
 				if (pervasive) {
-					for (auto k{0}; k < canvas.get_layers().layers.size(); ++k) { canvas.edit_tile_at(scaled_position.x + i, scaled_position.y + j, clipboard.value().get_value_at(i, j, k), k); }
+					for (auto k{0}; k < canvas.get_layers().layers.size(); ++k) { canvas.edit_tile_at(edit_x, edit_y, clipboard.value().get_value_at(i, j, k), k); }
 				} else {
-					canvas.edit_tile_at(scaled_position.x + i, scaled_position.y + j, clipboard.value().get_value_at(i, j), canvas.active_layer);
+					canvas.edit_tile_at(edit_x, edit_y, clipboard.value().get_value_at(i, j), canvas.active_layer);
 				}
 			}
 		}

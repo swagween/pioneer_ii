@@ -63,7 +63,7 @@ void Platform::update(automa::ServiceProvider& svc, world::Map& map, player::Pla
 	auto old_position = physics.position;
 	auto skip_value{16.f};
 	auto edge_start = 0.f;
-	player.collider.handle_collider_collision(bounding_box);
+	player.collider.handle_collider_collision(*this);
 	if (player.collider.jumped_into() && physics.velocity.y > 0.f) { player.collider.physics.apply_force(physics.velocity * 8.f); }
 	player.on_crush(map);
 	for (auto& enemy : map.enemy_catalog.enemies) { enemy->on_crush(map); }
@@ -111,16 +111,17 @@ void Platform::update(automa::ServiceProvider& svc, world::Map& map, player::Pla
 			physics.position.x = std::lerp(start.x, end.x, (path_position - edge_start) / (edge_end - edge_start));
 			physics.position.y = std::lerp(start.y, end.y, (path_position - edge_start) / (edge_end - edge_start));
 			physics.velocity = physics.position - old_position;
+			physics.real_velocity = physics.velocity;
 			// set direction
 			direction.lr = physics.velocity.x > 0.0f ? dir ::LR::right : dir::LR::left;
 			direction.und = physics.velocity.y > 0.0f ? dir ::UND::down : dir::UND::up;
 
 			if (player.collider.jumpbox.overlaps(bounding_box) && !player.collider.perma_grounded() && flags.attributes.test(PlatformAttributes::sticky)) {
-				if (!(abs(physics.velocity.x) > skip_value || abs(physics.velocity.y) > skip_value)) { player.forced_momentum = physics.position - old_position; }
+				if (!(abs(physics.velocity.x) > skip_value || abs(physics.velocity.y) > skip_value)) { player.collider.physics.forced_momentum = physics.position - old_position; }
 			}
 			for (auto& pushable : map.pushables) {
 				if (pushable.collider.jumpbox.overlaps(bounding_box) && !pushable.collider.perma_grounded() && flags.attributes.test(PlatformAttributes::sticky)) {
-					if (!(abs(physics.velocity.x) > skip_value || abs(physics.velocity.y) > skip_value)) { pushable.forced_momentum = physics.position - old_position; }
+					if (!(abs(physics.velocity.x) > skip_value || abs(physics.velocity.y) > skip_value)) { pushable.collider.physics.forced_momentum = physics.position - old_position; }
 				}
 			}
 			break;
@@ -181,11 +182,11 @@ void Platform::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::V
 }
 
 void Platform::on_hit(automa::ServiceProvider& svc, world::Map& map, arms::Projectile& proj) {
-	if (proj.stats.transcendent) { return; }
-	if (proj.bounding_box.overlaps(bounding_box)) {
+	if (proj.transcendent()) { return; }
+	if (proj.get_bounding_box().overlaps(bounding_box)) {
 		if (!proj.destruction_initiated()) {
-			map.effects.push_back(entity::Effect(svc, proj.destruction_point + proj.physics.position, physics.velocity * 10.f, proj.effect_type(), 2));
-			if (proj.direction.lr == dir::LR::neutral) { map.effects.back().rotate(); }
+			map.effects.push_back(entity::Effect(svc, proj.get_destruction_point() + proj.get_position(), physics.velocity * 10.f, proj.effect_type(), 2));
+			if (proj.get_direction().lr == dir::LR::neutral) { map.effects.back().rotate(); }
 			svc.soundboard.flags.world.set(audio::World::wall_hit);
 		}
 		proj.destroy(false);

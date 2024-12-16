@@ -67,6 +67,10 @@ void TextWriter::update() {
 	if (tick_count % writing_speed == 0) {
 		char const next_char = (char)suite.at(iterators.current_suite_set).front().data.getString().getData()[glyph_count];
 		working_str += next_char;
+		third_working_message = second_working_message;
+		third_working_message.setFillColor(m_services->styles.colors.ui_white);
+		second_working_message = working_message;
+		second_working_message.setFillColor(m_services->styles.colors.periwinkle);
 		working_message.setString(working_str);
 		++glyph_count;
 	}
@@ -185,7 +189,10 @@ void TextWriter::write_gradual_message(sf::RenderWindow& win) {
 		return;
 	}
 	help_marker.start();
+	working_message.setFillColor(m_services->styles.colors.blue);
 	win.draw(working_message);
+	if (working_message.getString().getSize() > 1) { win.draw(second_working_message); }
+	if (second_working_message.getString().getSize() > 1) { win.draw(third_working_message); }
 }
 
 void TextWriter::write_responses(sf::RenderWindow& win) {
@@ -258,7 +265,7 @@ void TextWriter::check_for_event(Message& msg, Codes code, bool response) {
 	// handle prompts
 	if (code == Codes::prompt) {
 		if (index < msg.data.getString().getSize() - 1) {
-			msg.target = (int)msg.data.getString().getData()[index + 1] - '0';
+			msg.target = static_cast<int>(msg.data.getString().getData()[index + 1] - '0');
 			msg.data.setString(msg.data.getString().substring(0, index));
 			flags.set(MessageState::response_trigger);
 			msg.prompt = true;
@@ -344,7 +351,11 @@ void TextWriter::process_selection() {
 			return;
 		}
 	}
-	responses.pop_front();
+	check_for_event(suite.at(iterators.current_suite_set).back(), Codes::prompt);
+	auto response_target = suite.at(iterators.current_suite_set).back().target;
+	//std::cout << static_cast<std::string>(suite.at(iterators.current_suite_set).back().data.getString()) << "\n";
+	//std::cout << "Response Target: " << response_target << "\n";
+	for (auto i{0}; i <= response_target; ++i) { responses.pop_front(); }
 
 	m_services->soundboard.flags.console.set(audio::Console::next);
 	flags.set(MessageState::cannot_skip);
@@ -356,14 +367,7 @@ void TextWriter::process_selection() {
 
 void TextWriter::process_quest(util::QuestKey out) {
 	m_services->quest.process(*m_services, out);
-	if (out.type == 27) { m_services->state_controller.actions.set(automa::Actions::retry); }
 	if (out.type == 33) { communicators.reveal_item.set(out.id); }
-	if (out.type == 88) { m_services->state_controller.actions.set(automa::Actions::sleep); }
-	if (out.type == 89) { m_services->state_controller.actions.set(automa::Actions::main_menu); }
-	if (out.type == 69) { m_services->state_controller.actions.set(automa::Actions::print_stats); }
-	if (out.type == 97) { m_services->state_controller.actions.set(automa::Actions::delete_file); }
-	if (out.type == 299) { m_services->state_controller.actions.set(automa::Actions::end_demo); }
-	// std::cout << "Processed: " << out.type << ", " << out.id << ", " << out.source_id << ", " << out.amount << ", " << out.hard_set << "\n";
 }
 
 void TextWriter::shutdown() {

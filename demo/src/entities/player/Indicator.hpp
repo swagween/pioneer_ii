@@ -17,6 +17,7 @@ class Player;
 }
 
 namespace player {
+enum class IndicatorType { health, orb };
 class Indicator {
   public:
 	Indicator() = default;
@@ -27,7 +28,7 @@ class Indicator {
 	void add(float amount);
 	void set_position(sf::Vector2<float> pos);
 	void shift();
-	[[nodiscard]] auto active() const -> bool { return !addition_limit.is_complete(); }
+	[[nodiscard]] auto active() const -> bool { return addition_limit.running(); }
 	[[nodiscard]] auto get_amount() const -> float { return variables.amount; }
 
   private:
@@ -35,10 +36,7 @@ class Indicator {
 		float amount{};
 	} variables{};
 
-	struct {
-		int id{};
-	} meta{};
-
+	IndicatorType type{};
 	sf::Text label{};
 	sf::Font font{};
 	util::Cooldown addition_limit{};

@@ -11,6 +11,7 @@ namespace pi {
 class Grid {
   public:
 	Grid(sf::Vector2<uint32_t> d);
+	void set_position(sf::Vector2<float> to_position);
 	sf::Vector2<uint32_t> dimensions{};
 	float spacing{};
 	std::vector<Tile> cells{};

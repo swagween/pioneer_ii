@@ -7,7 +7,7 @@ project(pioneer
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(FORNANI_STEAM_APP_ID 3218760 CACHE STRING "The Steam app ID assigned to the game, leave to 480 for testing")
+set(FORNANI_STEAM_APP_ID 3218760 CACHE STRING "The Steam app ID assigned to the game")
 option(FORNANI_DEV_BUILD "If enabled, writes a steam_appid.txt file next to the executable, that will avoid the game from relaunching itself from Steam. DISABLE IN PRODUCTION" ON)
 
 add_executable(${PROJECT_NAME})
@@ -28,6 +28,13 @@ target_sources(${PROJECT_NAME} PRIVATE
 main.cpp
 ${sources}
 )
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
+    add_compile_options(${PROJECT_NAME} INTERFACE /W4056 /W4146 /W4018 /W4056)
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(${PROJECT_NAME} INTERFACE -Wno-sign-conversion)
+endif()
 
 if (WIN32)
   add_custom_command(

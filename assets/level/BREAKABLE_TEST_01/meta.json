@@ -13,8 +13,8 @@
       2,
       1
     ],
-    "style": 1,
-    "background": 5,
+    "style": 0,
+    "background": 4,
     "music": "",
     "styles": {
       "breakables": 0
@@ -25,46 +25,5 @@
       "id": 0,
       "source": 0
     }
-  },
-  "inspectables": [
-    {
-      "dimensions": [
-        1,
-        1
-      ],
-      "position": [
-        22,
-        9
-      ],
-      "activate_on_contact": false,
-      "key": "sign",
-      "alternates": 0
-    },
-    {
-      "dimensions": [
-        1,
-        1
-      ],
-      "position": [
-        6,
-        7
-      ],
-      "activate_on_contact": false,
-      "key": "computer",
-      "alternates": 0
-    },
-    {
-      "dimensions": [
-        1,
-        1
-      ],
-      "position": [
-        11,
-        7
-      ],
-      "activate_on_contact": false,
-      "key": "brke",
-      "alternates": 0
-    }
-  ]
+  }
 }

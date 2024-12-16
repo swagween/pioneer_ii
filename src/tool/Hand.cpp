@@ -32,7 +32,7 @@ void Hand::update() {
     Tool::update();
 }
 
-void Hand::render(sf::RenderWindow& win, sf::Vector2<float> offset) {
+void Hand::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {
     
 }
 

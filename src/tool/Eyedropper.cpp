@@ -13,7 +13,7 @@ void Eyedropper::handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key) 
 
 void Eyedropper::update() { Tool::update(); }
 
-void Eyedropper::render(sf::RenderWindow& win, sf::Vector2<float> offset) {}
+void Eyedropper::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {}
 
 void Eyedropper::store_tile(int index) { tile = index; }
 

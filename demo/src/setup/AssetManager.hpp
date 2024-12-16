@@ -6,8 +6,6 @@
 #include <array>
 #include <filesystem>
 #include <string>
-
-#include "../graphics/FLColor.hpp"
 #include "../setup/EnumLookups.hpp"
 #include "ResourceFinder.hpp"
 
@@ -17,7 +15,6 @@ const uint8_t TILE_WIDTH = 32;
 int const NANI_SPRITESHEET_WIDTH = 22;
 int const NANI_SPRITESHEET_HEIGHT = 10;
 const uint8_t NANI_SPRITE_WIDTH = 48;
-inline char const* styles[lookup::NUM_STYLES];
 
 class AssetManager {
   public:
@@ -26,6 +23,8 @@ class AssetManager {
 
 	void import_textures();
 	void load_audio();
+	sf::Texture& get_background(int id);
+	sf::Texture& get_scenery(int style);
 
 	// player and NPCs!
 	sf::Texture t_nani{};
@@ -37,11 +36,25 @@ class AssetManager {
 	sf::Texture t_carl{};
 	sf::Texture t_bit{};
 	sf::Texture t_lady_nimbus{};
+	sf::Texture t_justin{};
 
 	// player palettes
 	sf::Texture t_palette_nani{};
 	sf::Texture t_palette_nanidiv{};
 	sf::Texture t_palette_naninight{};
+
+	// wardrobe
+	sf::Texture t_wardrobe_base{};
+	sf::Texture t_wardrobe_green_pants{};
+	sf::Texture t_wardrobe_blue_shirt{};
+	sf::Texture t_wardrobe_default_hair{};
+	sf::Texture t_wardrobe_red_jeans{};
+	sf::Texture t_wardrobe_chalcedony_tee{};
+	sf::Texture t_wardrobe_chalcedony_skirt{};
+	sf::Texture t_wardrobe_ponytail{};
+	sf::Texture t_wardrobe_punk_hair{};
+	sf::Texture t_wardrobe_punk_shirt{};
+	sf::Texture t_wardrobe_punk_pants{};
 
 	// items
 	sf::Texture t_items{};
@@ -62,6 +75,12 @@ class AssetManager {
 	sf::Texture t_demon_spear{};
 	sf::Texture t_demon_sword{};
 	sf::Texture t_demon_shield{};
+	sf::Texture t_caster{};
+	sf::Texture t_caster_wand{};
+	sf::Texture t_caster_scepter{};
+	sf::Texture t_archer{};
+	sf::Texture t_archer_bow{};
+	sf::Texture t_archer_arrow{};
 
 	// gui
 	sf::Texture t_ui{};
@@ -70,16 +89,22 @@ class AssetManager {
 	sf::Texture t_file_text{};
 	sf::Texture t_blue_console{};
 	sf::Texture t_cream_console{};
+	sf::Texture t_portrait_window{};
+	sf::Texture t_controller_button_icons{};
+
+	sf::Texture t_vendor_artwork{};
+	sf::Texture t_vendor_ui{};
 
 	sf::Texture t_hud_orb_font{};
 	sf::Texture t_hud_hearts{};
-	sf::Texture t_hud_gun_color{};
-	sf::Texture t_hud_gun_shadow{};
+	sf::Texture t_hud_ammo{};
+	sf::Texture t_hud_gun{};
 	sf::Texture t_hud_pointer{};
 	sf::Texture t_hud_shield{};
 	sf::Texture t_selector{};
 	sf::Texture t_console_outline{};
 	sf::Texture t_indicator{};
+	sf::Texture t_sticker{};
 
 	sf::Texture t_alphabet{};
 	std::vector<sf::Sprite> sp_alphabet{};
@@ -92,8 +117,14 @@ class AssetManager {
 	sf::Texture t_platform_firstwind{};
 	sf::Texture t_platform_overturned{};
 
-	//portals
+	//world stuff
 	sf::Texture t_portals{};
+	sf::Texture t_vine{};
+	sf::Texture t_vine_large{};
+	sf::Texture t_grass{};
+	sf::Texture t_grass_large{};
+	sf::Texture t_treasure_ball{};
+	sf::Texture t_spawnable_platform{};
 
 	// animators
 	sf::Texture t_automatic_animators_firstwind{};
@@ -104,7 +135,6 @@ class AssetManager {
 	// entities
 	sf::Texture t_chest{};
 	sf::Texture t_shield{};
-
 	sf::Texture t_large_animators{};
 	sf::Texture t_small_animators{};
 	sf::Texture t_breakables{};
@@ -120,6 +150,9 @@ class AssetManager {
 	sf::Texture t_small_explosion{};
 	sf::Texture t_wall_hit{};
 	sf::Texture t_twinkle{};
+	sf::Texture t_wasp_effect{};
+	sf::Texture t_peckett_effect{};
+	sf::Texture t_bg_effect{};
 	sf::Texture t_small_flash{};
 	sf::Texture t_mini_flash{};
 	sf::Texture t_medium_flash{};
@@ -148,50 +181,38 @@ class AssetManager {
 	sf::Texture t_bg_crevasse{};
 	sf::Texture t_bg_deep{};
 	sf::Texture t_bg_grove{};
+	sf::Texture t_bg_woods{};
+
+	//scenery
+	sf::Texture t_overturned_scenery{};
+	sf::Texture t_firefly{};
+	sf::Texture t_dragonfly{};
 
 	// load the guns and bullets!
-	sf::Texture t_bryns_gun{};
+	sf::Texture t_gun{};
 	sf::Texture t_bryns_gun_projectile{};
-	sf::Texture t_plasmer{};
 	sf::Texture t_plasmer_projectile{};
-	sf::Texture t_clover{};
 	sf::Texture t_clover_projectile{};
 	sf::Texture t_wasp_projectile{};
-	sf::Texture t_blizzard_projectile{};
-	sf::Texture t_bismuth_projectile{};
-	sf::Texture t_underdog_projectile{};
-	sf::Texture t_electron_projectile{};
-	sf::Texture t_triton_projectile{};
-	sf::Texture t_willet_585_projectile{};
-	sf::Texture t_quasar_projectile{};
-	sf::Texture t_nova{};
-	sf::Texture t_nova_projectile{};
-	sf::Texture t_venom_projectile{};
-	sf::Texture t_twin_projectile{};
-	sf::Texture t_carise_projectile{};
-	sf::Texture t_stinger_projectile{};
-	sf::Texture t_tusk_projectile{};
 	sf::Texture t_tomahawk{};
-	sf::Texture t_tomahawk_projectile{};
 	sf::Texture t_skycorps_ar_projectile{};
-	sf::Texture t_grappling_hook{};
 	sf::Texture t_rope{};
 	sf::Texture t_hook{};
-	sf::Texture t_grenade_launcher{};
 	sf::Texture t_grenade{};
 	sf::Texture t_minigun{};
-	sf::Texture t_soda_gun{};
 	sf::Texture t_soda_gun_projectile{};
-	sf::Texture t_staple_gun{};
 	sf::Texture t_staple{};
-	sf::Texture t_indie{};
 	sf::Texture t_indie_projectile{};
-	sf::Texture t_gnat{};
 	sf::Texture t_gnat_projectile{};
+	sf::Texture t_energy_ball_projectile{};
+	sf::Texture t_peckett_projectile{};
+	sf::Texture t_arrow_projectile{};
+	sf::Texture t_archer_arrow_projectile{};
 
 	// items
 	sf::Texture t_heart{};
 	sf::Texture t_orb{};
+	sf::Texture t_gem{};
 
 	sf::SoundBuffer player_death_buffer{};
 	sf::SoundBuffer enem_hit_buffer{};
@@ -202,6 +223,7 @@ class AssetManager {
 	sf::SoundBuffer orb_3_buffer{};
 	sf::SoundBuffer orb_4_buffer{};
 	sf::SoundBuffer b_health_increase{};
+	sf::SoundBuffer b_upward_get{};
 
 	// sound effects!
 	sf::SoundBuffer click_buffer{};
@@ -215,6 +237,7 @@ class AssetManager {
 	sf::SoundBuffer bg_shot_buffer{};
 	sf::SoundBuffer plasmer_shot_buffer{};
 	sf::SoundBuffer skycorps_ar_buffer{};
+	sf::SoundBuffer b_energy_shot{};
 	sf::SoundBuffer tomahawk_flight_buffer{};
 	sf::SoundBuffer tomahawk_catch_buffer{};
 	sf::SoundBuffer pop_mid_buffer{};
@@ -222,13 +245,20 @@ class AssetManager {
 	sf::SoundBuffer b_nova{};
 	sf::SoundBuffer b_staple{};
 	sf::SoundBuffer b_gnat{};
+	sf::SoundBuffer b_wasp{};
+
+	sf::SoundBuffer b_reload{};
 
 	sf::SoundBuffer jump_buffer{};
 	sf::SoundBuffer shatter_buffer{};
 	sf::SoundBuffer step_buffer{};
+	sf::SoundBuffer grass_step_buffer{};
 	sf::SoundBuffer landed_buffer{};
+	sf::SoundBuffer landed_grass_buffer{};
 	sf::SoundBuffer hurt_buffer{};
 	sf::SoundBuffer slide_buffer{};
+	sf::SoundBuffer b_walljump{};
+	sf::SoundBuffer b_roll{};
 
 	sf::SoundBuffer tank_alert1_buffer{};
 	sf::SoundBuffer tank_alert2_buffer{};
@@ -306,6 +336,7 @@ class AssetManager {
 	sf::SoundBuffer b_enemy_hit_inv{};
 	sf::SoundBuffer b_thud{};
 	sf::SoundBuffer b_wall_hit{};
+	sf::SoundBuffer b_soft_tap{};
 	sf::SoundBuffer b_heavy_move{};
 	sf::SoundBuffer b_door_open{};
 	sf::SoundBuffer b_door_unlock{};
@@ -317,79 +348,17 @@ class AssetManager {
 	sf::SoundBuffer soft_sparkle_buffer{};
 	sf::SoundBuffer chest_buffer{};
 
-	sf::Sound landed{};
-	sf::Sound step{};
-	sf::Sound shatter{};
-	sf::Sound jump{};
-	sf::Sound slide{};
-	sf::Sound arms_switch{};
-	sf::Sound bg_shot{};
-	sf::Sound plasmer_shot{};
-	sf::Sound skycorps_ar_shot{};
-	sf::Sound tomahawk_flight{};
-	sf::Sound tomahawk_catch{};
-	sf::Sound pop_mid{};
-	sf::Sound bubble{};
-	sf::Sound nova_shot{};
-	sf::Sound staple{};
-	sf::Sound gnat{};
-
-	sf::Sound hard_hit{};
-	sf::Sound thud{};
-	sf::Sound small_crash{};
-	sf::Sound heavy_move{};
-	sf::Sound door_open{};
-	sf::Sound door_unlock{};
-
-	sf::Sound minigun_neutral{};
-	sf::Sound minigun_charge{};
-	sf::Sound minigun_reload{};
-	sf::Sound minigun_firing{};
-	sf::Sound chest{};
-	sf::Sound save{};
-	sf::Sound load{};
-	sf::Sound soft_sparkle_high{};
-	sf::Sound soft_sparkle{};
-	sf::Sound click{};
-	sf::Sound tank_alert_1{};
-	sf::Sound tank_alert_2{};
-	sf::Sound tank_hurt_1{};
-	sf::Sound tank_hurt_2{};
-	sf::Sound tank_death{};
-	sf::Sound snort{};
-	sf::Sound hurt{};
-	sf::Sound player_death{};
-	sf::Sound enem_hit{};
-	sf::Sound enem_death_1{};
-	sf::Sound heal{};
-	sf::Sound health_increase{};
-	sf::Sound orb_1{};
-	sf::Sound orb_2{};
-	sf::Sound orb_3{};
-	sf::Sound orb_4{};
-	sf::Sound menu_next{};
-	sf::Sound menu_back{};
-	sf::Sound sharp_click{};
-	sf::Sound menu_shift{};
-	sf::Sound menu_open{};
-
-	sf::Sound breakable_hit{};
-	sf::Sound breakable_shatter{};
-	sf::Sound switch_press{};
-	sf::Sound block_toggle{};
-	sf::Sound wall_hit{};
-
 	// other members
 	int music_vol{24};
 
 	data::ResourceFinder finder{};
 
 	std::unordered_map<std::string_view, sf::Texture&> texture_lookup{};
+	std::unordered_map<int, sf::Texture&> scenery_lookup{};
 	std::unordered_map<int, sf::Texture&> background_lookup{};
 	std::unordered_map<int, sf::Texture&> effect_lookup{};
 	std::unordered_map<int, sf::Texture&> platform_lookup{};
 	std::unordered_map<int, sf::Texture&> animator_lookup{};
-	std::unordered_map<std::string_view, sf::Texture&> weapon_textures{};
 	std::unordered_map<std::string_view, sf::Texture&> particle_textures{};
 	std::unordered_map<std::string_view, sf::Texture&> npcs{};
 	std::unordered_map<std::string_view, sf::Texture&> projectile_textures{};

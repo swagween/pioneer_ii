@@ -18,4 +18,12 @@ Grid::Grid(sf::Vector2<uint32_t> d) : dimensions(d) {
 	}
 }
 
+void Grid::set_position(sf::Vector2<float> to_position) {
+	for (uint32_t i = 0; i < dimensions.x * dimensions.y; i++) {
+		sf::Vector2<uint32_t> idx{static_cast<uint32_t>(std::floor(i % dimensions.x)), static_cast<uint32_t>(std::floor(i / dimensions.x))};
+		sf::Vector2<float> pos{idx.x * spacing, idx.y * spacing};
+		cells.at(i).position = to_position + pos;
+	}
+}
+
 } // namespace pi

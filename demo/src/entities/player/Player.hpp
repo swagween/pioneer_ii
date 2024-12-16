@@ -11,13 +11,17 @@
 #include "../../utils/QuestCode.hpp"
 #include "../../utils/Collider.hpp"
 #include "../../graphics/Tutorial.hpp"
-#include "../../weapon/Arsenal.hpp"
+#include "../../weapon/Hotbar.hpp"
 #include "../packages/Health.hpp"
+#include "../packages/Caution.hpp"
 #include "Catalog.hpp"
 #include "Indicator.hpp"
+#include "Wallet.hpp"
 #include "PlayerAnimation.hpp"
 #include "PlayerController.hpp"
 #include "Transponder.hpp"
+#include "VisitHistory.hpp"
+#include "Piggybacker.hpp"
 
 namespace gui {
 class Console;
@@ -57,8 +61,6 @@ constexpr inline float antenna_force{0.18f};
 constexpr inline float antenna_speed{336.f};
 
 struct PlayerStats {
-	int orbs{};
-	int max_orbs{};
 	float shield_dampen{0.01f};
 };
 
@@ -78,6 +80,7 @@ struct PhysicsStats {
 	float dash_speed{};
 	float dash_dampen{};
 	float wallslide_speed{};
+	float antenna_friction{0.93f};
 };
 
 struct Counters {
@@ -111,6 +114,7 @@ class Player {
 	void flash_sprite();
 	void calculate_sprite_offset();
 	void set_idle();
+	void piggyback(int id);
 
 	// state
 	[[nodiscard]] auto alive() const -> bool { return !health.is_dead(); }
@@ -127,6 +131,8 @@ class Player {
 	[[nodiscard]] auto has_item(int id) const -> bool { return catalog.categories.inventory.has_item(id); }
 	[[nodiscard]] auto invincible() const -> bool { return health.invincible(); }
 	[[nodiscard]] auto has_map() const -> bool { return catalog.categories.inventory.has_item(16); }
+	[[nodiscard]] auto moving_left() const -> bool { return directions.movement.lr == dir::LR::left; }
+	[[nodiscard]] auto switched_weapon() const -> bool { return hotbar->switched(); }
 
 	// moves
 	void jump(world::Map& map);
@@ -153,13 +159,17 @@ class Player {
 	void give_drop(item::DropType type, float value);
 	void give_item(int item_id, int amount);
 	void take_item(int item_id, int amount = 1);
+	void equip_item(ApparelType type, int item_id);
+	void unequip_item(ApparelType type, int item_id);
+	void add_to_hotbar(int id);
+	void remove_from_hotbar(int id);
 
 	void reset_flags();
 	void total_reset();
 	void map_reset();
 
 	arms::Weapon& equipped_weapon();
-	void push_to_loadout(int id);
+	void push_to_loadout(int id, bool from_save = false);
 	void pop_from_loadout(int id);
 
 	// map helpers
@@ -168,6 +178,9 @@ class Player {
 	// for debug mode
 	std::string print_direction(bool lr);
 
+	//for ledge testing
+	entity::Caution caution{};
+
 	// components
 	PlayerController controller;
 	Transponder transponder{};
@@ -175,6 +188,7 @@ class Player {
 	shape::Shape hurtbox{};
 	PlayerAnimation animation;
 	entity::Health health{};
+	Wallet wallet{};
 	Indicator health_indicator;
 	Indicator orb_indicator;
 
@@ -182,8 +196,8 @@ class Player {
 
 	// weapons
 	std::optional<arms::Arsenal> arsenal{};
+	std::optional<arms::Hotbar> hotbar{};
 
-	sf::Vector2<float> apparent_position{};
 	sf::Vector2<float> anchor_point{};
 	sf::Vector2<float> sprite_offset{10.f, -3.f};
 	sf::Vector2<float> sprite_dimensions{};
@@ -192,7 +206,7 @@ class Player {
 	std::vector<vfx::Gravitator> antennae{};
 	sf::Vector2<float> antenna_offset{6.f, -17.f};
 
-	PlayerStats player_stats{0, 99999, 0.06f};
+	PlayerStats player_stats{0.06f};
 	PhysicsStats physics_stats{};
 	PlayerFlags flags{};
 	util::Cooldown hurt_cooldown{}; //for animation
@@ -204,8 +218,8 @@ class Player {
 	} cooldowns{};
 	Counters counters{};
 	std::vector<sf::Vector2<float>> accumulated_forces{};
-	sf::Vector2<float> forced_momentum{};
 	std::optional<util::QuestCode> quest_code{};
+	std::optional<Piggybacker> piggybacker{};
 
 	automa::ServiceProvider* m_services;
 
@@ -224,12 +238,13 @@ class Player {
 	int ledge_height{}; // temp for testing
 
 	Catalog catalog{};
+	VisitHistory visit_history{};
 
   private:
 	struct {
 		float stop{5.8f};
 		float wallslide{-1.5f};
-		float suspend{4.4f};
+		float suspend{0.9f};
 		float landed{0.4f};
 		float run{0.02f};
 		float quick_turn{0.9f};
@@ -237,6 +252,7 @@ class Player {
 	struct {
 		dir::Direction left_squish{};
 		dir::Direction right_squish{};
+		dir::Direction movement{};
 	} directions{};
 };
 

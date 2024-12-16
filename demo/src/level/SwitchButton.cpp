@@ -92,7 +92,7 @@ void SwitchButton::update(automa::ServiceProvider& svc, Map& map, player::Player
 	state_function = state_function();
 }
 
-void SwitchButton::handle_collision(shape::Collider& other) const { other.handle_collider_collision(collider.bounding_box); }
+void SwitchButton::handle_collision(shape::Collider& other) const { other.handle_collider_collision(collider); }
 
 void SwitchButton::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) {
 	if (svc.greyblock_mode()) {
@@ -109,8 +109,8 @@ void SwitchButton::render(automa::ServiceProvider& svc, sf::RenderWindow& win, s
 }
 
 void SwitchButton::on_hit(automa::ServiceProvider& svc, world::Map& map, arms::Projectile& proj) {
-	if (proj.stats.transcendent) { return; }
-	if (proj.bounding_box.overlaps(collider.bounding_box)) {
+	if (proj.transcendent()) { return; }
+	if (proj.get_bounding_box().overlaps(collider.bounding_box)) {
 		state = SwitchButtonState::pressed;
 		if (!proj.destruction_initiated()) {
 			svc.soundboard.flags.world.set(audio::World::breakable_hit);

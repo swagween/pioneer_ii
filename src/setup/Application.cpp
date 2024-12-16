@@ -8,10 +8,9 @@ namespace pi {
 
 Application::Application(char** argv) {
 
-	finder.set_resource_path(argv);
-
+	finder.paths.local = finder.find_directory(argv[0], "assets");
 	// load app resources
-	game_info = dj::Json::from_file((finder.resource_path + "/data/config/version.json").c_str());
+	game_info = dj::Json::from_file((finder.paths.local / "data/config/version.json").string().c_str());
 	assert(!game_info.is_null());
 
 	metadata.title = game_info["title"].as_string();
@@ -21,7 +20,7 @@ Application::Application(char** argv) {
 	metadata.hotfix = game_info["version"]["hotfix"].as<int>();
 	std::cout << "> Launching " << metadata.long_title() << "\n";
 
-	app_settings = dj::Json::from_file((finder.resource_path + "/data/config/settings.json").c_str());
+	app_settings = dj::Json::from_file((finder.paths.local / "data/config/settings.json").string().c_str());
 	assert(!app_settings.is_null());
 
 	// create window
@@ -30,7 +29,7 @@ Application::Application(char** argv) {
 
 	// set app icon
 	sf::Image icon{};
-	icon.loadFromFile(finder.resource_path + "/app/icon.png");
+	icon.loadFromFile((finder.paths.local / "app" / "icon.png").string());
 	window.get().setIcon(32, 32, icon.getPixelsPtr());
 
 	ImGui::SFML::Init(window.get());

@@ -23,6 +23,8 @@ class Clipboard {
 	uint8_t get_value_at(size_t i, size_t j);
 	uint8_t get_value_at(size_t i, size_t j, size_t layer);
 	[[nodiscard]] auto empty() const -> bool { return cell_values.empty(); }
+	[[nodiscard]] auto real_dimensions() const -> sf::Vector2<float> { return {static_cast<float>(dimensions.x), static_cast<float>(dimensions.y)}; }
+	[[nodiscard]] auto scaled_dimensions() const -> sf::Vector2<uint32_t> { return dimensions; }
 
   private:
 	sf::Vector2<uint32_t> dimensions{};

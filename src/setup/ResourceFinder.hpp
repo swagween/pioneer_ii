@@ -14,9 +14,6 @@ namespace fs = std::filesystem;
 class ResourceFinder {
 
   public:
-
-	void set_resource_path(char** argv) { resource_path = find_resources(argv[0]).string(); }
-
 	fs::path find_resources(fs::path exe) {
 		auto check = [](fs::path const& prefix) {
 			auto path = prefix / "assets";
@@ -32,7 +29,29 @@ class ResourceFinder {
 		return {};
 	}
 
-	std::string resource_path{};
+	fs::path find_directory(fs::path exe, std::string const& target) {
+		auto check = [target](fs::path const& prefix) {
+			auto path = prefix / target;
+			if (fs::is_directory(path)) { return path; }
+			return fs::path{};
+		};
+		while (!exe.empty()) {
+			if (auto ret = check(exe); !ret.empty()) { return ret; }
+			auto parent = exe.parent_path();
+			if (exe == parent) { break; }
+			exe = std::move(parent);
+		}
+		return {};
+	}
+
+	
+	struct {
+		std::filesystem::path local{};	   // local assets
+		std::filesystem::path levels{};	   // all level data
+		std::filesystem::path resources{}; // game texture data
+		std::filesystem::path out{};	   // save destination for external use
+		std::string room_name{};
+	} paths{};
 };
 
 } // namespace pi

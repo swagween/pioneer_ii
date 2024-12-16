@@ -6,24 +6,42 @@
 
 namespace data {
 
-DataManager::DataManager(automa::ServiceProvider& svc) : m_services(&svc) {}
+DataManager::DataManager(automa::ServiceProvider& svc, char** argv) : m_services(&svc), finder(argv) { load_data(); }
 
 void DataManager::load_data(std::string in_room) {
-
-	// user config
-	load_settings();
+	// populate map table
+	auto room_path = std::filesystem::path{finder.resource_path};
+	auto room_list = room_path / "level";
+	for (auto const& this_room : std::filesystem::recursive_directory_iterator(room_list)) {
+		if (!this_room.is_directory()) { continue; }
+		auto room_data = dj::Json::from_file((this_room.path() / "meta.json").string().c_str());
+		if (room_data.is_null()) { continue; }
+		auto this_id = room_data["meta"]["room_id"].as<int>();
+		auto this_name = this_room.path().filename().string();
+		auto entry = dj::Json{};
+		entry["room_id"] = this_id;
+		entry["label"] = this_name;
+		map_table["rooms"].push_back(entry);
+	}
+	map_table.dj::Json::to_file((finder.resource_path + "/data/level/map_table.json").c_str());
 
 	map_table = dj::Json::from_file((finder.resource_path + "/data/level/map_table.json").c_str());
 	assert(!map_table.is_null());
-	for (auto const& room : map_table["rooms"].array_view()) { m_services->tables.get_map_label.insert(std::make_pair(room["room_id"].as<int>(), room["label"].as_string())); }
+	for (auto const& room : map_table["rooms"].array_view()) {
+		m_services->tables.get_map_label.insert(std::make_pair(room["room_id"].as<int>(), room["label"].as_string()));
+		rooms.push_back(room["room_id"].as<int>());
+	}
 
 	// load map
 	// std::cout << "loading map data...";
+	std::string room_str{};
 	int room_counter{};
+	map_jsons.reserve(rooms.size());
+	map_layers.reserve(rooms.size());
 	for (auto& room : rooms) {
 		map_jsons.push_back(MapData());
 		map_jsons.back().id = room;
-		std::string room_str = m_services->tables.get_map_label.contains(room) ? finder.resource_path + "/level/" + m_services->tables.get_map_label.at(room) : finder.resource_path + "/level/" + in_room;
+		room_str = m_services->tables.get_map_label.contains(room) ? finder.resource_path + "/level/" + m_services->tables.get_map_label.at(room) : finder.resource_path + "/level/" + in_room;
 		map_jsons.back().metadata = dj::Json::from_file((room_str + "/meta.json").c_str());
 		assert(!map_jsons.back().metadata.is_null());
 		map_jsons.back().tiles = dj::Json::from_file((room_str + "/tile.json").c_str());
@@ -35,15 +53,9 @@ void DataManager::load_data(std::string in_room) {
 		dimensions.x = map_jsons.back().metadata["meta"]["dimensions"][0].as<int>();
 		dimensions.y = map_jsons.back().metadata["meta"]["dimensions"][1].as<int>();
 		map_layers.push_back(std::vector<world::Layer>());
-		for (int i = 0; i < num_layers; ++i) { map_layers.at(room_counter).push_back(world::Layer(i, (i == world::MIDDLEGROUND), dimensions)); }
-		for (auto& layer : map_layers.at(room_counter)) {
-			int cell_counter{};
-			layer.grid = world::Grid(dimensions);
-			for (auto& cell : map_jsons.back().tiles["layers"][layer_counter].array_view()) {
-				layer.grid.cells.at(cell_counter).value = cell.as<int>();
-				++cell_counter;
-			}
-			layer.grid.seed_vertices();
+		map_layers.back().reserve(num_layers);
+		for (int i = 0; i < num_layers; ++i) {
+			map_layers.at(room_counter).push_back(world::Layer(i, (i == world::MIDDLEGROUND), dimensions, map_jsons.back().tiles["layers"][layer_counter]));
 			++layer_counter;
 		}
 		++room_counter;
@@ -63,6 +75,8 @@ void DataManager::load_data(std::string in_room) {
 	// std::cout << "loading json data...";
 	weapon = dj::Json::from_file((finder.resource_path + "/data/weapon/weapon_data.json").c_str());
 	assert(!weapon.is_null());
+	enemy_weapon = dj::Json::from_file((finder.resource_path + "/data/weapon/enemy_weapons.json").c_str());
+	assert(!enemy_weapon.is_null());
 	drop = dj::Json::from_file((finder.resource_path + "/data/item/drop.json").c_str());
 	assert(!drop.is_null());
 	particle = dj::Json::from_file((finder.resource_path + "/data/vfx/particle.json").c_str());
@@ -79,6 +93,8 @@ void DataManager::load_data(std::string in_room) {
 	assert(!cutscene.is_null());
 	map_styles = dj::Json::from_file((finder.resource_path + "/data/level/map_styles.json").c_str());
 	assert(!map_styles.is_null());
+	action_names = dj::Json::from_file((finder.resource_path + "/data/gui/action_names.json").c_str());
+	assert(!action_names.is_null());
 
 	enemy = dj::Json::from_file((finder.resource_path + "/data/enemy/enemy_params.json").c_str());
 	assert(!enemy.is_null());
@@ -91,7 +107,21 @@ void DataManager::load_data(std::string in_room) {
 	assert(!menu.is_null());
 	background = dj::Json::from_file((finder.resource_path + "/data/level/background_behaviors.json").c_str());
 	assert(!background.is_null());
-	// std::cout << " success!\n";
+
+	// load item labels
+	for (auto const& entry : item.object_view()) { m_services->tables.item_labels.insert({entry.second["index"].as<int>(), entry.first}); }
+
+	// load marketplace
+	for (auto const& entry : npc.object_view()) {
+		if (!entry.second["vendor"]) { continue; }
+		std::cout << "Loading marketplace data for " << entry.first << ".\n";
+		marketplace.insert({entry.second["vendor"]["id"].as<int>(), npc::Vendor()});
+		auto& vendor = marketplace.at(entry.second["vendor"]["id"].as<int>());
+		vendor.set_upcharge(entry.second["vendor"]["upcharge"].as<float>());
+		for (auto& item : entry.second["vendor"]["common_items"].array_view()) { vendor.common_items.push_back(item.as<int>()); }
+		for (auto& item : entry.second["vendor"]["uncommon_items"].array_view()) { vendor.uncommon_items.push_back(item.as<int>()); }
+		for (auto& item : entry.second["vendor"]["rare_items"].array_view()) { vendor.rare_items.push_back(item.as<int>()); }
+	}
 }
 
 void DataManager::save_progress(player::Player& player, int save_point_id) {
@@ -101,7 +131,7 @@ void DataManager::save_progress(player::Player& player, int save_point_id) {
 	// set file data based on player state
 	save["player_data"]["max_hp"] = player.health.get_max();
 	save["player_data"]["hp"] = player.health.get_hp();
-	save["player_data"]["orbs"] = player.player_stats.orbs;
+	save["player_data"]["orbs"] = player.wallet.get_balance();
 	save["player_data"]["position"]["x"] = player.collider.physics.position.x;
 	save["player_data"]["position"]["y"] = player.collider.physics.position.y;
 
@@ -109,7 +139,18 @@ void DataManager::save_progress(player::Player& player, int save_point_id) {
 	constexpr auto empty_array = R"([])";
 	auto const wipe = dj::Json::parse(empty_array);
 
+	// write marketplace status
+	save["marketplace"] = wipe;
+	for (auto& vendor : marketplace) {
+		auto out_vendor = wipe;
+		for (auto& item : vendor.second.inventory.items) { out_vendor.push_back(item.get_id()); }
+		save["marketplace"].push_back(out_vendor);
+	}
+
 	// write opened chests and doors
+	save["piggybacker"] = m_services->player_dat.piggy_id;
+	save["npc_locations"] = wipe;
+	save["map_data"]["fallen_enemies"] = wipe;
 	save["discovered_rooms"] = wipe;
 	save["unlocked_doors"] = wipe;
 	save["opened_chests"] = wipe;
@@ -118,6 +159,20 @@ void DataManager::save_progress(player::Player& player, int save_point_id) {
 	save["destroyed_inspectables"] = wipe;
 	for (auto& entry : save["quest_progressions"].array_view()) { entry = wipe; }
 	save["quest_progressions"] = wipe;
+	for (auto& location : npc_locations) {
+		auto entry = wipe;
+		entry.push_back(location.first);
+		entry.push_back(location.second);
+		save["npc_locations"].push_back(entry);
+	}
+	for (auto& enemy : fallen_enemies) {
+		auto entry = wipe;
+		entry.push_back(enemy.code.first);
+		entry.push_back(enemy.code.second);
+		entry.push_back(enemy.respawn_distance);
+		entry.push_back(static_cast<int>(enemy.permanent));
+		save["map_data"]["fallen_enemies"].push_back(entry);
+	}
 	for (auto& room : discovered_rooms) { save["discovered_rooms"].push_back(room); }
 	for (auto& door : unlocked_doors) { save["unlocked_doors"].push_back(door); }
 	for (auto& chest : opened_chests) { save["opened_chests"].push_back(chest); }
@@ -145,19 +200,30 @@ void DataManager::save_progress(player::Player& player, int save_point_id) {
 
 	// save arsenal
 	save["player_data"]["arsenal"] = wipe;
+	save["player_data"]["hotbar"] = wipe;
 	// push player arsenal
 	if (player.arsenal) {
 		for (auto& gun : player.arsenal.value().get_loadout()) {
 			int this_id = gun->get_id();
 			save["player_data"]["arsenal"].push_back(this_id);
 		}
-		save["player_data"]["equipped_gun"] = player.arsenal.value().get_index();
+		if (player.hotbar) {
+			for (auto& id : player.hotbar.value().get_ids()) { save["player_data"]["hotbar"].push_back(id); }
+			save["player_data"]["equipped_gun"] = player.hotbar.value().get_id();
+		}
 	}
+
+	// wardrobe
+	save["player_data"]["wardrobe"]["hairstyle"] = player.catalog.categories.wardrobe.get_variant(player::ApparelType::hairstyle);
+	save["player_data"]["wardrobe"]["shirt"] = player.catalog.categories.wardrobe.get_variant(player::ApparelType::shirt);
+	save["player_data"]["wardrobe"]["pants"] = player.catalog.categories.wardrobe.get_variant(player::ApparelType::pants);
 
 	// items and abilities
 	save["player_data"]["abilities"] = wipe;
 	save["player_data"]["items"] = wipe;
 	if (player.catalog.categories.abilities.has_ability(player::Abilities::dash)) { save["player_data"]["abilities"].push_back("dash"); }
+	if (player.catalog.categories.abilities.has_ability(player::Abilities::wall_slide)) { save["player_data"]["abilities"].push_back("wallslide"); }
+	if (player.catalog.categories.abilities.has_ability(player::Abilities::double_jump)) { save["player_data"]["abilities"].push_back("doublejump"); }
 	for (auto& item : player.catalog.categories.inventory.items) {
 		dj::Json this_item{};
 		this_item["id"] = item.get_id();
@@ -200,6 +266,14 @@ int DataManager::load_progress(player::Player& player, int const file, bool stat
 	auto const& save = files.at(file).save_data;
 	assert(!save.is_null());
 
+	// marketplace
+	for (auto& vendor : marketplace) {
+		vendor.second.inventory.items.clear();
+		for (auto& v : save["marketplace"].array_view()) {
+			for (auto& id : v.array_view()) { vendor.second.inventory.add_item(*m_services, id.as<int>(), 1); }
+		}
+	}
+
 	m_services->quest = {};
 	discovered_rooms.clear();
 	unlocked_doors.clear();
@@ -208,6 +282,9 @@ int DataManager::load_progress(player::Player& player, int const file, bool stat
 	activated_switches.clear();
 	destroyed_inspectables.clear();
 	quest_progressions.clear();
+	npc_locations.clear();
+	fallen_enemies.clear();
+
 	for (auto& room : save["discovered_rooms"].array_view()) { discovered_rooms.push_back(room.as<int>()); }
 	for (auto& door : save["unlocked_doors"].array_view()) { unlocked_doors.push_back(door.as<int>()); }
 	for (auto& chest : save["opened_chests"].array_view()) { opened_chests.push_back(chest.as<int>()); }
@@ -223,6 +300,11 @@ int DataManager::load_progress(player::Player& player, int const file, bool stat
 		quest_progressions.push_back(util::QuestKey{type, id, srcid, amt, hard});
 		m_services->quest.process(*m_services, quest_progressions.back());
 	}
+	for (auto& location : save["npc_locations"].array_view()) { npc_locations.insert({location[0].as<int>(), location[1].as<int>()}); }
+	for (auto& enemy : save["map_data"]["fallen_enemies"].array_view()) { fallen_enemies.push_back({std::make_pair(enemy[0].as<int>(), enemy[1].as<int>()), enemy[2].as<int>(), static_cast<bool>(enemy[3].as<int>())}); };
+	player.piggybacker = {};
+	m_services->player_dat.set_piggy_id(save["piggybacker"].as<int>());
+	m_services->player_dat.drop_piggy = false;
 
 	player.tutorial.flags = {};
 	if (save["tutorial"]["jump"].as_bool()) { player.tutorial.flags.set(text::TutorialFlags::jump); }
@@ -243,24 +325,36 @@ int DataManager::load_progress(player::Player& player, int const file, bool stat
 	// set player data based on save file
 	player.health.set_max(save["player_data"]["max_hp"].as<float>());
 	player.health.set_hp(save["player_data"]["hp"].as<float>());
-	player.player_stats.orbs = save["player_data"]["orbs"].as<int>();
+	player.wallet.set_balance(save["player_data"]["orbs"].as<int>());
 
 	// load player's arsenal
 	player.arsenal = {};
-	if (!save["player_data"]["arsenal"].array_view().empty()) { player.arsenal = arms::Arsenal(*m_services); }
-	for (auto& gun_id : save["player_data"]["arsenal"].array_view()) {
-		if (player.arsenal) { player.arsenal.value().push_to_loadout(gun_id.as<int>()); }
-	}
-	if (player.arsenal) {
-		auto equipped_gun = save["player_data"]["equipped_gun"].as<int>();
-		player.arsenal.value().set_index(equipped_gun);
+	player.hotbar = {};
+	for (auto& gun_id : save["player_data"]["arsenal"].array_view()) { player.push_to_loadout(gun_id.as<int>(), true); }
+	if (!save["player_data"]["hotbar"].array_view().empty()) {
+		if (!player.hotbar) { player.hotbar = arms::Hotbar(1); }
+		if (player.hotbar) {
+			for (auto& gun_id : save["player_data"]["hotbar"].array_view()) { player.hotbar.value().add(gun_id.as<int>()); }
+			auto equipped_gun = save["player_data"]["equipped_gun"].as<int>();
+			player.hotbar.value().set_selection(equipped_gun);
+		}
 	}
 
 	// load items and abilities
 	player.catalog.categories.abilities.clear();
 	player.catalog.categories.inventory.clear();
-	for (auto& ability : save["player_data"]["abilities"].array_view()) { player.catalog.categories.abilities.give_ability(ability.as_string()); }
+	for (auto& ability : save["player_data"]["abilities"].array_view()) { player.catalog.categories.abilities.give_ability(ability.as<int>()); }
 	for (auto& item : save["player_data"]["items"].array_view()) { player.catalog.categories.inventory.add_item(*m_services, item["id"].as<int>(), item["quantity"].as<int>()); }
+
+	// wardrobe
+	auto& wardrobe = player.catalog.categories.wardrobe;
+	auto hairstyle = save["player_data"]["wardrobe"]["hairstyle"].as<int>();
+	auto shirt = save["player_data"]["wardrobe"]["shirt"].as<int>();
+	auto pants = save["player_data"]["wardrobe"]["pants"].as<int>();
+	hairstyle > 0 ? player.equip_item(player::ApparelType::hairstyle, hairstyle + 80) : wardrobe.unequip(player::ApparelType::hairstyle);
+	shirt > 0 ? player.equip_item(player::ApparelType::shirt, shirt + 80) : wardrobe.unequip(player::ApparelType::shirt);
+	pants > 0 ? player.equip_item(player::ApparelType::pants, pants + 80) : wardrobe.unequip(player::ApparelType::pants);
+	player.catalog.categories.wardrobe.update(player.texture_updater);
 
 	// stat tracker
 	auto& s = m_services->stats;
@@ -278,7 +372,7 @@ int DataManager::load_progress(player::Player& player, int const file, bool stat
 	s.enemy.enemies_killed.set(in_stat["enemies_killed"].as<int>());
 	s.world.rooms_discovered.set(in_stat["rooms_discovered"].as<int>());
 	s.time_trials.bryns_gun = in_stat["time_trials"]["bryns_gun"].as<float>();
-	m_services->ticker.in_game_seconds_passed = m_services->stats.float_to_seconds(in_stat["seconds_played"].as<float>());
+	m_services->ticker.set_time(m_services->stats.float_to_seconds(in_stat["seconds_played"].as<float>()));
 	if (files.at(file).flags.test(fornani::FileFlags::new_file)) { s.player.death_count.set(0); }
 
 	return room_id;
@@ -292,6 +386,7 @@ void DataManager::load_settings() {
 	m_services->controller_map.enable_gamepad_input(settings["gamepad"].as_bool().value);
 	m_services->music.volume.multiplier = settings["music_volume"].as<float>();
 	m_services->set_fullscreen(settings["fullscreen"].as_bool().value);
+	std::cout << "Settings set.\n";
 }
 
 void DataManager::delete_file(int index) {
@@ -317,7 +412,7 @@ std::string_view DataManager::load_blank_save(player::Player& player, bool state
 	// set player data based on save file
 	player.health.set_max(save["player_data"]["max_hp"].as<float>());
 	player.health.set_hp(save["player_data"]["hp"].as<float>());
-	player.player_stats.orbs = save["player_data"]["orbs"].as<int>();
+	player.wallet.set_balance(save["player_data"]["orbs"].as<int>());
 
 	// load player's arsenal
 	player.arsenal = {};
@@ -386,7 +481,10 @@ void DataManager::activate_switch(int id) {
 	if (!switch_is_activated(id)) { activated_switches.push_back(id); }
 }
 
-void DataManager::destroy_block(int id) { destroyed_blocks.push_back(id); }
+void DataManager::destroy_block(int id) {
+	if (std::find(destroyed_blocks.begin(), destroyed_blocks.end(), id) != destroyed_blocks.end()) { return; }
+	destroyed_blocks.push_back(id);
+}
 
 void DataManager::destroy_inspectable(std::string_view id) { destroyed_inspectables.push_back(id.data()); }
 
@@ -395,6 +493,27 @@ void DataManager::push_quest(util::QuestKey key) {
 		if (entry == key) { return; }
 	}
 	quest_progressions.push_back(key);
+}
+
+void DataManager::set_npc_location(int npc_id, int room_id) {
+	if (room_id < 0) { return; }
+	if (!npc_locations.contains(npc_id)) { npc_locations.insert({npc_id, room_id}); }
+	npc_locations.at(npc_id) = room_id;
+}
+
+void DataManager::kill_enemy(int room_id, int id, int distance, bool permanent) { fallen_enemies.push_back({{room_id, id}, distance, permanent});
+}
+
+void DataManager::respawn_enemy(int room_id, int id) {
+	std::erase_if(fallen_enemies, [room_id, id](auto const& i) { return i.code.first == room_id && i.code.second == id && !i.permanent; });
+}
+
+void DataManager::respawn_enemies(int room_id, int distance) {
+	std::erase_if(fallen_enemies, [room_id, distance](auto const& i) { return i.code.first == room_id && i.respawn_distance < distance && !i.permanent; });
+}
+
+void DataManager::respawn_all() {
+	std::erase_if(fallen_enemies, [](auto const& i) { return !i.permanent; });
 }
 
 bool DataManager::door_is_unlocked(int id) const {
@@ -439,6 +558,13 @@ bool DataManager::room_discovered(int id) const {
 	return false;
 }
 
+bool DataManager::enemy_is_fallen(int room_id, int id) const {
+	for (auto& enemy : fallen_enemies) {
+		if (enemy.code.first == room_id && enemy.code.second == id) { return true; }
+	}
+	return false;
+}
+
 auto get_action_by_string(std::string_view id) -> config::DigitalAction {
 	static std::unordered_map<std::string_view, config::DigitalAction> const map = {
 		{"platformer_left", config::DigitalAction::platformer_left},
@@ -464,6 +590,8 @@ auto get_action_by_string(std::string_view id) -> config::DigitalAction {
 		{"menu_up", config::DigitalAction::menu_up},
 		{"menu_down", config::DigitalAction::menu_down},
 		{"menu_select", config::DigitalAction::menu_select},
+		{"menu_switch_left", config::DigitalAction::menu_switch_left},
+		{"menu_switch_right", config::DigitalAction::menu_switch_right},
 		{"menu_cancel", config::DigitalAction::menu_cancel},
 	};
 
@@ -493,6 +621,11 @@ int DataManager::get_room_index(int id) {
 		++ctr;
 	}
 	return ctr;
+}
+
+int DataManager::get_npc_location(int npc_id) {
+	if (!npc_locations.contains(npc_id)) { return 0; }
+	return npc_locations.at(npc_id);
 }
 
 std::vector<world::Layer>& DataManager::get_layers(int id) { return map_layers.at(get_room_index(id)); }

@@ -23,13 +23,13 @@ class Player;
 }
 namespace fornani {
 
-	enum class CutsceneFlags { complete };
+enum class CutsceneFlags { complete };
 
 class Cutscene {
   public:
 	Cutscene(automa::ServiceProvider& svc, int id, std::string_view label);
 
-	virtual void update(automa::ServiceProvider& svc, gui::Console& console, world::Map& map, player::Player& player){};
+	virtual void update(automa::ServiceProvider& svc, gui::Console& console, world::Map& map, player::Player& player) {};
 	[[nodiscard]] auto complete() const -> bool { return flags.test(CutsceneFlags::complete); }
 
   protected:
@@ -43,13 +43,13 @@ class Cutscene {
 	} metadata{};
 	struct {
 		util::Cooldown beginning{256};
-		util::Cooldown pause{128};
+		util::Cooldown pause{64};
 		util::Cooldown long_pause{512};
 		util::Cooldown progressor{16};
 		util::Cooldown end{256};
 	} cooldowns{};
 
-	//debug
+	// debug
 	bool debug{};
 };
 

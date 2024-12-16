@@ -3,6 +3,7 @@
 
 #include <string>
 #include "../utils/Collider.hpp"
+#include "../components/SteeringBehavior.hpp"
 
 namespace automa {
 struct ServiceProvider;
@@ -22,6 +23,7 @@ class Gravitator {
 	void add_force(sf::Vector2<float> force);
 	void set_position(Vec new_position);
 	void set_target_position(Vec new_position);
+	void demagnetize(automa::ServiceProvider& svc);
 	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, Vec campos, int history = 0);
 	[[nodiscard]] auto position() const -> sf::Vector2<float> { return collider.physics.position; }
 
@@ -32,6 +34,9 @@ class Gravitator {
 	sf::Color color{};
 	sf::RectangleShape box{};
 	float attraction_force{};
+
+  private:
+	components::SteeringBehavior steering{};
 };
 
 } // namespace vfx

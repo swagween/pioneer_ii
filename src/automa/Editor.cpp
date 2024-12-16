@@ -8,20 +8,31 @@
 
 namespace pi {
 
-Editor::Editor(char** argv, WindowManager& window, ResourceFinder& finder) : window(&window), finder(&finder) { args = argv; }
+Editor::Editor(char** argv, WindowManager& window, ResourceFinder& finder) : window(&window), finder(&finder) {
+	args = argv;
+	finder.paths.levels = finder.find_directory(argv[0], "demo/resources/level");
+	finder.paths.resources = finder.find_directory(argv[0], "demo/resources");
+	finder.paths.out = finder.find_directory(argv[0], "export/levels");
+	std::cout << "Level path: " << finder.paths.levels << "\n";
+}
 
 void Editor::run() {
 
 	// load textures
-	auto& resource_path = finder->resource_path;
 	int const TILE_WIDTH = 32;
 
 	// load the tilesets!
 	sf::Texture t_tiles_provisional{};
-	t_tiles_provisional.loadFromFile(resource_path + "/tile/provisional_tiles.png");
-
-	init(resource_path + "/level/BREAKABLE_TEST_01");
-	setTilesetTexture(t_tiles_provisional);
+	t_tiles_provisional.loadFromFile((finder->paths.resources / "image" / "tile" / "provisional_tiles.png").string());
+	for (int i = 0; i < static_cast<int>(Style::END); ++i) {
+		tileset_textures.push_back(sf::Texture());
+		std::string style = get_style_string.at(static_cast<Style>(i));
+		std::string filename = style + "_tiles.png";
+		tileset_textures.back().loadFromFile((finder->paths.resources / "image" / "tile" / filename).string());
+	}
+	init("new_file");
+	setTilesetTexture(tileset_textures.at(0));
+	
 
 	bool debug_mode = false;
 
@@ -30,16 +41,17 @@ void Editor::run() {
 	background.setPosition(0, 0);
 	background.setFillColor(sf::Color(40, 60, 80));
 	sf::Clock delta_clock{};
+
 	// editor loop
 	while (window->get().isOpen()) {
 
+		if (flags.test(GlobalFlags::shutdown)) { return; }
+
 		if (trigger_demo) {
-			auto ppos = static_cast<sf::Vector2<float>>(player_start) * 32.f;
-			std::cout << "Main path: " << room.data() << "\n";
-			launch_demo(args, room_id, room, ppos);
+			auto ppos = static_cast<sf::Vector2<float>>(map.entities.variables.player_start) * 32.f;
+			launch_demo(args, map.room_id, finder->paths.room_name, ppos);
 			ImGui::SFML::Init(window->get());
-			std::string loaddir = filepath;
-			init(loaddir);
+			init(finder->paths.room_name);
 		}
 
 		auto event = sf::Event{};
@@ -55,7 +67,6 @@ void Editor::run() {
 				if (event.key.code == sf::Keyboard::Num2) { current_tool = std::move(std::make_unique<Brush>()); }
 				if (event.key.code == sf::Keyboard::Num3) { current_tool = std::move(std::make_unique<Fill>()); }
 				if (event.key.code == sf::Keyboard::Num4) { current_tool = std::move(std::make_unique<SelectionRectangular>()); }
-				if (event.key.code == sf::Keyboard::Escape) { return; }
 				break;
 			default: break;
 			}
@@ -68,51 +79,27 @@ void Editor::run() {
 		// ImGui update
 		ImGui::SFML::Update(window->get(), delta_clock.restart());
 
-		// my renders
 		window->get().clear();
 		window->get().draw(background);
 
 		render(window->get());
-
-		// draw canvas here
 
 		ImGui::SFML::Render(window->get());
 		window->get().display();
 	}
 }
 
- // end namespace
-
 void Editor::init(std::string const& load_path) {
-	folderpath = load_path + "../../../level/";
-	filepath = load_path;
-	map.load(load_path);
+	finder->paths.room_name = load_path;
+	std::string msg = "Loading room: " + finder->paths.room_name;
+	console.add_log(msg.data());
+	load();
 	window->get().setMouseCursorVisible(false);
 
-	room = {};
-	demopath = {};
-	std::filesystem::path room_dir = load_path;
-	room = room_dir.filename().string();
-	demopath = "../../../demo/resources/level/" + room;
-	std::string demo_resources = "../../../demo/resources/image";
-	std::cout << "\ndemopath: " << demopath;
-	room_id = map.room_id;
+	tool_texture.loadFromFile((finder->paths.local / "gui" / "tools.png").string());
 
-	tool_texture.loadFromFile(load_path + "../../../gui/tools.png");
-	large_animator_textures.loadFromFile(demo_resources + "/animators/large_animators_01.png");
-	large_animator_thumbs.loadFromFile(load_path + "../../../animators/large_animator_thumbs.png");
-	small_animator_textures.loadFromFile(load_path + "../../../animators/small_animators_01.png");
-	enemy_thumbnails.loadFromFile(load_path + "../../../enemies/thumbnails.png");
-
-	map.map_states.back().layers.at(MIDDLEGROUND).active = true;
-
-	sprites.current_enemy.setTexture(enemy_thumbnails);
-	sprites.enemy_thumb.setTexture(enemy_thumbnails);
+	map.get_layers().layers.at(MIDDLEGROUND).active = true;
 	sprites.tool.setTexture(tool_texture);
-	sprites.large_animator.setTexture(large_animator_textures);
-	sprites.large_animator_thumb.setTexture(large_animator_thumbs);
-	sprites.small_animator.setTexture(small_animator_textures);
-	sprites.small_animator_thumb.setTexture(small_animator_thumbs);
 
 	for (int i = 0; i < static_cast<int>(Style::END); ++i) {
 		char const* next = get_style_string.at(static_cast<Style>(i));
@@ -122,77 +109,28 @@ void Editor::init(std::string const& load_path) {
 		char const* next = get_backdrop_string.at(static_cast<Backdrop>(i));
 		bgs[i] = next;
 	}
-	for (int i = 0; i < static_cast<int>(Style::END); ++i) {
-		tileset_textures.push_back(sf::Texture());
-		std::string style = get_style_string.at(static_cast<Style>(i));
-		tileset_textures.back().loadFromFile(load_path + "../../../tile/" + style + "_tiles.png");
-	}
 
 	sprites.tileset.setTexture(tileset_textures.at(static_cast<int>(map.style)));
-	box.setOutlineColor(sf::Color{200, 200, 200, 20});
-	box.setOutlineThickness(-2);
-	box.setSize({CELL_SIZE, CELL_SIZE});
 
-	player_box.setFillColor(sf::Color{100, 200, 100, 10});
-	player_box.setOutlineColor(sf::Color{100, 200, 100, 70});
-	player_box.setOutlineThickness(-2);
-	player_box.setSize({CELL_SIZE, CELL_SIZE});
-
-	gridbox.setFillColor(sf::Color::Transparent);
-	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
-	gridbox.setOutlineThickness(-1);
-	gridbox.setSize({CELL_SIZE, CELL_SIZE});
-
-	portalbox.setFillColor(sf::Color{120, 220, 200, 128});
-	portalbox.setOutlineColor(sf::Color{240, 230, 255, 180});
-	portalbox.setOutlineThickness(-1);
-	portalbox.setSize({CELL_SIZE, CELL_SIZE});
-
-	chestbox.setFillColor(sf::Color{220, 220, 80, 128});
-	chestbox.setOutlineColor(sf::Color{40, 30, 255, 180});
-	chestbox.setOutlineThickness(-3);
-	chestbox.setSize({CELL_SIZE, CELL_SIZE});
-
-	savebox.setFillColor(sf::Color{220, 20, 220, 128});
-	savebox.setOutlineColor(sf::Color{240, 230, 255, 180});
-	savebox.setOutlineThickness(-1);
-	savebox.setSize({CELL_SIZE, CELL_SIZE});
-
-	inspbox.setFillColor(sf::Color{220, 120, 100, 128});
-	inspbox.setOutlineColor(sf::Color{240, 230, 255, 180});
-	inspbox.setOutlineThickness(-1);
-	inspbox.setSize({CELL_SIZE, CELL_SIZE});
-
-	vinebox.setOutlineColor(sf::Color{240, 230, 80, 80});
-	vinebox.setOutlineThickness(-1);
-
-	scenerybox.setOutlineColor(sf::Color{20, 20, 180, 30});
-	scenerybox.setOutlineThickness(-1);
-	
-	platextent.setFillColor(sf::Color::Transparent);
-	platextent.setOutlineColor(sf::Color{240, 230, 55, 80});
-	platextent.setOutlineThickness(-2);
-	platbox.setFillColor(sf::Color{220, 120, 100, 128});
-	platbox.setOutlineColor(sf::Color{240, 230, 255, 180});
-	platbox.setOutlineThickness(-4);
-
-	target.setFillColor(sf::Color{110, 90, 200, 80});
-	target.setOutlineColor(sf::Color{240, 230, 255, 100});
-	target.setOutlineThickness(-2);
-	target.setSize({CELL_SIZE, CELL_SIZE});
+	setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
+	std::cout << get_style_string.at(map.style) << "\n";
 
 	backdrop.setFillColor(sf::Color{60, 40, 60, 40});
 	backdrop.setOutlineColor(sf::Color{240, 230, 255, 40});
 	backdrop.setOutlineThickness(4);
 	backdrop.setSize(map.real_dimensions);
 
-	setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
-	std::cout << get_style_string.at(map.style) << "\n";
+	target.setFillColor(sf::Color{110, 90, 200, 80});
+	target.setOutlineColor(sf::Color{240, 230, 255, 100});
+	target.setOutlineThickness(-2);
+	target.setSize({CELL_SIZE, CELL_SIZE});
 }
 
 void Editor::setTilesetTexture(sf::Texture& new_tex) { sprites.tileset.setTexture(new_tex); }
 
 void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
+
+	auto& target = flags.test(GlobalFlags::palette_mode) ? palette : map;
 
 	current_tool.get()->ready = !window_hovered;
 	secondary_tool.get()->ready = !window_hovered;
@@ -200,25 +138,22 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 		current_tool.get()->ready = false;
 		secondary_tool.get()->ready = false;
 		if (control_pressed()) {
-			if (event.key.code == sf::Keyboard::X) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
-			if (event.key.code == sf::Keyboard::C) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
-			if (event.key.code == sf::Keyboard::V) {
-				current_tool.get()->handle_keyboard_events(map, event.key.code);
-				map.save_state(*current_tool);
-			}
+			if (event.key.code == sf::Keyboard::X) { current_tool.get()->handle_keyboard_events(target, event.key.code); }
+			if (event.key.code == sf::Keyboard::C) { current_tool.get()->handle_keyboard_events(target, event.key.code); }
+			if (event.key.code == sf::Keyboard::V) { current_tool.get()->handle_keyboard_events(target, event.key.code); }
 		}
-		if (event.key.code == sf::Keyboard::Q) { current_tool.get()->handle_keyboard_events(map, event.key.code); }
+		if (event.key.code == sf::Keyboard::Q) { current_tool.get()->handle_keyboard_events(target, event.key.code); }
 		if (event.key.code == sf::Keyboard::LShift || event.key.code == sf::Keyboard::RShift) { pressed_keys.set(PressedKeys::shift); }
 		if (event.key.code == sf::Keyboard::LControl || event.key.code == sf::Keyboard::RControl) {
-			current_tool.get()->handle_keyboard_events(map, event.key.code);
+			current_tool.get()->handle_keyboard_events(target, event.key.code);
 			pressed_keys.set(PressedKeys::control);
 		}
 		if (event.key.code == sf::Keyboard::LAlt) {
 			if (current_tool->type == ToolType::brush) { current_tool = std::move(std::make_unique<Eyedropper>()); }
 		}
 		if (event.key.code == sf::Keyboard::Z) {
-			if (control_pressed() && !shift_pressed()) { map.undo(); }
-			if (control_pressed() && shift_pressed()) { map.redo(); }
+			if (control_pressed() && !shift_pressed()) { target.undo(); }
+			if (control_pressed() && shift_pressed()) { target.redo(); }
 		}
 	}
 	if (event.type == sf::Event::EventType::KeyReleased) {
@@ -231,11 +166,20 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 		}
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-		map.save_state(*current_tool);
-		current_tool.get()->handle_events(map, event);
+		if (!palette.hovered()) { pressed_keys.set(PressedKeys::mouse); }
+		target.save_state(*current_tool);
+		current_tool.get()->handle_events(target, event);
 		current_tool.get()->active = true;
 		if (current_tool->type == ToolType::eyedropper) { selected_block = current_tool->tile; }
+		if (palette.hovered() && current_tool->type != ToolType::select) {
+			auto pos = current_tool->get_window_position() - palette.get_position();
+			auto idx = palette.tile_val_at_scaled(pos.x, pos.y, 4);
+			current_tool.get()->store_tile(idx);
+			selected_block = idx;
+			if (!current_tool.get()->is_paintable()) { current_tool = std::move(std::make_unique<Brush>()); }
+		}
 	} else {
+		pressed_keys.reset(PressedKeys::mouse);
 		current_tool.get()->active = false;
 		current_tool.get()->just_clicked = true;
 		current_tool.get()->clicked_position = {0.0f, 0.0f};
@@ -243,7 +187,7 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 		current_tool.get()->relative_position = {0.0f, 0.0f};
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-		secondary_tool.get()->handle_events(map, event);
+		secondary_tool.get()->handle_events(target, event);
 		secondary_tool.get()->active = true;
 	} else {
 		secondary_tool.get()->active = false;
@@ -253,182 +197,91 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 		secondary_tool.get()->relative_position = {0.0f, 0.0f};
 	}
 	// select tool gets special treatment, because it can be used without the mouse being pressed (copy/paste)
-	if (current_tool.get()->type == ToolType::select) { current_tool.get()->handle_events(map, event); }
+	if (current_tool.get()->type == ToolType::select) { current_tool.get()->handle_events(target, event); }
 }
 
 void Editor::logic() {
 
-	window_hovered = ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
+	auto& target = flags.test(GlobalFlags::palette_mode) ? palette : map;
+
+	window_hovered = ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive() || palette.hovered();
 	map.active_layer = active_layer;
-	player_start = map.player_start;
+	map.entities.variables.player_start = map.player_start;
 	if (current_tool->trigger_switch) { current_tool = std::move(std::make_unique<Hand>()); }
 	current_tool->update();
 	secondary_tool->update();
 	current_tool->tile = selected_block;
 	if (current_tool.get()->type == ToolType::hand && current_tool.get()->active) {
-		camera.move(current_tool.get()->relative_position);
+		target.move(current_tool.get()->relative_position);
 		current_tool.get()->relative_position = {0.0f, 0.0f};
 	} else if (secondary_tool.get()->type == ToolType::hand && secondary_tool.get()->active) {
-		camera.move(secondary_tool.get()->relative_position);
+		target.move(secondary_tool.get()->relative_position);
 		secondary_tool.get()->relative_position = {0.0f, 0.0f};
 	}
-	camera.update();
+	map.update(*current_tool, true);
+	palette.update(*current_tool);
+	palette.set_position({12.f, 32.f});
+	if (palette.hovered()) { map.unhover(); }
+	palette.hovered() && !pressed_keys.test(PressedKeys::mouse) ? flags.set(GlobalFlags::palette_mode) : flags.reset(GlobalFlags::palette_mode);
 }
 
+void Editor::load() {
+	map.load(*finder, finder->paths.room_name);
+	palette.load(*finder, "palette", true);
+}
+
+bool Editor::save() { return map.save(*finder, finder->paths.room_name); }
+
 void Editor::render(sf::RenderWindow& win) {
-	backdrop.setPosition(camera.position.x, camera.position.y);
+	backdrop.setPosition(map.get_position());
+	map.hovered() ? backdrop.setOutlineColor({240, 230, 255, 80}) : backdrop.setOutlineColor({240, 230, 255, 40});
 	backdrop.setSize(map.real_dimensions);
 	win.draw(backdrop);
-	if (!map.map_states.empty()) {
-		for (auto& layer : map.map_states.back().layers) {
-			box.setFillColor(sf::Color{static_cast<uint8_t>(layer.render_order * 30), 230, static_cast<uint8_t>(255 - layer.render_order * 30), 40});
-			for (auto& cell : layer.grid.cells) {
-				if (cell.value == 0) { continue; }
-				if (layer.render_order == active_layer || show_all_layers) {
-					sprites.tileset.setTextureRect(sf::IntRect{get_tile_coord(cell.value), {32, 32}});
-					sprites.tileset.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
-					win.draw(sprites.tileset);
-				} else {
-					box.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
-					win.draw(box);
-				}
-			}
-		}
-	}
-	for (auto& portal : map.portals) {
-		for (uint32_t i = 0; i < portal.dimensions.x; ++i) {
-			for (uint32_t j = 0; j < portal.dimensions.y; ++j) {
-				portalbox.setPosition((portal.position.x + i) * CELL_SIZE + camera.position.x, (portal.position.y + j) * CELL_SIZE + camera.position.y);
-				win.draw(portalbox);
-			}
-		}
+	if (show_background) {
+		// TODO: background rendering
 	}
 
-	for (auto& inspectable : map.inspectables) {
-		inspbox.setPosition((inspectable.position.x) * CELL_SIZE + camera.position.x, (inspectable.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(inspbox);
-	}
-
-	for (auto& block : map.switch_blocks) {
-		inspbox.setPosition((block.position.x) * CELL_SIZE + camera.position.x, (block.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(inspbox);
-	}
-
-	for (auto& button : map.switch_buttons) {
-		inspbox.setPosition((button.position.x) * CELL_SIZE + camera.position.x, (button.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(inspbox);
-	}
-
-	for (auto& chest : map.chests) {
-		chestbox.setPosition((chest.position.x) * CELL_SIZE + camera.position.x, (chest.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(chestbox);
-	}
-	for (auto& scenery : map.scenery) {
-		scenerybox.setPosition((scenery.position.x) * CELL_SIZE + camera.position.x, (scenery.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(scenerybox);
-	}
-
-	for (auto& scenery : map.interactive_scenery) {
-		vinebox.setPosition((scenery.position.x) * CELL_SIZE + camera.position.x, (scenery.position.y) * CELL_SIZE + camera.position.y);
-		scenery.type == 0 ? vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * CELL_SIZE})
-						  : vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * CELL_SIZE});
-		scenery.foreground ? vinebox.setFillColor(sf::Color{90, 120, 80, 88}) : vinebox.setFillColor(sf::Color{220, 120, 80, 88});
-		scenery.type == 0 ? vinebox.setOutlineColor(sf::Color::White) : vinebox.setOutlineColor(sf::Color::Blue);
-		win.draw(vinebox);
-		if (scenery.has_platform) {
-			for (auto& link : scenery.link_indeces) {
-				vinebox.setSize({64, 16});
-				vinebox.setOrigin({32, 0});
-				vinebox.setPosition(vinebox.getPosition() + sf::Vector2<float>(0.f, CELL_SIZE * link));
-				win.draw(vinebox);
-			}
-		}
-		vinebox.setOrigin({});
-	}
-
-	if (map.save_point.placed) {
-		savebox.setPosition((map.save_point.position.x) * CELL_SIZE + camera.position.x, (map.save_point.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(savebox);
-	}
-
-	for (auto& platform : map.platforms) {
-		auto f_extent = platform.extent * 32.f;
-		platextent.setSize({f_extent, f_extent});
-		platextent.setPosition((platform.position.x) * CELL_SIZE + camera.position.x + platform.dimensions.x * 16.f,
-							   (platform.position.y) * CELL_SIZE + camera.position.y + platform.dimensions.y * 16.f);
-		platbox.setSize({platform.dimensions.x * 32.f, platform.dimensions.y * 32.f});
-		platbox.setPosition((platform.position.x) * CELL_SIZE + camera.position.x, (platform.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(platextent);
-		win.draw(platbox);
-	}
-
-	for (auto& critter : map.critters) {
-		int idx = critter.id;
-		sprites.current_enemy.setTextureRect(sf::IntRect({(idx * 16) % (64), (idx / 4) * 16}, {16, 16}));
-		sprites.current_enemy.setScale({2.0f, 2.0f});
-		sprites.current_enemy.setPosition((critter.position.x) * CELL_SIZE + camera.position.x, (critter.position.y) * CELL_SIZE + camera.position.y);
-		win.draw(sprites.current_enemy);
-	}
-
-	for (auto& animator : map.animators) {
-		sf::Vector2<float> anim_pos = {animator.position.x * CELL_SIZE + camera.position.x, animator.position.y * CELL_SIZE + camera.position.y};
-		box.setPosition(anim_pos.x, anim_pos.y);
-		if (show_all_layers) {
-			auto which = static_cast<int>(animator.id / 100);
-			auto lookup = static_cast<int>(animator.id % 100);
-			if (which == 1) {
-				win.draw(box);
-				sprites.large_animator.setTextureRect(sf::IntRect{{lookup * 64, 0}, {64, 64}});
-				sprites.large_animator.setPosition(anim_pos.x, anim_pos.y);
-				sprites.large_animator.setScale({1.0f, 1.0f});
-				win.draw(sprites.large_animator);
-			} else {
-				win.draw(box);
-				sprites.small_animator.setTextureRect(sf::IntRect{{lookup * 32, 0}, {32, 32}});
-				sprites.small_animator.setPosition(anim_pos.x, anim_pos.y);
-				win.draw(sprites.small_animator);
-			}
-		} else if ((active_layer < 4 && animator.foreground) || (active_layer >= 4 && !animator.foreground)) {
-			win.draw(box);
-		}
-	}
-
-	// player start
-	player_box.setPosition(static_cast<sf::Vector2<float>>(player_start) * (float)CELL_SIZE + camera.position);
-	win.draw(player_box);
-
-	if (show_grid && !map.map_states.empty()) {
-		if (map.map_states.back().layers.empty()) { return; }
-		for (auto& cell : map.map_states.back().layers.back().grid.cells) {
-			if (cell.position.x + camera.bounding_box.left < 0) { continue; }
-			if (cell.position.x + camera.bounding_box.left > screen_dimensions.x) { continue; }
-			if (cell.position.y + camera.bounding_box.top < 0) { continue; }
-			if (cell.position.y + camera.bounding_box.top > screen_dimensions.y) { continue; }
-			gridbox.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
-			win.draw(gridbox);
-		}
-	}
+	map.render(win, sprites.tileset);
 
 	if (current_tool.get()->ready && current_tool.get()->in_bounds(map.dimensions) &&
-		(current_tool.get()->type == ToolType::brush || current_tool.get()->type == ToolType::fill || current_tool.get()->type == ToolType::erase ||
-		 current_tool.get()->type == ToolType::entity_placer)) {
+		(current_tool.get()->type == ToolType::brush || current_tool.get()->type == ToolType::fill || current_tool.get()->type == ToolType::erase || current_tool.get()->type == ToolType::entity_placer)) {
 		for (int i = 0; i < current_tool.get()->size; i++) {
 			for (int j = 0; j < current_tool.get()->size; j++) {
-				target.setPosition((current_tool.get()->scaled_position.x - i) * CELL_SIZE + camera.position.x,
-								   (current_tool.get()->scaled_position.y - j) * CELL_SIZE + camera.position.y);
+				target.setPosition((current_tool.get()->scaled_position.x - i) * CELL_SIZE + map.get_position().x, (current_tool.get()->scaled_position.y - j) * CELL_SIZE + map.get_position().y);
 				win.draw(target);
 			}
 		}
 	}
 
-	current_tool.get()->render(win, camera.position);
-	float tool_x = current_tool.get()->position.x + camera.position.x;
-	float tool_y = current_tool.get()->position.y + camera.position.y;
-	if (!window_hovered) {
+	if (show_palette) {
+		auto palette_bg = sf::RectangleShape({512, 512});
+		palette_bg.setFillColor({20, 20, 20, 160});
+		palette_bg.setPosition(palette.get_position());
+		flags.test(GlobalFlags::palette_mode) ? palette_bg.setOutlineColor({255, 255, 255, 180}) : palette.hovered() ? palette_bg.setOutlineColor({255, 100, 60, 180}) : palette_bg.setOutlineColor({255, 255, 255, 60});
+		palette_bg.setOutlineThickness(2.f);
+		win.draw(palette_bg);
+		palette.render(win, sprites.tileset);
+
+		if (palette.hovered()) {
+			selector.setSize({32.f, 32.f});
+			selector.setOutlineColor({255, 255, 255, 80});
+			selector.setOutlineThickness(-2.f);
+			selector.setFillColor({250, 180, 250, 20});
+			selector.setPosition(palette.get_tile_position_at(current_tool->get_window_position().x - palette.get_position().x, current_tool->get_window_position().y - palette.get_position().y) + palette.get_position());
+			win.draw(selector);
+		}
+	}
+
+	current_tool.get()->render(win, map.get_position(), !palette.hovered());
+	float tool_x = current_tool.get()->position.x + map.get_position().x;
+	float tool_y = current_tool.get()->position.y + map.get_position().y;
+	if (!window_hovered || palette.hovered()) {
 		sprites.tool.setTextureRect({{static_cast<int>(current_tool.get()->type) * 32, 0}, {32, 32}});
 		sprites.tool.setPosition(tool_x, tool_y);
 		win.draw(sprites.tool);
 	}
+
+	// ImGui stuff
 	gui_render(win);
 }
 
@@ -439,8 +292,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	ImGuiIO& io = ImGui::GetIO();
 	io.FontGlobalScale = 1.0;
 
-	current_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - camera.position;
-	secondary_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - camera.position;
+	current_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - map.get_position();
+	secondary_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - map.get_position();
+	current_tool->set_window_position(sf::Vector2<float>{io.MousePos.x, io.MousePos.y});
+	secondary_tool->set_window_position(sf::Vector2<float>{io.MousePos.x, io.MousePos.y});
 
 	if (current_tool.get()->type == ToolType::select && !window_hovered) {
 		ImGui::BeginTooltip();
@@ -478,6 +333,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::EndTooltip();
 	}
 
+	//ImGui::ShowDemoWindow();
+
 	// Main Menu
 	if (ImGui::BeginMainMenuBar()) {
 		bool new_popup{};
@@ -504,17 +361,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 
 				if (GetOpenFileNameA(&ofn)) {
-					std::string loadpath = filename;
-					std::string mapdata = "/meta.json";
-					std::string loaddir = loadpath.substr(0, loadpath.size() - mapdata.size());
-					map.load(loaddir);
-					camera.set_position({});
-					filepath = loaddir;
-					setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
-					std::filesystem::path room_dir = loaddir;
-					room = room_dir.filename().string();
-					room_id = map.room_id;
-					demopath = "../../../demo/resources/level/" + room;
+					auto open_path = std::filesystem::path{filename};
+					finder->paths.room_name = open_path.parent_path().filename().string();
+					std::cout << "\n\nfilename: " << finder->paths.room_name << "\n\n";
+					load();
 				} else {
 					switch (CommDlgExtendedError()) {
 					case CDERR_DIALOGFAILURE: std::cout << "CDERR_DIALOGFAILURE\n"; break;
@@ -539,12 +389,16 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::Separator();
 			if (ImGui::MenuItem("Save", NULL, &save_popup)) {}
 			if (ImGui::MenuItem("Save As", NULL, &save_as_popup)) {}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Close", NULL)) { flags.set(GlobalFlags::shutdown); }
 			ImGui::EndMenu();
 		}
 		if (save_popup) {
-			map.save(filepath);
-			map.save(demopath);
-			console.add_log("File saved successfully.\n");
+			if (save()) {
+				console.add_log("File saved successfully.");
+			} else {
+				console.add_log("Encountered an error saving file!");
+			}
 		}
 		if (new_popup) { ImGui::OpenPopup("New File"); }
 		if (ImGui::BeginPopupModal("New File", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -562,11 +416,14 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::Separator();
 			ImGui::NewLine();
 
-			static int width{0};
-			static int height{0};
+			static int width{1};
+			static int height{1};
 			static int room_id{0};
 			static int metagrid_x{};
 			static int metagrid_y{};
+
+			width = std::clamp(width, 1, std::numeric_limits<int>::max());
+			height = std::clamp(height, 1, std::numeric_limits<int>::max());
 
 			ImGui::InputInt("Width", &width);
 			ImGui::NewLine();
@@ -591,7 +448,6 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::SameLine();
 			if (ImGui::Button("Create")) {
 
-				// set new bg to current one to make it easier to design multiple rooms
 				static int style_current = static_cast<int>(map.style);
 				static int bg_current = static_cast<int>(map.bg);
 
@@ -600,15 +456,13 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				setTilesetTexture(tileset_textures.at(style_current));
 				map.bg = static_cast<Backdrop>(bg_current);
 				map.metagrid_coordinates = {metagrid_x, metagrid_y};
-				filepath = folderpath + buffer;
-				map.save(filepath);
-				map.load(filepath);
-				camera.set_position({});
+				finder->paths.room_name = buffer;
 				map.room_id = room_id;
-				std::filesystem::path room_dir = filepath;
-				room = room_dir.filename().string();
-				room_id = map.room_id;
-				// demopath = "../../../demo/resources/level/" + room;
+				save();
+				load();
+				map.set_position({});
+				std::string message = "Created new room with id " + std::to_string(room_id) + " and name " + finder->paths.room_name;
+				console.add_log(message.data());
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::EndPopup();
@@ -628,9 +482,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
 			ImGui::SameLine();
 			if (ImGui::Button("Create")) {
-				std::string savepath = folderpath + buffer;
-				map.save(savepath);
-				map.save(demopath);
+				finder->paths.room_name = buffer;
+				save();
 				ImGui::CloseCurrentPopup();
 			}
 
@@ -692,9 +545,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					ImGui::Text("djson test: %i", json[1]);*/
 					ImGui::Text("Room ID: %u", map.room_id);
 					//                    ImGui::Text("Room Name: %s", room_name_lookup.at(map.room_id).c_str());
-					ImGui::Text("Camera Position: (%.1f,%.1f)", camera.position.x, camera.position.y);
+					ImGui::Text("Camera Position: (%.1f,%.1f)", map.get_position().x, map.get_position().y);
 					ImGui::Text("Active Layer: %i", active_layer);
-					ImGui::Text("Num Layers: %lu", map.map_states.back().layers.size());
+					ImGui::Text("Num Layers: %lu", map.get_layers().layers.size());
 					ImGui::Text("Stored Tile Value: %u", current_tool.get()->tile);
 					if (current_tool.get()->in_bounds(map.dimensions)) {
 						ImGui::Text("Tile Value at Mouse Pos: %u", map.tile_val_at(current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y, active_layer));
@@ -704,8 +557,6 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					ImGui::Separator();
 					ImGui::Text("Current Style: %s", get_style_string.at(map.style));
 					ImGui::Text("Current Backdrop: %s", get_backdrop_string.at(map.bg));
-					ImGui::Text("Number of Portals: %i", map.portals.size());
-					ImGui::Text("Number of Inspectables: %i", map.inspectables.size());
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Tool")) {
@@ -742,8 +593,6 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				}
 				if (ImGui::BeginTabItem("Resources")) {
 					ImGui::Text("Size of Canvas (Bytes): %lu", sizeof(map));
-					ImGui::Text("Size of Tileset (Bytes): %lu", sizeof(tileset_textures));
-					ImGui::Text("Size of Filepath (Bytes): %lu", sizeof(filepath));
 					ImGui::EndTabItem();
 				}
 				ImGui::EndTabBar();
@@ -753,477 +602,447 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::End();
 		}
 	}
-	ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
-	work_size = viewport->WorkSize;
-	window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
-	window_flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
-	ImGui::SetNextWindowSizeConstraints(ImVec2{work_size.x / 12, work_size.y / 4 - prev_window_size.y - PAD * 4}, ImVec2{work_size.x / 2, work_size.y - prev_window_size.y - PAD * 4});
-	ImGui::SetNextWindowPos(window_pos);
-	if (ImGui::Begin("Tile Palette", debug, window_flags)) {
-		if (ImGui::IsWindowHovered()) { ImGui::SetWindowFocus(); }
-		prev_window_size = ImGui::GetWindowSize();
-		prev_window_pos = ImGui::GetWindowPos();
-		int num_cols = 16;
-		int num_rows = 16;
-		for (int i = 0; i < num_rows; i++) {
-			for (int j = 0; j < num_cols; j++) {
-				auto idx = j + i * num_cols;
-				auto new_j = j * 32;
-				auto new_i = i * 32;
-				ImGui::PushID(idx);
-				sprites.tileset.setTextureRect(sf::IntRect({{new_j, new_i}, {32, 32}}));
-				if (ImGui::ImageButton(sprites.tileset, 2)) {
-					current_tool.get()->store_tile(idx);
-					selected_block = idx;
-					if (!current_tool.get()->is_paintable()) { current_tool = std::move(std::make_unique<Brush>()); }
+	if (current_tool->type == ToolType::entity_placer) {
+		ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
+		work_size = viewport->WorkSize;
+		window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
+		window_flags = ImGuiWindowFlags_NoCollapse;
+		ImGui::SetNextWindowPos(window_pos);
+		if (ImGui::Begin("Enemies", debug, window_flags)) {
+			prev_window_size = ImGui::GetWindowSize();
+			prev_window_pos = ImGui::GetWindowPos();
+			int num_cols = 4;
+			int num_rows = 4;
+			for (int i = 0; i < num_rows; i++) {
+				for (int j = 0; j < num_cols; j++) {
+					auto idx = j + i * num_cols;
+					ImGui::PushID(idx);
+					map.entities.sprites.enemy_thumb.setTextureRect(sf::IntRect({{j * 16, i * 16}, {16, 16}}));
+					map.entities.sprites.enemy_thumb.setScale({2.0f, 2.0f});
+					if (ImGui::ImageButton(map.entities.sprites.enemy_thumb, 2)) {
+						current_tool = std::move(std::make_unique<EntityPlacer>());
+						current_tool.get()->ent_type = ENTITY_TYPE::CRITTER;
+						current_tool.get()->current_critter.id = idx;
+					}
+					ImGui::PopID();
+					ImGui::SameLine();
 				}
-				ImGui::PopID();
-				ImGui::SameLine();
+				ImGui::NewLine();
 			}
-			ImGui::NewLine();
+			ImGui::End();
 		}
-		ImGui::End();
-	}
-	ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
-	work_size = viewport->WorkSize;
-	window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
-	window_flags = ImGuiWindowFlags_NoCollapse;
-	ImGui::SetNextWindowPos(window_pos);
-	if (ImGui::Begin("Enemies", debug, window_flags)) {
-		prev_window_size = ImGui::GetWindowSize();
-		prev_window_pos = ImGui::GetWindowPos();
-		int num_cols = 4;
-		int num_rows = 4;
-		for (int i = 0; i < num_rows; i++) {
-			for (int j = 0; j < num_cols; j++) {
-				auto idx = j + i * num_cols;
-				ImGui::PushID(idx);
-				sprites.enemy_thumb.setTextureRect(sf::IntRect({{j * 16, i * 16}, {16, 16}}));
-				sprites.enemy_thumb.setScale({2.0f, 2.0f});
-				if (ImGui::ImageButton(sprites.enemy_thumb, 2)) {
-					current_tool = std::move(std::make_unique<EntityPlacer>());
-					current_tool.get()->ent_type = ENTITY_TYPE::CRITTER;
-					current_tool.get()->current_critter = Critter(static_cast<CRITTER_TYPE>(idx));
-					current_tool.get()->current_critter.id = idx;
-				}
-				ImGui::PopID();
-				ImGui::SameLine();
-			}
-			ImGui::NewLine();
-		}
-		ImGui::End();
-	}
-	ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
-	work_size = viewport->WorkSize;
-	window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
-	window_flags = ImGuiWindowFlags_NoCollapse;
-	ImGui::SetNextWindowSizeConstraints(ImVec2{work_size.x / 12, work_size.y / 4 - prev_window_size.y - PAD * 4}, ImVec2{work_size.x / 2, work_size.y - prev_window_size.y - PAD * 4});
-	ImGui::SetNextWindowPos(window_pos);
-	if (ImGui::Begin("Entities", debug, window_flags)) {
-		prev_window_size = ImGui::GetWindowSize();
-		prev_window_pos = ImGui::GetWindowPos();
+		ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
+		work_size = viewport->WorkSize;
+		window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
+		window_flags = ImGuiWindowFlags_NoCollapse;
+		ImGui::SetNextWindowSizeConstraints(ImVec2{work_size.x / 12, work_size.y / 4 - prev_window_size.y - PAD * 4}, ImVec2{work_size.x / 2, work_size.y - prev_window_size.y - PAD * 4});
+		ImGui::SetNextWindowPos(window_pos);
+		if (ImGui::Begin("Entities", debug, window_flags)) {
+			prev_window_size = ImGui::GetWindowSize();
+			prev_window_pos = ImGui::GetWindowPos();
 
-		if (ImGui::Button("Animator")) { ImGui::OpenPopup("Select Animator"); }
-		if (ImGui::BeginPopupModal("Select Animator", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-			ImGui::Text("2x2:");
-			int num_cols = 8;
-			int num_rows = 2;
-			for (int i = 0; i < num_rows; i++) {
-				for (int j = 0; j < num_cols; j++) {
-					ImGui::PushID(j + i * num_cols);
-					auto idx = j + i * num_cols;
-					sprites.large_animator.setTextureRect(sf::IntRect({{idx * 64, 0}, {64, 64}}));
-					sprites.large_animator.setScale({0.5f, 0.5f});
-					if (ImGui::ImageButton(sprites.large_animator, 2)) {
-						current_tool = std::move(std::make_unique<EntityPlacer>());
-						current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
-						current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)2, (uint32_t)2}, idx + large_index_multiplier, false, active_layer >= 4); // change booleans here later
-						ImGui::CloseCurrentPopup();
+			if (ImGui::Button("Animator")) { ImGui::OpenPopup("Select Animator"); }
+			if (ImGui::BeginPopupModal("Select Animator", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+				ImGui::Text("2x2:");
+				int num_cols = 8;
+				int num_rows = 2;
+				for (int i = 0; i < num_rows; i++) {
+					for (int j = 0; j < num_cols; j++) {
+						ImGui::PushID(j + i * num_cols);
+						auto idx = j + i * num_cols;
+						map.entities.sprites.large_animator.setTextureRect(sf::IntRect({{idx * 64, 0}, {64, 64}}));
+						map.entities.sprites.large_animator.setScale({0.5f, 0.5f});
+						if (ImGui::ImageButton(map.entities.sprites.large_animator, 2)) {
+							current_tool = std::move(std::make_unique<EntityPlacer>());
+							current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
+							current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)2, (uint32_t)2}, idx + large_index_multiplier, false, active_layer >= 4); // change booleans here later
+							ImGui::CloseCurrentPopup();
+						}
+						ImGui::PopID();
+						ImGui::SameLine();
 					}
-					ImGui::PopID();
-					ImGui::SameLine();
+					ImGui::NewLine();
 				}
-				ImGui::NewLine();
-			}
-			ImGui::Text("1x1:");
-			num_cols = 16;
-			num_rows = 2;
-			for (int i = 0; i < num_rows; i++) {
-				for (int j = 0; j < num_cols; j++) {
-					ImGui::PushID(j + i * num_cols);
-					auto idx = j + i * num_cols;
-					sprites.small_animator.setTextureRect(sf::IntRect({{idx * 32, 0}, {32, 32}}));
-					if (ImGui::ImageButton(sprites.small_animator, 2)) {
-						current_tool = std::move(std::make_unique<EntityPlacer>());
-						current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
-						current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, idx + small_index_multiplier, false, active_layer >= 4); // change booleans here later
-						ImGui::CloseCurrentPopup();
+				ImGui::Text("1x1:");
+				num_cols = 16;
+				num_rows = 2;
+				for (int i = 0; i < num_rows; i++) {
+					for (int j = 0; j < num_cols; j++) {
+						ImGui::PushID(j + i * num_cols);
+						auto idx = j + i * num_cols;
+						map.entities.sprites.small_animator.setTextureRect(sf::IntRect({{idx * 32, 0}, {32, 32}}));
+						if (ImGui::ImageButton(map.entities.sprites.small_animator, 2)) {
+							current_tool = std::move(std::make_unique<EntityPlacer>());
+							current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
+							current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, idx + small_index_multiplier, false, active_layer >= 4); // change booleans here later
+							ImGui::CloseCurrentPopup();
+						}
+						ImGui::PopID();
+						ImGui::SameLine();
 					}
-					ImGui::PopID();
-					ImGui::SameLine();
+					ImGui::NewLine();
 				}
-				ImGui::NewLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
 			}
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-	
-		if (ImGui::Button("Bed")) { 
+
+			if (ImGui::Button("Bed")) {
 				current_tool = std::move(std::make_unique<EntityPlacer>());
 				current_tool.get()->ent_type = ENTITY_TYPE::BED;
-		}
-		if (ImGui::Button("Automatic Animators")) { ImGui::OpenPopup("Animator Specifications"); }
-		if (ImGui::BeginPopupModal("Animator Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+			}
+			if (ImGui::Button("Automatic Animators")) { ImGui::OpenPopup("Animator Specifications"); }
+			if (ImGui::BeginPopupModal("Animator Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 
-			static int id{};
-			static int style{};
-			static bool foreground{};
-			ImGui::InputInt("Texture Lookup", &id);
-			ImGui::InputInt("Style", &style);
+				static int id{};
+				static int style{};
+				static bool foreground{};
+				ImGui::InputInt("Texture Lookup", &id);
+				ImGui::InputInt("Style", &style);
 
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
+					current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, id, true, false, style);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Portal")) { ImGui::OpenPopup("Portal Dimensions"); }
+			if (ImGui::BeginPopupModal("Portal Dimensions", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static int width{0};
+				static int height{0};
+				static int destination{0};
+				static bool activate_on_contact{};
+				static bool already_open{};
+				static bool locked{};
+				static int key_id{};
+
+				ImGui::InputInt("Width", &width);
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Height", &height);
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Destination Room ID", &destination);
+				ImGui::SameLine();
+				help_marker("Must be an existing room before being activated in-game. By convention, choose a three-digit number where the first digit indicates the region.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::Checkbox("Already open?", &already_open);
+				ImGui::SameLine();
+				help_marker("Only applies to 1x1 portals that are not activated on contact (doors). If true, the door will appear open.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::Checkbox("Activate on contact?", &activate_on_contact);
+				ImGui::SameLine();
+				help_marker("If left unchecked, the player will have to inspect the portal to activate it.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::Checkbox("Locked?", &locked);
+				ImGui::SameLine();
+				ImGui::InputInt("Key ID", &key_id);
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::PORTAL;
+					current_tool.get()->current_portal = Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, already_open, map.room_id, destination, locked, key_id);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Inspectable")) { ImGui::OpenPopup("Inspectable Message"); }
+			if (ImGui::BeginPopupModal("Inspectable Message", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static bool activate_on_contact{false};
+				static char keybuffer[128] = "";
+				static char msgbuffer[512] = "";
+
+				ImGui::InputTextWithHint("Key", "Title (invisible in-game; must be unique per room)", keybuffer, IM_ARRAYSIZE(keybuffer));
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputTextWithHint("Message", "Type message here...", msgbuffer, IM_ARRAYSIZE(msgbuffer));
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::Checkbox("Activate on contact?", &activate_on_contact);
+				ImGui::SameLine();
+				help_marker("If left unchecked, the player will have to inspect the portal to activate it.");
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::INSPECTABLE;
+					current_tool.get()->current_inspectable = Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer);
+					current_tool.get()->current_inspectable.suites.push_back(std::vector<std::string>{msgbuffer});
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Platform")) { ImGui::OpenPopup("Platform Specifications"); }
+			if (ImGui::BeginPopupModal("Platform Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static int x{};
+				static int y{};
+				static int extent{};
+				static int style{};
+				std::string type{};
+				static float start{};
+
+				ImGui::InputInt("X Dimensions", &x);
+				ImGui::InputInt("Y Dimensions", &y);
+				ImGui::SameLine();
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Extent", &extent);
+				ImGui::SameLine();
+				help_marker("In units of 32x32.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Style", &style);
+				ImGui::SameLine();
+				help_marker("Must not exceed number of styles.");
+				ImGui::Separator();
+				ImGui::NewLine();
+				if (ImGui::BeginMenu("Platform Type")) {
+					if (ImGui::MenuItem("Up-Down")) { type = "standard_up_down"; }
+					if (ImGui::MenuItem("Side-to-Side")) { type = "standard_side_to_side"; }
+					if (ImGui::MenuItem("Square")) { type = "standard_square"; }
+					if (ImGui::MenuItem("Activated Up-Down")) { type = "standard_activated_up_down"; }
+					if (ImGui::MenuItem("Activated Side-to-Side")) { type = "standard_activated_side_to_side"; }
+				}
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputFloat("Start", &start);
+				ImGui::SameLine();
+				help_marker("Must be a value between 0 and 1.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::PLATFORM;
+					current_tool.get()->current_platform = Platform(sf::Vector2<uint32_t>{0, 0}, sf::Vector2<uint32_t>{(uint32_t)x, (uint32_t)y}, extent, style, type, start);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Chest")) { ImGui::OpenPopup("Chest Specifications"); }
+			if (ImGui::BeginPopupModal("Chest Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static int item_id{};
+				static int id{};
+				static int type{};
+				static int amount{};
+				static float rarity{};
+
+				ImGui::SameLine();
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Type", &type);
+				ImGui::SameLine();
+				help_marker("1 for gun, 2 for orbs, 3 for item");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Amount", &amount);
+				ImGui::SameLine();
+				help_marker("Number of orbs to drop. Only for type == 2.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputFloat("Rarity", &rarity);
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Item ID", &item_id);
+				ImGui::SameLine();
+				help_marker("For guns and items only.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("ID", &id);
+				ImGui::SameLine();
+				help_marker("Currently not used, just put a random number.");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::CHEST;
+					current_tool.get()->current_chest = Chest(id, item_id, type, rarity, amount);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Vine")) { ImGui::OpenPopup("Vine Specifications"); }
+			if (ImGui::BeginPopupModal("Vine Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static int length{};
+				static int size{};
+				static bool foreground{};
+				static int type{};
+				static int platform{};
+
+				ImGui::SameLine();
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Length", &length);
+				ImGui::InputInt("Size", &size);
+				ImGui::InputInt("Platform Indeces", &platform);
+				ImGui::SameLine();
+				help_marker("Either 1 (1x1) or 2 (2x2)");
+				ImGui::Checkbox("Foreground?", &foreground);
+				ImGui::InputInt("Type", &type);
+				ImGui::SameLine();
+				help_marker("0 : vine, 1 : grass");
+
+				ImGui::NewLine();
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::INTERACTIVE_SCENERY;
+					current_tool.get()->current_interactive_scenery = InteractiveScenery(length, size, foreground, type, platform != 0, {platform});
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Scenery")) { ImGui::OpenPopup("Scenery Specifications"); }
+			if (ImGui::BeginPopupModal("Scenery Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static int style{};
+				static int layer{};
+				static int variant{};
+
+				ImGui::SameLine();
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Style", &style);
+				ImGui::InputInt("Layer", &layer);
+				ImGui::InputInt("Variant", &variant);
+
+				ImGui::NewLine();
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::SCENERY;
+					current_tool.get()->current_scenery = Scenery(style, layer, variant);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Switch")) { ImGui::OpenPopup("Switch Specifications"); }
+			if (ImGui::BeginPopupModal("Switch Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static int button_id{};
+				static int type{};
+
+				ImGui::SameLine();
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Type", &type);
+				ImGui::SameLine();
+				help_marker("0 for toggler, 1 for permanent, 2 for movable");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("ID", &button_id);
+				ImGui::SameLine();
+				help_marker("To match with blocks");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::SWITCH_BUTTON;
+					current_tool.get()->current_switch = SwitchButton(button_id, type);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Switch Block")) { ImGui::OpenPopup("Switch Block Specifications"); }
+			if (ImGui::BeginPopupModal("Switch Block Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+				static int button_id{};
+				static int type{};
+
+				ImGui::SameLine();
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("Type", &type);
+				ImGui::SameLine();
+				help_marker("0 for toggler, 1 for permanent, 2 for movable");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				ImGui::InputInt("ID", &button_id);
+				ImGui::SameLine();
+				help_marker("To match with blocks");
+				ImGui::Separator();
+				ImGui::NewLine();
+
+				if (ImGui::Button("Create")) {
+					// switch to entity tool, and store the specified portal for placement
+					current_tool = std::move(std::make_unique<EntityPlacer>());
+					current_tool.get()->ent_type = ENTITY_TYPE::SWITCH_BLOCK;
+					current_tool.get()->current_switch_block = SwitchBlock(button_id, type);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
+				ImGui::EndPopup();
+			}
+			if (ImGui::Button("Save Point")) {
 				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::ANIMATOR;
-				current_tool.get()->current_animator = Animator(sf::Vector2<uint32_t>{(uint32_t)1, (uint32_t)1}, id, true, false, style);
-				ImGui::CloseCurrentPopup();
+				current_tool.get()->ent_type = ENTITY_TYPE::SAVE_POINT;
 			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Portal")) { ImGui::OpenPopup("Portal Dimensions"); }
-		if (ImGui::BeginPopupModal("Portal Dimensions", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static int width{0};
-			static int height{0};
-			static int destination{0};
-			static bool activate_on_contact{};
-			static bool already_open{};
-			static bool locked{};
-			static int key_id{};
-
-			ImGui::InputInt("Width", &width);
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Height", &height);
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Destination Room ID", &destination);
-			ImGui::SameLine();
-			help_marker("Must be an existing room before being activated in-game. By convention, choose a three-digit number where the first digit indicates the region.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::Checkbox("Already open?", &already_open);
-			ImGui::SameLine();
-			help_marker("Only applies to 1x1 portals that are not activated on contact (doors). If true, the door will appear open.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::Checkbox("Activate on contact?", &activate_on_contact);
-			ImGui::SameLine();
-			help_marker("If left unchecked, the player will have to inspect the portal to activate it.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::Checkbox("Locked?", &locked);
-			ImGui::SameLine();
-			ImGui::InputInt("Key ID", &key_id);
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
+			if (ImGui::Button("Player Placer")) {
 				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::PORTAL;
-				current_tool.get()->current_portal = Portal(sf::Vector2<uint32_t>{(uint32_t)width, (uint32_t)height}, activate_on_contact, already_open, map.room_id, destination, locked, key_id);
-				ImGui::CloseCurrentPopup();
+				current_tool.get()->ent_type = ENTITY_TYPE::PLAYER_PLACER;
 			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
+
+			ImGui::End();
 		}
-		ImGui::SameLine();
-		if (ImGui::Button("Inspectable")) { ImGui::OpenPopup("Inspectable Message"); }
-		if (ImGui::BeginPopupModal("Inspectable Message", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static bool activate_on_contact{false};
-			static char keybuffer[128] = "";
-			static char msgbuffer[512] = "";
-
-			ImGui::InputTextWithHint("Key", "Title (invisible in-game; must be unique per room)", keybuffer, IM_ARRAYSIZE(keybuffer));
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputTextWithHint("Message", "Type message here...", msgbuffer, IM_ARRAYSIZE(msgbuffer));
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::Checkbox("Activate on contact?", &activate_on_contact);
-			ImGui::SameLine();
-			help_marker("If left unchecked, the player will have to inspect the portal to activate it.");
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::INSPECTABLE;
-				current_tool.get()->current_inspectable = Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer);
-				current_tool.get()->current_inspectable.suites.push_back(std::vector<std::string>{msgbuffer}); 
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Platform")) { ImGui::OpenPopup("Platform Specifications"); }
-		if (ImGui::BeginPopupModal("Platform Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static int x{};
-			static int y{};
-			static int extent{};
-			static int style{};
-			std::string type{};
-			static float start{};
-
-			ImGui::InputInt("X Dimensions", &x);
-			ImGui::InputInt("Y Dimensions", &y);
-			ImGui::SameLine();
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Extent", &extent);
-			ImGui::SameLine();
-			help_marker("In units of 32x32.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Style", &style);
-			ImGui::SameLine();
-			help_marker("Must not exceed number of styles.");
-			ImGui::Separator();
-			ImGui::NewLine();
-			if (ImGui::BeginMenu("Platform Type")) {
-				if (ImGui::MenuItem("Up-Down")) { type = "standard_up_down"; }
-				if (ImGui::MenuItem("Side-to-Side")) { type = "standard_side_to_side"; }
-				if (ImGui::MenuItem("Square")) { type = "standard_square"; }
-				if (ImGui::MenuItem("Activated Up-Down")) { type = "standard_activated_up_down"; }
-				if (ImGui::MenuItem("Activated Side-to-Side")) { type = "standard_activated_side_to_side"; }
-			}
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputFloat("Start", &start);
-			ImGui::SameLine();
-			help_marker("Must be a value between 0 and 1.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::PLATFORM;
-				current_tool.get()->current_platform = Platform(sf::Vector2<uint32_t>{0, 0}, sf::Vector2<uint32_t>{(uint32_t)x, (uint32_t)y}, extent, style, type, start);
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Chest")) { ImGui::OpenPopup("Chest Specifications"); }
-		if (ImGui::BeginPopupModal("Chest Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static int item_id{};
-			static int id{};
-			static int type{};
-			static int amount{};
-			static float rarity{};
-
-			ImGui::SameLine();
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Type", &type);
-			ImGui::SameLine();
-			help_marker("1 for gun, 2 for orbs, 3 for item");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Amount", &amount);
-			ImGui::SameLine();
-			help_marker("Number of orbs to drop. Only for type == 2.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputFloat("Rarity", &rarity);
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Item ID", &item_id);
-			ImGui::SameLine();
-			help_marker("For guns and items only.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("ID", &id);
-			ImGui::SameLine();
-			help_marker("Currently not used, just put a random number.");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::CHEST;
-				current_tool.get()->current_chest = Chest(id, item_id, type, rarity, amount);
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Vine")) { ImGui::OpenPopup("Vine Specifications"); }
-		if (ImGui::BeginPopupModal("Vine Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static int length{};
-			static int size{};
-			static bool foreground{};
-			static int type{};
-			static int platform{};
-
-			ImGui::SameLine();
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Length", &length);
-			ImGui::InputInt("Size", &size);
-			ImGui::InputInt("Platform Indeces", &platform);
-			ImGui::SameLine();
-			help_marker("Either 1 (1x1) or 2 (2x2)");
-			ImGui::Checkbox("Foreground?", &foreground);
-			ImGui::InputInt("Type", &type);
-			ImGui::SameLine();
-			help_marker("0 : vine, 1 : grass");
-
-			ImGui::NewLine();
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::INTERACTIVE_SCENERY;
-				current_tool.get()->current_interactive_scenery = InteractiveScenery(length, size, foreground, type, platform != 0, {platform});
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Scenery")) { ImGui::OpenPopup("Scenery Specifications"); }
-		if (ImGui::BeginPopupModal("Scenery Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static int style{};
-			static int layer{};
-			static int variant{};
-
-			ImGui::SameLine();
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Style", &style);
-			ImGui::InputInt("Layer", &layer);
-			ImGui::InputInt("Variant", &variant);
-
-			ImGui::NewLine();
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::SCENERY;
-				current_tool.get()->current_scenery = Scenery(style, layer, variant);
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Switch")) { ImGui::OpenPopup("Switch Specifications"); }
-		if (ImGui::BeginPopupModal("Switch Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static int button_id{};
-			static int type{};
-
-			ImGui::SameLine();
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Type", &type);
-			ImGui::SameLine();
-			help_marker("0 for toggler, 1 for permanent, 2 for movable");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("ID", &button_id);
-			ImGui::SameLine();
-			help_marker("To match with blocks");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::SWITCH_BUTTON;
-				current_tool.get()->current_switch = SwitchButton(button_id, type);
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Switch Block")) { ImGui::OpenPopup("Switch Block Specifications"); }
-		if (ImGui::BeginPopupModal("Switch Block Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-			static int button_id{};
-			static int type{};
-
-			ImGui::SameLine();
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("Type", &type);
-			ImGui::SameLine();
-			help_marker("0 for toggler, 1 for permanent, 2 for movable");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			ImGui::InputInt("ID", &button_id);
-			ImGui::SameLine();
-			help_marker("To match with blocks");
-			ImGui::Separator();
-			ImGui::NewLine();
-
-			if (ImGui::Button("Create")) {
-				// switch to entity tool, and store the specified portal for placement
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::SWITCH_BLOCK;
-				current_tool.get()->current_switch_block = SwitchBlock(button_id, type);
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-			ImGui::EndPopup();
-		}
-		if (ImGui::Button("Save Point")) {
-			current_tool = std::move(std::make_unique<EntityPlacer>());
-			current_tool.get()->ent_type = ENTITY_TYPE::SAVE_POINT;
-		}
-		if (ImGui::Button("Player Placer")) {
-			current_tool = std::move(std::make_unique<EntityPlacer>());
-			current_tool.get()->ent_type = ENTITY_TYPE::PLAYER_PLACER;
-		}
-
-		ImGui::End();
 	}
 
 	ImGui::SetNextWindowBgAlpha(0.65f); // Transparent background
@@ -1286,7 +1105,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		}
 		ImGui::Separator();
 		ImGui::Text("Current Block:");
-		sprites.tileset.setTextureRect(sf::IntRect({get_tile_coord(selected_block), {32, 32}}));
+		sprites.tileset.setTextureRect(sf::IntRect({palette.get_tile_coord(selected_block), {32, 32}}));
 		ImGui::Image(sprites.tileset);
 		if (current_tool->type == ToolType::entity_placer) {
 			ImGui::Text("Current Entity:");
@@ -1306,10 +1125,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		} else {
 			ImGui::Text("Tool Position : ---");
 		}
-
-		ImGui::Separator();
-		ImGui::Text("Canvas Settings");
-		ImGui::Separator();
+		ImGui::Text("Mouse Pressed : %s", pressed_keys.test(PressedKeys::mouse) ? "Yes" : "No");
+		ImGui::Text("Palette Mode : %s", flags.test(GlobalFlags::palette_mode) ? "Yes" : "No");
 
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
 		ImGui::BeginChild("ChildS", ImVec2(320, 172), true, window_flags);
@@ -1323,14 +1140,27 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::PopStyleVar();
 
 		ImGui::Separator();
-		ImGui::Text("General Settings");
+		ImGui::Text("Canvas Settings");
 		ImGui::Separator();
 
-		ImGui::Checkbox("Debug Overlay", &show_overlay);
-		ImGui::Checkbox("Show Grid", &show_grid);
-		ImGui::Checkbox("Show All Layers", &show_all_layers);
+		//ImGui::Checkbox("Debug Overlay", &show_overlay);
+		if(ImGui::BeginTabBar("##gensettings")) {
+			if(ImGui::BeginTabItem("General")) {
+				ImGui::Checkbox("Show Entities", &map.flags.show_entities);
+				ImGui::Checkbox("Show Background", &show_background);
+				ImGui::Checkbox("Show Grid", &map.flags.show_grid);
+				ImGui::Checkbox("Show Palette", &show_palette);
+				ImGui::EndTabItem();
+			}
+			if(ImGui::BeginTabItem("Layer")) {
+				ImGui::Checkbox("Show All Layers", &map.flags.show_all_layers);
+				ImGui::Checkbox("Show Obscured Layer", &map.flags.show_obscured_layer);
+				ImGui::Checkbox("Show Indicated Layers", &map.flags.show_indicated_layers);
+				ImGui::EndTabItem();
+			}
+			ImGui::EndTabBar();
+		}
 
-		ImGui::NewLine();
 		ImGui::Separator();
 		ImGui::Text("Actions");
 		ImGui::Separator();
@@ -1340,8 +1170,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 		if (ImGui::Button("Launch Demo")) {
 			trigger_demo = true;
-			map.save(filepath);
-			map.save(demopath);
+			save();
 		};
 		ImGui::PopStyleColor(3);
 		if (ImGui::Button("Export Layer to .png")) {
@@ -1362,25 +1191,17 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		int bg_current = static_cast<int>(map.bg);
 		if (ImGui::Combo("##scenebg", &bg_current, bgs, IM_ARRAYSIZE(bgs))) { map.bg = static_cast<Backdrop>(bg_current); }
 		if (ImGui::Button("Clear Layer")) {
-			map.map_states.push_back(map.map_states.back());
-			map.map_states.back().layers.at(active_layer).clear();
+			map.save_state(*current_tool, true);
+			map.get_layers().layers.at(active_layer).clear();
 		}
 		if (ImGui::Button("Clear All Layers")) {
-			map.map_states.push_back(map.map_states.back());
-			for (auto& layer : map.map_states.back().layers) { layer.clear(); }
+			map.save_state(*current_tool, true);
+			for (auto& layer : map.get_layers().layers) { layer.clear(); }
 		}
 		if (ImGui::Button("Clear Entire Canvas")) {
-			map.map_states.push_back(map.map_states.back());
-			for (auto& layer : map.map_states.back().layers) { layer.clear(); }
-			map.portals.clear();
-			map.inspectables.clear();
-			map.critters.clear();
-			map.animators.clear();
-			map.platforms.clear();
-			map.chests.clear();
-			map.switch_blocks.clear();
-			map.switch_buttons.clear();
-			map.save_point.placed = false;
+			map.save_state(*current_tool, true);
+			for (auto& layer : map.get_layers().layers) { layer.clear(); }
+			map.entities.clear();
 		}
 		ImGui::Separator();
 		prev_window_size = ImGui::GetWindowSize();
@@ -1406,7 +1227,7 @@ void Editor::export_layer_texture() {
 	sf::Vector2u mapdim{map.real_dimensions};
 	screencap.create(mapdim.x, mapdim.y);
 	for (int i = 0; i <= active_layer; ++i) {
-		for (auto& cell : map.map_states.back().layers.at(i).grid.cells) {
+		for (auto& cell : map.get_layers().layers.at(i).grid.cells) {
 			if (cell.value > 0) {
 				auto x_coord = (cell.value % 16) * TILE_WIDTH;
 				auto y_coord = std::floor(cell.value / 16) * TILE_WIDTH;
@@ -1427,19 +1248,14 @@ void Editor::export_layer_texture() {
 	}
 }
 
-sf::Vector2<int> Editor::get_tile_coord(int lookup) {
-	sf::Vector2<int> ret{};
-	ret.x = static_cast<int>(lookup % 16);
-	ret.y = static_cast<int>(std::floor(lookup / 16));
-	return ret * 32;
-}
-
 void Editor::launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position) {
 	trigger_demo = false;
 	ImGui::SFML::Shutdown();
 	fornani::Application demo{argv};
 	std::cout << "Editor path: " << path.string() << "\n";
-	demo.launch(argv, true, room_id, path, player_position);
+	std::cout << "AAA room id: " << room_id << std::endl;
+	std::cout << "\n\n" << finder->paths.room_name << "\n\n";
+	demo.launch(argv, true, room_id, finder->paths.room_name, player_position);
 }
 
 } // namespace pi

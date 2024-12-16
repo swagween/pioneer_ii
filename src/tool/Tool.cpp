@@ -19,4 +19,6 @@ void Tool::update() {
 	scaled_position = {posx, posy};
 }
 
+void Tool::set_window_position(sf::Vector2<float> to_position) { window_position = to_position; }
+
 } // namespace pi

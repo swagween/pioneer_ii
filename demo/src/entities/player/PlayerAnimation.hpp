@@ -13,7 +13,7 @@ namespace player {
 
 class Player;
 
-enum class AnimState { idle, turn, sharp_turn, run, sprint, shield, between_push, push, rise, suspend, fall, stop, inspect, sit, land, hurt, dash, wallslide, die, backflip, slide, get_up };
+enum class AnimState { idle, turn, sharp_turn, run, sprint, shield, between_push, push, rise, suspend, fall, stop, inspect, sit, land, hurt, dash, wallslide, walljump, die, backflip, slide, get_up, roll, shoot };
 enum class AnimTriggers { flip, end_death };
 int const rate{4};
 // { lookup, duration, framerate, num_loops (-1 for infinite), repeat_last_frame, interruptible }
@@ -26,6 +26,7 @@ inline anim::Parameters shield{80, 3, 4 * rate, -1, true};
 inline anim::Parameters between_push{85, 1, 4 * rate, 0};
 inline anim::Parameters push{86, 4, 7 * rate, -1};
 inline anim::Parameters rise{40, 4, 6 * rate, 0};
+inline anim::Parameters walljump{40, 4, 6 * rate, 0};
 inline anim::Parameters suspend{30, 3, 7 * rate, -1};
 inline anim::Parameters fall{62, 4, 5 * rate, -1};
 inline anim::Parameters stop{74, 2, 4 * rate, 0};
@@ -39,6 +40,8 @@ inline anim::Parameters die{76, 4, 8 * rate, -1, true};
 inline anim::Parameters backflip{90, 6, 5 * rate, 0};
 inline anim::Parameters slide{96, 4, 4 * rate, -1};
 inline anim::Parameters get_up{57, 1, 5 * rate, 0};
+inline anim::Parameters roll{100, 4, 5 * rate, 0};
+inline anim::Parameters shoot{104, 3, 8 * rate, 0};
 
 class PlayerAnimation {
 
@@ -50,12 +53,16 @@ class PlayerAnimation {
 	util::BitFlags<AnimTriggers> triggers{};
 	util::Counter idle_timer{};
 	util::Cooldown post_death{400};
+	struct {
+		util::Cooldown walljump{24};
+	} cooldowns{};
 
 	void update();
 	void start();
 	[[nodiscard]] auto death_over() -> bool { return triggers.consume(AnimTriggers::end_death); }
-	[[nodiscard]] auto not_jumping() -> bool { return state != AnimState::rise; }
+	[[nodiscard]] auto not_jumping() const -> bool { return state != AnimState::rise; }
 	[[nodiscard]] auto get_frame() const -> int { return animation.get_frame(); }
+	bool stepped() const;
 
 	fsm::StateFunction state_function = std::bind(&PlayerAnimation::update_idle, this);
 
@@ -77,10 +84,13 @@ class PlayerAnimation {
 	fsm::StateFunction update_hurt();
 	fsm::StateFunction update_dash();
 	fsm::StateFunction update_wallslide();
+	fsm::StateFunction update_walljump();
 	fsm::StateFunction update_die();
 	fsm::StateFunction update_backflip();
 	fsm::StateFunction update_slide();
 	fsm::StateFunction update_get_up();
+	fsm::StateFunction update_roll();
+	fsm::StateFunction update_shoot();
 
 	bool change_state(AnimState next, anim::Parameters params, bool hard = false);
 

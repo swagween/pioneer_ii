@@ -2,12 +2,10 @@
 #include "Canvas.hpp"
 #include "../util/Lookup.hpp"
 #include "../tool/Tool.hpp"
+#include "../setup/ResourceFinder.hpp"
 #include <cassert>
 
 namespace pi {
-
-Canvas::Canvas() {
-}
 
 Canvas::Canvas(sf::Vector2<uint32_t> dim) {
     dimensions = dim;
@@ -17,210 +15,98 @@ Canvas::Canvas(sf::Vector2<uint32_t> dim) {
     clear();
     map_states.push_back(Map());
 	for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dim)); }
+
+	box.setOutlineColor(sf::Color{200, 200, 200, 20});
+	box.setOutlineThickness(-2);
+	box.setSize({CELL_SIZE, CELL_SIZE});
+
+	gridbox.setFillColor(sf::Color::Transparent);
+	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
+	gridbox.setOutlineThickness(-1);
+	gridbox.setSize({CELL_SIZE, CELL_SIZE});
 }
 
-void Canvas::load(const std::string& path) {
-
-    map_states.clear();
-    redo_states.clear();
-
-    //init map_states
-    map_states.push_back(Map());
-    clear();
-    
-    std::string filepath = path + "/meta.json";
-
-    data.meta = dj::Json::from_file((path + "/meta.json").c_str());
-    assert(!data.meta.is_null());
-    data.tiles = dj::Json::from_file((path + "/tile.json").c_str());
-    assert(!data.tiles.is_null());
-    data.inspectables = dj::Json::from_file((path + "/inspectables.json").c_str());
-
-    // get npc data
-    if (!data.meta.is_null()) {
-        auto const& meta = data.meta["meta"];
-        room_id = meta["room_id"].as<int>();
-		metagrid_coordinates.x = meta["metagrid"][0].as<int>();
-		metagrid_coordinates.y = meta["metagrid"][1].as<int>();
-        dimensions.x = meta["dimensions"][0].as<int>();
-        dimensions.y = meta["dimensions"][1].as<int>();
-        chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
-        chunk_dimensions.y = meta["chunk_dimensions"][1].as<int>();
-        real_dimensions = { (float)dimensions.x * constants.cell_size, (float)dimensions.y * constants.cell_size };
-        for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
-
-        auto style_value = meta["style"].as<int>();
-        style = static_cast<Style>(meta["style"].as<int>());
-		bg = static_cast<Backdrop>(meta["background"].as<int>());
-		music = meta["music"].as_string();
-		styles.breakable = meta["styles"]["breakables"].as<int>();
-		cutscene.flag = static_cast<bool>(meta["cutscene_on_entry"]["flag"].as_bool());
-		cutscene.type = meta["cutscene_on_entry"]["type"].as<int>();
-		cutscene.id = meta["cutscene_on_entry"]["id"].as<int>();
-		cutscene.source = meta["cutscene_on_entry"]["source"].as<int>();
-
-		for (auto& entry : data.meta["chests"].array_view()) {
-			Chest c{};
-			c.position.x = entry["position"][0].as<int>();
-			c.position.y = entry["position"][1].as<int>();
-			c.id = entry["id"].as<int>();
-			c.item_id = entry["item_id"].as<int>();
-			c.type = entry["type"].as<int>();
-			c.amount = entry["amount"].as<int>();
-			c.rarity = entry["rarity"].as<float>();
-			chests.push_back(c);
-		}
-
-        for (auto& entry : data.meta["portals"].array_view()) {
-            Portal p{};
-            p.position.x = entry["position"][0].as<int>();
-            p.position.y = entry["position"][1].as<int>();
-            p.dimensions.x = entry["dimensions"][0].as<int>();
-            p.dimensions.y = entry["dimensions"][1].as<int>();
-            p.source_map_id = entry["source_id"].as<int>();
-            p.destination_map_id = entry["destination_id"].as<int>();
-			p.activate_on_contact = static_cast<bool>(entry["activate_on_contact"].as_bool());
-			p.already_open = static_cast<bool>(entry["already_open"].as_bool());
-			p.locked = static_cast<bool>(entry["locked"].as_bool());
-			p.key_id = entry["key_id"].as<int>();
-            portals.push_back(p);
-        }
-
-        auto const& savept = data.meta["save_point"];
-		if (data.meta["save_point"].contains("id")) { save_point.placed = true; }
-        save_point.position.x = savept["position"][0].as<int>();
-		save_point.position.y = savept["position"][1].as<int>();
-
-        for (auto& entry : data.meta["npcs"].array_view()) {
-            NPC n{};
-            n.position.x = entry["position"][0].as<int>();
-            n.position.y = entry["position"][1].as<int>();
-            n.id = entry["id"].as<int>();
-			n.background = static_cast<bool>(entry["background"].as_bool());
-			for (auto& suite : entry["suites"].array_view()) {
-				std::vector<std::string> in_set{};
-				for (auto& set : suite.array_view()) {
-					in_set.push_back(set.as_string().data());
-					std::cout << "In set: " << in_set.back() << "\n";
-				}
-				n.suites.push_back(in_set);
-			}
-            npcs.push_back(n);
-        }
-        for (auto& entry : data.meta["animators"].array_view()) {
-            Animator a{};
-            a.position.x = entry["position"][0].as<int>();
-            a.position.y = entry["position"][1].as<int>();
-            a.dimensions.x = entry["dimensions"][0].as<int>();
-            a.dimensions.y = entry["dimensions"][1].as<int>();
-			a.id = entry["id"].as<int>();
-			a.style = entry["style"].as<int>();
-			a.automatic = static_cast<bool>(entry["automatic"].as_bool());
-            a.foreground = static_cast<bool>(entry["foreground"].as_bool());
-            animators.push_back(a);
-		}
-		for (auto& entry : data.meta["beds"].array_view()) { beds.push_back(Bed{{entry["position"][0].as<uint32_t>(), entry["position"][1].as<uint32_t>()}}); }
-		for (auto& entry : data.meta["scenery"]["vines"].array_view()) {
-			InteractiveScenery i{};
-			i.position.x = entry["position"][0].as<int>();
-			i.position.y = entry["position"][1].as<int>();
-			i.length = entry["length"].as<int>();
-			i.size = entry["size"].as<int>();
-			i.foreground = static_cast<bool>(entry["foreground"].as_bool());
-			if (entry["platform"]) {
-				for (auto& index : entry["platform"]["link_indeces"].array_view()) { i.link_indeces.push_back(index.as<int>()); }
-				i.has_platform = !i.link_indeces.empty();
-			}
-			i.type = 0;
-			interactive_scenery.push_back(i);
-		}
-		for (auto& entry : data.meta["scenery"]["basic"].array_view()) {
-			Scenery s{};
-			s.position.x = entry["position"][0].as<int>();
-			s.position.y = entry["position"][1].as<int>();
-			s.style = entry["style"].as<int>();
-			s.variant = entry["variant"].as<int>();
-			s.layer = entry["layer"].as<int>();
-			scenery.push_back(s);
-		}
-		for (auto& entry : data.meta["scenery"]["grass"].array_view()) {
-			InteractiveScenery i{};
-			i.position.x = entry["position"][0].as<int>();
-			i.position.y = entry["position"][1].as<int>();
-			i.length = entry["length"].as<int>();
-			i.size = entry["size"].as<int>();
-			i.foreground = static_cast<bool>(entry["foreground"].as_bool());
-			i.type = 1;
-			interactive_scenery.push_back(i);
-		}
-        for (auto& entry : data.meta["switch_blocks"].array_view()) {
-			SwitchBlock s{};
-			s.position.x = entry["position"][0].as<int>();
-			s.position.y = entry["position"][1].as<int>();
-			s.id = entry["button_id"].as<int>();
-			s.type = entry["type"].as<int>();
-			switch_blocks.push_back(s);
-		}
-		for (auto& entry : data.meta["switches"].array_view()) {
-			SwitchButton s{};
-			s.position.x = entry["position"][0].as<int>();
-			s.position.y = entry["position"][1].as<int>();
-			s.id = entry["button_id"].as<int>();
-			s.type = entry["type"].as<int>();
-			switch_buttons.push_back(s);
-		}
-		for (auto& entry : data.meta["destroyers"].array_view()) {
-			Destroyer d{};
-			d.position.x = entry["position"][0].as<int>();
-			d.position.y = entry["position"][1].as<int>();
-			d.id = entry["quest_id"].as<int>();
-			destroyers.push_back(d);
-		}
-        for (auto& entry : data.meta["platforms"].array_view()) {
-            Platform p{};
-            p.position.x = entry["position"][0].as<int>();
-            p.position.y = entry["position"][1].as<int>();
-            p.dimensions.x = entry["dimensions"][0].as<int>();
-            p.dimensions.y = entry["dimensions"][1].as<int>();
-            p.extent = entry["extent"].as<int>();
-            p.style = entry["style"].as<int>();
-            p.start = entry["start"].as<float>();
-            p.type = entry["type"].as_string();
-            platforms.push_back(p);
-        }
-
-        for (auto& entry : data.meta["inspectables"].array_view()) {
-            Inspectable i{};
-            i.key = entry["key"].as_string();
-            i.position.x = entry["position"][0].as<int>();
-            i.position.y = entry["position"][1].as<int>();
-            i.dimensions.x = entry["dimensions"][0].as<int>();
-			i.dimensions.y = entry["dimensions"][1].as<int>();
-			i.alternates = entry["alternates"].as<int>();
-            inspectables.push_back(i);
-            inspectables.back().activate_on_contact = (bool)entry["activate_on_contact"].as_bool();
-        }
-        for (auto& inspectable : inspectables) {
-			auto entry = data.inspectables[inspectable.key];
-			for (auto& suite : entry["suite"].array_view()) {
-				std::vector<std::string> in_set{};
-				for (auto& set : suite.array_view()) { in_set.push_back(set.as_string().data()); }
-				inspectable.suites.push_back(in_set);
-			}
-			for (auto& response : entry["responses"].array_view()) {
-				std::vector<std::string> in_set{};
-				for (auto& set : response.array_view()) { in_set.push_back(set.as_string().data()); }
-				inspectable.suites.push_back(in_set);
-			}
-		}
-        for (auto& entry : data.meta["enemies"].array_view()) {
-            Critter e{};
-            e.id = entry["id"].as<int>();
-            e.position.x = entry["position"][0].as<int>();
-            e.position.y = entry["position"][1].as<int>();
-            critters.push_back(e);
-        }
+void Canvas::update(Tool& tool, bool transformed) {
+	if (transformed) {
+		within_bounds(tool.position) ? state.set(CanvasState::hovered) : state.reset(CanvasState::hovered);
+	} else {
+		within_bounds(tool.get_window_position()) ? state.set(CanvasState::hovered) : state.reset(CanvasState::hovered);
     }
+	camera.update();
+}
+
+void Canvas::render(sf::RenderWindow& win, sf::Sprite& tileset) {
+	if (!states_empty()) {
+		for (auto& layer : get_layers().layers) {
+			box.setFillColor(sf::Color{static_cast<uint8_t>(layer.render_order * 30), 230, static_cast<uint8_t>(255 - layer.render_order * 30), 40});
+			for (auto& cell : layer.grid.cells) {
+				if (cell.value == 0) { continue; }
+				if (layer.render_order == active_layer || flags.show_all_layers) {
+					tileset.setTextureRect(sf::IntRect{get_tile_coord(cell.value), {32, 32}});
+					tileset.setPosition(cell.position + camera.position);
+					if (layer.render_order != 7 || flags.show_obscured_layer) { win.draw(tileset); }
+				} else if (flags.show_indicated_layers) {
+					box.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
+					win.draw(box);
+				}
+			}
+		}
+	}
+	if (flags.show_entities) { entities.render(win, get_position()); }
+	if (flags.show_grid && !states_empty()) {
+		if (get_layers().layers.empty()) { return; }
+		for (auto& cell : get_layers().layers.back().grid.cells) {
+			if (cell.position.x + camera.bounding_box.left < 0) { continue; }
+			if (cell.position.x + camera.bounding_box.left > screen_dimensions.x) { continue; }
+			if (cell.position.y + camera.bounding_box.top < 0) { continue; }
+			if (cell.position.y + camera.bounding_box.top > screen_dimensions.y) { continue; }
+			gridbox.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
+			win.draw(gridbox);
+		}
+	}
+}
+
+void Canvas::load(ResourceFinder& finder, std::string const& room_name, bool local) {
+
+	map_states.clear();
+	redo_states.clear();
+
+	// init map_states
+	map_states.push_back(Map());
+	clear();
+
+	auto const& source = local ? finder.paths.local : finder.paths.levels;
+
+	std::string metapath = (source / room_name / "meta.json").string();
+	std::string tilepath = (source / room_name / "tile.json").string();
+
+	data.meta = dj::Json::from_file((metapath).c_str());
+	assert(!data.meta.is_null());
+	data.tiles = dj::Json::from_file((tilepath).c_str());
+	assert(!data.tiles.is_null());
+
+	if (!local) { entities = EntitySet{finder, room_name}; }
+
+	auto const& meta = data.meta["meta"];
+	room_id = meta["room_id"].as<int>();
+	metagrid_coordinates.x = meta["metagrid"][0].as<int>();
+	metagrid_coordinates.y = meta["metagrid"][1].as<int>();
+	dimensions.x = meta["dimensions"][0].as<int>();
+	dimensions.y = meta["dimensions"][1].as<int>();
+	chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
+	chunk_dimensions.y = meta["chunk_dimensions"][1].as<int>();
+	real_dimensions = {(float)dimensions.x * constants.cell_size, (float)dimensions.y * constants.cell_size};
+	for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
+
+	auto style_value = meta["style"].as<int>();
+	style = static_cast<Style>(meta["style"].as<int>());
+	bg = static_cast<Backdrop>(meta["background"].as<int>());
+	entities.variables.music = meta["music"].as_string();
+	styles.breakable = meta["styles"]["breakables"].as<int>();
+	cutscene.flag = static_cast<bool>(meta["cutscene_on_entry"]["flag"].as_bool());
+	cutscene.type = meta["cutscene_on_entry"]["type"].as<int>();
+	cutscene.id = meta["cutscene_on_entry"]["id"].as<int>();
+	cutscene.source = meta["cutscene_on_entry"]["source"].as<int>();
 
     // tiles
     int layer_counter{};
@@ -236,249 +122,74 @@ void Canvas::load(const std::string& path) {
     
 }
 
-bool Canvas::save(const std::string& path) {
-    
-    int value{};
-    int counter = 0;
-    std::filesystem::create_directory(path);
+bool Canvas::save(ResourceFinder& finder, std::string const& room_name) {
 
-    /*json overhaul*/
+	std::filesystem::create_directory(finder.paths.levels / room_name);
+	std::filesystem::create_directory(finder.paths.out / room_name);
 
-    //clean jsons
-    data = {};
+	// clean jsons
+	data = {};
 
-    //empty json array
-    constexpr auto empty_array = R"([])";
-    auto const wipe = dj::Json::parse(empty_array);
+	// empty json array
+	constexpr auto empty_array = R"([])";
+	auto const wipe = dj::Json::parse(empty_array);
 
-    //data.meta
+	// data.meta
 	data.meta["meta"]["room_id"] = room_id;
 	data.meta["meta"]["metagrid"][0] = metagrid_coordinates.x;
-	data.meta["meta"]["metagrid"][1] = metagrid_coordinates.y; 
-    data.meta["meta"]["dimensions"][0] = dimensions.x;
-    data.meta["meta"]["dimensions"][1] = dimensions.y;
-    data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
-    data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
-    data.meta["meta"]["style"] = static_cast<int>(style);
-    data.meta["meta"]["background"] = static_cast<int>(bg);
-	data.meta["meta"]["music"] = music;
+	data.meta["meta"]["metagrid"][1] = metagrid_coordinates.y;
+	data.meta["meta"]["dimensions"][0] = dimensions.x;
+	data.meta["meta"]["dimensions"][1] = dimensions.y;
+	data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
+	data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
+	data.meta["meta"]["style"] = static_cast<int>(style);
+	data.meta["meta"]["background"] = static_cast<int>(bg);
+	data.meta["meta"]["music"] = entities.variables.music;
 	data.meta["meta"]["styles"]["breakables"] = styles.breakable;
 	data.meta["meta"]["cutscene_on_entry"]["flag"] = dj::Boolean{cutscene.flag};
 	data.meta["meta"]["cutscene_on_entry"]["type"] = cutscene.type;
 	data.meta["meta"]["cutscene_on_entry"]["id"] = cutscene.id;
 	data.meta["meta"]["cutscene_on_entry"]["source"] = cutscene.source;
 
-    int ctr{};
-    for (auto& portal : portals) {
-        data.meta["portals"].push_back(wipe);
-        data.meta["portals"][ctr]["dimensions"][0] = portal.dimensions.x;
-        data.meta["portals"][ctr]["dimensions"][1] = portal.dimensions.y;
-        data.meta["portals"][ctr]["position"][0] = portal.position.x;
-        data.meta["portals"][ctr]["position"][1] = portal.position.y;
-        data.meta["portals"][ctr]["source_id"] = room_id;
-        data.meta["portals"][ctr]["destination_id"] = portal.destination_map_id;
-		data.meta["portals"][ctr]["activate_on_contact"] = (dj::Boolean)(portal.activate_on_contact);
-		data.meta["portals"][ctr]["already_open"] = (dj::Boolean)(portal.already_open);
-		data.meta["portals"][ctr]["locked"] = (dj::Boolean)(portal.locked);
-		data.meta["portals"][ctr]["key_id"] = portal.key_id;
-        ++ctr;
-    }
-    ctr = 0;
-    for (auto& inspectable : inspectables) {
-        data.meta["inspectables"].push_back(wipe);
-        data.meta["inspectables"][ctr]["dimensions"][0] = inspectable.dimensions.x;
-        data.meta["inspectables"][ctr]["dimensions"][1] = inspectable.dimensions.y;
-        data.meta["inspectables"][ctr]["position"][0] = inspectable.position.x;
-        data.meta["inspectables"][ctr]["position"][1] = inspectable.position.y;
-        data.meta["inspectables"][ctr]["activate_on_contact"] = (dj::Boolean)(inspectable.activate_on_contact);
-		data.meta["inspectables"][ctr]["key"] = inspectable.key;
-		data.meta["inspectables"][ctr]["alternates"] = inspectable.alternates;
-		for (auto& suite : inspectable.suites) {
-			auto out_set = wipe;
-			for (auto& message : suite) { out_set.push_back(message); }
-			data.inspectables[inspectable.key]["suite"].push_back(out_set);
+	int value{};
+	int counter = 0;
+	entities.save(finder, room_name);
+
+	data.tiles["layers"] = wipe;
+	for (int i = 0; i < NUM_LAYERS; ++i) { data.tiles["layers"].push_back(wipe); }
+	// push layer data
+	int current_layer{};
+	for (auto& layer : map_states.back().layers) {
+		int current_cell{};
+		for (auto& cell : layer.grid.cells) {
+			data.tiles["layers"][current_layer].push_back(layer.grid.cells.at(current_cell).value);
+			++current_cell;
 		}
-		for (auto& response : inspectable.responses) {
-			auto out_set = wipe;
-			for (auto& message : response) { out_set.push_back(message); }
-			data.inspectables[inspectable.key]["responses"].push_back(out_set);
-		}
-        ++ctr;
-    }
-    ctr = 0;
-    for (auto& animator : animators) {
-        data.meta["animators"].push_back(wipe);
-		data.meta["animators"][ctr]["id"] = animator.id;
-		data.meta["animators"][ctr]["style"] = animator.style;
-        data.meta["animators"][ctr]["dimensions"][0] = animator.dimensions.x;
-        data.meta["animators"][ctr]["dimensions"][1] = animator.dimensions.y;
-        data.meta["animators"][ctr]["position"][0] = animator.position.x;
-        data.meta["animators"][ctr]["position"][1] = animator.position.y;
-        data.meta["animators"][ctr]["automatic"] = (dj::Boolean)(animator.automatic);
-        data.meta["animators"][ctr]["foreground"] = (dj::Boolean)(animator.foreground);
-        ++ctr;
-    }
-    ctr = 0;
-    for (auto& plat : platforms) {
-        data.meta["platforms"].push_back(wipe);
-        data.meta["platforms"][ctr]["position"][0] = plat.position.x;
-        data.meta["platforms"][ctr]["position"][1] = plat.position.y;
-        data.meta["platforms"][ctr]["dimensions"][0] = plat.dimensions.x;
-        data.meta["platforms"][ctr]["dimensions"][1] = plat.dimensions.y;
-        data.meta["platforms"][ctr]["extent"] = plat.extent;
-        data.meta["platforms"][ctr]["style"] = plat.style;
-        data.meta["platforms"][ctr]["type"] = plat.type;
-        data.meta["platforms"][ctr]["start"] = plat.start;
-        ++ctr;
-	}
-	ctr = 0;
-	for (auto& bed : beds) {
-		data.meta["beds"].push_back(wipe);
-		data.meta["beds"][ctr]["position"][0] = bed.position.x;
-		data.meta["beds"][ctr]["position"][1] = bed.position.y;
-		++ctr;
-	}
-	ctr = 0;
-	for (auto& s : scenery) {
-		data.meta["scenery"]["basic"].push_back(wipe);
-		data.meta["scenery"]["basic"][ctr]["position"][0] = s.position.x;
-		data.meta["scenery"]["basic"][ctr]["position"][1] = s.position.y;
-		data.meta["scenery"]["basic"][ctr]["style"] = s.style;
-		data.meta["scenery"]["basic"][ctr]["variant"] = s.variant;
-		data.meta["scenery"]["basic"][ctr]["layer"] = s.layer;
-		++ctr;
-	}
-	ctr = 0;
-	for (auto& scenery : interactive_scenery) {
-		std::string key = scenery.type == 0 ? "vines" : "grass";
-		data.meta["scenery"][key].push_back(wipe);
-		data.meta["scenery"][key][ctr]["position"][0] = scenery.position.x;
-		data.meta["scenery"][key][ctr]["position"][1] = scenery.position.y;
-		data.meta["scenery"][key][ctr]["length"] = scenery.length;
-		data.meta["scenery"][key][ctr]["size"] = scenery.size;
-		data.meta["scenery"][key][ctr]["foreground"] = dj::Boolean{scenery.foreground};
-		if (scenery.has_platform) {
-			for (auto& index : scenery.link_indeces) { data.meta["scenery"][key][ctr]["platform"]["link_indeces"].push_back(index); }
-		}
-		++ctr;
-	}
-	ctr = 0;
-	for (auto& destroyer : destroyers) {
-		data.meta["destroyers"].push_back(wipe);
-		data.meta["destroyers"][ctr]["quest_id"] = destroyer.id;
-		data.meta["destroyers"][ctr]["position"][0] = destroyer.position.x;
-		data.meta["destroyers"][ctr]["position"][1] = destroyer.position.y;
-		++ctr;
-	}
-    ctr = 0;
-    for (auto& critter : critters) {
-        data.meta["enemies"].push_back(wipe);
-        data.meta["enemies"][ctr]["id"] = critter.id;
-        data.meta["enemies"][ctr]["position"][0] = critter.position.x;
-        data.meta["enemies"][ctr]["position"][1] = critter.position.y;
-        ++ctr;
-	}
-	for (auto& npc : npcs) {
-		data.meta["npcs"].push_back(wipe);
-		data.meta["npcs"][ctr]["id"] = npc.id;
-		data.meta["npcs"][ctr]["position"][0] = npc.position.x;
-		data.meta["npcs"][ctr]["position"][1] = npc.position.y;
-		data.meta["npcs"][ctr]["background"] = (dj::Boolean)npc.background;
-		for (auto& suite : npc.suites) {
-			auto out_set = wipe;
-			for (auto& number : suite) { out_set.push_back(number); }
-			data.meta["npcs"][ctr]["suites"].push_back(out_set);
-			std::cout << "Out set: " << out_set.as_string() << "\n";
-		}
-		++ctr;
-	}
-	ctr = 0;
-	for (auto& chest : chests) {
-		data.meta["chests"].push_back(wipe);
-		data.meta["chests"][ctr]["id"] = chest.id;
-		data.meta["chests"][ctr]["item_id"] = chest.item_id;
-		data.meta["chests"][ctr]["type"] = chest.type;
-		data.meta["chests"][ctr]["amount"] = chest.amount;
-		data.meta["chests"][ctr]["rarity"] = chest.rarity;
-		data.meta["chests"][ctr]["position"][0] = chest.position.x;
-		data.meta["chests"][ctr]["position"][1] = chest.position.y;
-		++ctr;
-	}
-	ctr = 0;
-	for (auto& block : switch_blocks) {
-		data.meta["switch_blocks"].push_back(wipe);
-		data.meta["switch_blocks"][ctr]["button_id"] = block.id;
-		data.meta["switch_blocks"][ctr]["type"] = block.type;
-		data.meta["switch_blocks"][ctr]["position"][0] = block.position.x;
-		data.meta["switch_blocks"][ctr]["position"][1] = block.position.y;
-		++ctr;
-	}
-	ctr = 0;
-	for (auto& button : switch_buttons) {
-		data.meta["switches"].push_back(wipe);
-		data.meta["switches"][ctr]["button_id"] = button.id;
-		data.meta["switches"][ctr]["type"] = button.type;
-		data.meta["switches"][ctr]["position"][0] = button.position.x;
-		data.meta["switches"][ctr]["position"][1] = button.position.y;
-		++ctr;
-	}
-	if (save_point.placed) {
-		data.meta["save_point"]["id"] = room_id;
-		data.meta["save_point"]["position"][0] = save_point.position.x;
-		data.meta["save_point"]["position"][1] = save_point.position.y;
+		++current_layer;
 	}
 
-    data.tiles["layers"] = wipe;
-    for (int i = 0; i < NUM_LAYERS; ++i) {
-        data.tiles["layers"].push_back(wipe);
-    }
-    //push layer data
-    int current_layer{};
-    for (auto& layer : map_states.back().layers) {
-        int current_cell{};
-        for (auto& cell : layer.grid.cells) {
-            data.tiles["layers"][current_layer].push_back(layer.grid.cells.at(current_cell).value);
-            ++current_cell;
-        }
-        ++current_layer;
-    }
+	auto success{true};
+	if (!data.meta.to_file((finder.paths.levels / room_name / "meta.json").string().c_str())) { success = false; }
+	if (!data.tiles.to_file((finder.paths.levels / room_name / "tile.json").string().c_str())) { success = false; }
+	if (!data.meta.to_file((finder.paths.out / room_name / "meta.json").string().c_str())) { success = false; }
+	if (!data.tiles.to_file((finder.paths.out / room_name / "tile.json").string().c_str())) { success = false; }
 
-    data.meta.to_file((path + "/meta.json").c_str());
-    data.inspectables.to_file((path + "/inspectables.json").c_str());
-    data.tiles.to_file((path + "/tile.json").c_str());
-
-    /*json overhaul*/
-    return true;
+    return success;
 }
 
 void Canvas::clear() {
     if (!map_states.empty()) {
-        for (auto& layer : map_states.back().layers) {
-            layer.erase();
-        }
+		for (auto& layer : map_states.back().layers) { layer.erase(); }
         map_states.back().layers.clear();
-        portals.clear();
-        inspectables.clear();
-        critters.clear();
-        animators.clear();
-        chests.clear();
-		platforms.clear();
-        npcs.clear();
-        switch_blocks.clear();
-		switch_buttons.clear();
-		beds.clear();
-		interactive_scenery.clear();
-		destroyers.clear();
-		save_point.placed = false;
     }
 }
 
-void Canvas::save_state(Tool& tool) {
+void Canvas::save_state(Tool& tool, bool force) {
     auto const& type = tool.type;
     auto undoable_tool = type == ToolType::brush || type == ToolType::fill || type == ToolType::select || type == ToolType::erase;
     auto just_clicked = !tool.active && tool.ready;
-    if (undoable_tool && just_clicked) {
-        map_states.emplace_back(Map(map_states.back()));
+	if ((undoable_tool && just_clicked) || force) {
+		map_states.emplace_back(Map{map_states.back()});
         clear_redo_states();
     }
 }
@@ -499,13 +210,19 @@ void Canvas::redo() {
 
 void Canvas::clear_redo_states() { redo_states.clear(); }
 
+void Canvas::unhover() { state.reset(CanvasState::hovered); }
+
+void Canvas::move(sf::Vector2<float> distance) { camera.move(distance); }
+
+void Canvas::set_position(sf::Vector2<float> to_position) { camera.set_position(to_position); }
+
 Map& Canvas::get_layers() { return map_states.back(); }
 
-bool Canvas::has_switch_block_at(sf::Vector2<uint32_t> pos) const {
-	for (auto& s : switch_blocks) {
-		if (s.position.x == pos.x && s.position.y == pos.y) { return true; };
-	}
-	return false;
+sf::Vector2<int> Canvas::get_tile_coord(int lookup) {
+	sf::Vector2<int> ret{};
+	ret.x = static_cast<int>(lookup % 16);
+	ret.y = static_cast<int>(std::floor(lookup / 16));
+	return ret * 32;
 }
 
 void Canvas::edit_tile_at(int i, int j, int new_val, int layer_index) {
@@ -516,8 +233,30 @@ void Canvas::edit_tile_at(int i, int j, int new_val, int layer_index) {
 
 void Canvas::erase_at(int i, int j, int layer_index) { edit_tile_at(i, j, 0, layer_index); }
 
-int Canvas::tile_val_at(int i, int j, int layer) {
-    return map_states.back().layers.at(layer).grid.cells.at(i + j * dimensions.x).value;
+int Canvas::tile_val_at(int i, int j, int layer) { return map_states.back().layers.at(layer).grid.cells.at(i + j * dimensions.x).value; }
+
+int Canvas::tile_val_at_scaled(int i, int j, int layer) {
+	auto u = std::floor(i / 32);
+	auto v = std::floor(j / 32);
+	auto idx = static_cast<std::size_t>(u + v * dimensions.x);
+	if (idx < 0 || idx >= map_states.back().layers.at(layer).grid.cells.size()) { return 0; }
+	return map_states.back().layers.at(layer).grid.cells.at(idx).value;
+}
+
+sf::Vector2<float> Canvas::get_tile_position_at(int i, int j, int layer) {
+	auto u = std::floor(i / 32);
+	auto v = std::floor(j / 32);
+	auto idx = static_cast<std::size_t>(u + v * dimensions.x);
+	if (idx < 0 || idx >= map_states.back().layers.at(layer).grid.cells.size()) { return {}; }
+	return map_states.back().layers.at(layer).grid.cells.at(idx).position;
+}
+
+Tile& Canvas::get_tile_at(int i, int j, int layer) {
+	auto u = std::floor(i / 32);
+	auto v = std::floor(j / 32);
+	auto idx = static_cast<std::size_t>(u + v * dimensions.x);
+	if (idx < 0 || idx >= map_states.back().layers.at(layer).grid.cells.size()) { return map_states.back().layers.at(layer).grid.cells.at(0); }
+	return map_states.back().layers.at(layer).grid.cells.at(idx);
 }
 
 TILE_TYPE Canvas::lookup_type(int idx) {
@@ -556,6 +295,5 @@ TILE_TYPE Canvas::lookup_type(int idx) {
     }
     return TILE_NULL;
 }
-
 
 }

@@ -1,9 +1,3 @@
-//
-//  GameState.hpp
-//  automa
-//
-//  Created by Alex Frasca on 12/26/22.
-//
 
 #pragma once
 
@@ -13,7 +7,6 @@
 #include <chrono>
 #include <imgui.h>
 #include "../canvas/Canvas.hpp"
-#include "../util/Camera.hpp"
 #include "../util/BitFlags.hpp"
 #include "../tool/Tool.hpp"
 #include "../setup/WindowManager.hpp"
@@ -23,12 +16,14 @@
 #include <sstream>
 #include <windows.h>
 #include <string_view>
+#include <filesystem>
 
 namespace pi {
 
 class ResourceFinder;
 
-enum class PressedKeys { control, shift };
+enum class GlobalFlags { shutdown, palette_mode };
+enum class PressedKeys { control, shift, mouse };
 
 inline char const* styles[static_cast<size_t>(Style::END)];
 inline char const* bgs[static_cast<size_t>(Backdrop::END)];
@@ -45,6 +40,8 @@ class Editor {
 	void setTilesetTexture(sf::Texture& new_tex);
 	void handle_events(sf::Event& event, sf::RenderWindow& win);
 	void logic();
+	void load();
+	bool save();
 	void render(sf::RenderWindow& win);
 	void gui_render(sf::RenderWindow& win);
 	void help_marker(char const* desc);
@@ -52,27 +49,20 @@ class Editor {
 	void launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position);
 	[[nodiscard]] auto control_pressed() const -> bool { return pressed_keys.test(PressedKeys::control); }
 	[[nodiscard]] auto shift_pressed() const -> bool { return pressed_keys.test(PressedKeys::shift); }
-	sf::Vector2<int> get_tile_coord(int lookup);
 
 	Canvas map{};
+	Canvas palette{};
+
 	std::vector<sf::Texture> tileset_textures{};
 	sf::Texture tool_texture{};
 	sf::Sprite tool_sprites{};
-	sf::Texture large_animator_textures{};
-	sf::Texture large_animator_thumbs{};
-	sf::Texture small_animator_textures{};
-	sf::Texture small_animator_thumbs{};
-	sf::Texture enemy_thumbnails{};
+	sf::RectangleShape backdrop{};
+	sf::RectangleShape target{};
+	sf::RectangleShape selector{};
 
 	struct {
 		sf::Sprite tool{};
 		sf::Sprite tileset{};
-		sf::Sprite large_animator{};
-		sf::Sprite small_animator{};
-		sf::Sprite large_animator_thumb{};
-		sf::Sprite small_animator_thumb{};
-		sf::Sprite enemy_thumb{};
-		sf::Sprite current_enemy{};
 	} sprites{};
 
 	sf::Texture t_chest{};
@@ -87,47 +77,26 @@ class Editor {
 	sf::Vector2<float> mouse_clicked_position{};
 
 	bool mouse_held{};
-	bool show_grid{true};
-	bool show_all_layers{true};
-	bool show_overlay{false};
+	bool show_background{};
+	bool show_palette{true};
+	bool show_overlay{};
 	bool demo_mode{};
-
-	sf::RectangleShape box{};
-	sf::RectangleShape player_box{};
-	sf::RectangleShape gridbox{};
-	sf::RectangleShape portalbox{};
-	sf::RectangleShape inspbox{};
-	sf::RectangleShape platbox{};
-	sf::RectangleShape chestbox{};
-	sf::RectangleShape savebox{};
-	sf::RectangleShape platextent{};
-	sf::RectangleShape target{};
-	sf::RectangleShape backdrop{};
-	sf::RectangleShape vinebox{};
-	sf::RectangleShape scenerybox{};
 
 	int large_index_multiplier{100};
 	int small_index_multiplier{200};
-
-	std::string filepath{};
-	std::string demopath{};
-	std::string folderpath{};
-	std::string room{};
-	int room_id{};
 
 	bool trigger_demo{false};
 	bool window_hovered{};
 	int active_layer{4};
 	int selected_block{};
-	sf::Vector2<uint32_t> player_start{};
 
   private:
 	WindowManager* window;
 	ResourceFinder* finder;
-	Camera camera = Camera();
 	std::unique_ptr<Tool> current_tool = std::make_unique<Hand>();
 	std::unique_ptr<Tool> secondary_tool = std::make_unique<Hand>();
 	util::BitFlags<PressedKeys> pressed_keys{};
+	util::BitFlags<GlobalFlags> flags{};
 	char** args{};
 	Console console{};
 };

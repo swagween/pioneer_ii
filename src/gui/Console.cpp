@@ -4,7 +4,10 @@
 
 namespace pi {
 
-	void Console::add_log(char const* message) { log.add_log(message); }
+	void Console::add_log(char const* message) { 
+		std::string msg = message;
+		msg += "\n";
+		log.add_log(msg.data()); }
 
 void Console::write_console(ImVec2 prev_size, ImVec2 prev_pos) {
 	auto pad{10.f};

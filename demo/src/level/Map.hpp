@@ -8,8 +8,12 @@
 #include "../entities/world/Inspectable.hpp"
 #include "../entities/world/Portal.hpp"
 #include "../entities/world/SavePoint.hpp"
+#include "../entities/world/Vine.hpp"
+#include "../entities/world/Grass.hpp"
 #include "../graphics/Background.hpp"
+#include "../graphics/Scenery.hpp"
 #include "../graphics/Transition.hpp"
+#include "../graphics/Rain.hpp"
 #include "Grid.hpp"
 #include "../utils/Random.hpp"
 #include "../utils/Shape.hpp"
@@ -26,9 +30,13 @@
 #include "Spike.hpp"
 #include "SwitchBlock.hpp"
 #include "Destroyable.hpp"
+#include "Checkpoint.hpp"
 #include "../weapon/Grenade.hpp"
 #include "../story/CutsceneCatalog.hpp"
 #include "../utils/Stopwatch.hpp"
+#include "../utils/CircleCollider.hpp"
+#include "../audio/Ambience.hpp"
+#include "../entities/atmosphere/Atmosphere.hpp"
 
 int const NUM_LAYERS{8};
 int const CHUNK_SIZE{16};
@@ -57,6 +65,7 @@ enum LAYER_ORDER {
 };
 
 enum class LevelState { game_over, camera_shake, spawn_enemy };
+enum class MapState { unobscure };
 
 // a Layer is a grid with a render priority and a flag to determine if scene entities can collide with it.
 // for for loop, the current convention is that the only collidable layer is layer 4 (index 3), or the middleground.
@@ -65,8 +74,8 @@ class Layer {
 
   public:
 	Layer() = default;
-	Layer(uint8_t o, bool c, sf::Vector2<uint32_t> dim) : render_order(o), collidable(c), dimensions(dim) { grid = Grid({dim.x, dim.y}); }
-	Grid grid{};
+	Layer(uint8_t o, bool c, sf::Vector2<uint32_t> dim, dj::Json& source) : render_order(o), collidable(c), dimensions(dim), grid(dim, source) {}
+	Grid grid;
 	uint8_t render_order{};
 	bool collidable{};
 	sf::Vector2<uint32_t> dimensions{};
@@ -95,29 +104,41 @@ class Map {
 	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam);
 	void render_background(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam);
 	void render_console(automa::ServiceProvider& svc, gui::Console& console, sf::RenderWindow& win);
-	void spawn_projectile_at(automa::ServiceProvider& svc, arms::Weapon& weapon, sf::Vector2<float> pos);
+	void spawn_projectile_at(automa::ServiceProvider& svc, arms::Weapon& weapon, sf::Vector2<float> pos, sf::Vector2<float> target = {});
 	void spawn_enemy(int id, sf::Vector2<float> pos);
 	void manage_projectiles(automa::ServiceProvider& svc);
 	void generate_collidable_layer(bool live = false);
 	void generate_layer_textures(automa::ServiceProvider& svc);
-	bool check_cell_collision(shape::Collider collider);
+	bool check_cell_collision(shape::Collider& collider, bool foreground = false);
+	bool check_cell_collision_circle(shape::CircleCollider& collider, bool collide_with_platforms = true);
+	void handle_cell_collision(shape::CircleCollider& collider);
 	void handle_grappling_hook(automa::ServiceProvider& svc, arms::Projectile& proj);
 	void shake_camera();
 	void clear();
+	void wrap(sf::Vector2<float>& position) const;
 	std::vector<Layer>& get_layers();
+	npc::NPC& get_npc(int id);
 	Vec get_spawn_position(int portal_source_map_id);
+	sf::Vector2<float> get_nearest_target_point(sf::Vector2<float> from);
+	sf::Vector2<float> last_checkpoint();
+
+	void debug();
 
 	bool nearby(shape::Shape& first, shape::Shape& second) const;
+	bool within_bounds(sf::Vector2<float> test) const;
+	bool overlaps_middleground(shape::Shape& test) const;
 	[[nodiscard]] auto off_the_bottom(sf::Vector2<float> point) const -> bool { return point.y > real_dimensions.y + abyss_distance; }
 	[[nodiscard]] auto camera_shake() const -> bool { return flags.state.test(LevelState::camera_shake); }
+	std::size_t get_index_at_position(sf::Vector2<float> position);
+	int get_tile_value_at_position(sf::Vector2<float> position);
+	Tile& get_cell_at_position(sf::Vector2<float> position);
 
 	// layers
 	sf::Vector2<int> metagrid_coordinates{};
-	//std::vector<Layer> layers{};
-	std::vector<uint32_t> collidable_indeces{}; // generated on load to reduce collision checks in hot code
-	Vec real_dimensions{};						// pixel dimensions (maybe useless)
-	Vecu16 dimensions{};						// points on the 32x32-unit grid
-	Vecu16 chunk_dimensions{};					// how many chunks (16x16 squares) in the room
+	// std::vector<Layer> layers{};
+	Vec real_dimensions{};	   // pixel dimensions (maybe useless)
+	Vecu16 dimensions{};	   // points on the 32x32-unit grid
+	Vecu16 chunk_dimensions{}; // how many chunks (16x16 squares) in the room
 
 	dj::Json inspectable_data{};
 
@@ -130,6 +151,9 @@ class Map {
 	std::vector<entity::Bed> beds{};
 	std::vector<entity::Animator> animators{};
 	std::vector<entity::Effect> effects{};
+	std::vector<std::unique_ptr<entity::Vine>> vines{};
+	std::vector<std::unique_ptr<entity::Grass>> grass{};
+	std::array<std::vector<std::unique_ptr<vfx::Scenery>>, 6> scenery_layers{};
 	std::vector<item::Loot> active_loot{};
 	std::vector<entity::Chest> chests{};
 	std::vector<npc::NPC> npcs{};
@@ -141,11 +165,21 @@ class Map {
 	std::vector<std::unique_ptr<SwitchButton>> switch_buttons{};
 	std::vector<SwitchBlock> switch_blocks{};
 	std::vector<Destroyable> destroyers{};
+	std::vector<Checkpoint> checkpoints{};
 	std::vector<EnemySpawn> enemy_spawns{};
 	entity::SavePoint save_point;
+	std::vector<vfx::Atmosphere> atmosphere{};
+	std::vector<sf::Vector2<float>> target_points{};
+
+	// vfx
+	std::optional<vfx::Rain> rain{};
+
+	// sfx
+	audio::Ambience ambience{};
 
 	std::unique_ptr<bg::Background> background{};
 	flfx::Transition transition;
+	flfx::Transition soft_reset;
 
 	enemy::EnemyCatalog enemy_catalog;
 	fornani::CutsceneCatalog cutscene_catalog;
@@ -156,8 +190,11 @@ class Map {
 
 	// layers
 	std::array<sf::RenderTexture, NUM_LAYERS> layer_textures{};
+	sf::RenderTexture obscuring_texture{};
 	sf::Sprite tile_sprite{};
 	sf::Sprite layer_sprite{};
+	sf::Sprite obscuring_sprite{};
+	sf::Sprite reverse_obscuring_sprite{};
 	std::string_view style_label{};
 
 	int room_lookup{};
@@ -182,6 +219,9 @@ class Map {
 	util::Cooldown loading{}; // shouldn't exist
 	util::Cooldown spawning{2};
 	util::Counter spawn_counter{};
+	struct {
+		util::Cooldown fade_obscured{128};
+	} cooldowns{};
 
 	// debug
 	util::Stopwatch stopwatch{};
@@ -191,6 +231,7 @@ class Map {
 	int abyss_distance{400};
 	struct {
 		util::BitFlags<LevelState> state{};
+		util::BitFlags<MapState> map_state{};
 	} flags{};
 };
 

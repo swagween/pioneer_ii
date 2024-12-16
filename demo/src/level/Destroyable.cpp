@@ -23,9 +23,9 @@ void Destroyable::update(automa::ServiceProvider& svc, Map& map, player::Player&
 		map.effects.push_back(entity::Effect(svc, static_cast<sf::Vector2<float>>(position) * svc.constants.cell_size, {}, 0, 0));
 		svc.soundboard.flags.world.set(audio::World::block_toggle);
 	}
-	player.collider.handle_collider_collision(collider.bounding_box);
-	for (auto& e : map.enemy_catalog.enemies) { e->get_collider().handle_collider_collision(collider.bounding_box); }
-	for (auto& c : map.chests) { c.get_collider().handle_collider_collision(collider.bounding_box); }
+	player.collider.handle_collider_collision(collider);
+	for (auto& e : map.enemy_catalog.enemies) { e->get_collider().handle_collider_collision(collider); }
+	for (auto& c : map.chests) { c.get_collider().handle_collider_collision(collider); }
 }
 
 void Destroyable::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) {
@@ -40,11 +40,11 @@ void Destroyable::render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf
 
 void Destroyable::on_hit(automa::ServiceProvider& svc, world::Map& map, arms::Projectile& proj) const {
 	if (detonated()) { return; }
-	if (proj.stats.transcendent) { return; }
-	if (proj.bounding_box.overlaps(collider.bounding_box)) {
+	if (proj.transcendent()) { return; }
+	if (proj.get_bounding_box().overlaps(collider.bounding_box)) {
 		if (!proj.destruction_initiated()) {
-			map.effects.push_back(entity::Effect(svc, proj.destruction_point + proj.physics.position, {}, proj.effect_type(), 2));
-			if (proj.direction.lr == dir::LR::neutral) { map.effects.back().rotate(); }
+			map.effects.push_back(entity::Effect(svc, proj.get_destruction_point() + proj.get_position(), {}, proj.effect_type(), 2));
+			if (proj.get_direction().lr == dir::LR::neutral) { map.effects.back().rotate(); }
 			svc.soundboard.flags.world.set(audio::World::wall_hit);
 		}
 		proj.destroy(false);

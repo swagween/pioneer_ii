@@ -26,6 +26,42 @@
       "source": 0
     }
   },
+  "npcs": [
+    {
+      "id": 3,
+      "position": [
+        20,
+        10
+      ],
+      "background": false,
+      "suites": [
+        [
+          "1",
+          "4"
+        ],
+        [
+          "4"
+        ],
+        [ "3", "4" ],
+        [ "4" ]
+      ]
+    },
+    {
+      "id": 24,
+      "position": [
+        22,
+        10
+      ],
+      "background": false,
+      "suites": [
+        [ "3" ],
+        [ "3" ],
+        [ "3" ],
+        [ "3" ]
+      ],
+      "hidden": true
+    }
+  ],
   "portals": [
     {
       "dimensions": [
@@ -190,6 +226,35 @@
     }
   ],
   "scenery": {
+    "grass": [
+      {
+        "position": [
+          19,
+          11
+        ],
+        "length": 1,
+        "size": 1,
+        "foreground": true
+      },
+      {
+        "position": [
+          22,
+          11
+        ],
+        "length": 1,
+        "size": 1,
+        "foreground": true
+      },
+      {
+        "position": [
+          21,
+          11
+        ],
+        "length": 1,
+        "size": 1,
+        "foreground": true
+      }
+    ],
     "vines": [
       {
         "position": [

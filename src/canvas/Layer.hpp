@@ -19,6 +19,7 @@ class Layer {
 	Layer(uint8_t o, bool c, sf::Vector2<uint32_t> dim) : render_order(o), collidable(c), dimensions(dim), grid{dim} {}
 	void clear();
 	void erase();
+	void set_position(sf::Vector2<float> to_position);
 	Grid grid;
 	uint8_t render_order{};
 	bool collidable{};

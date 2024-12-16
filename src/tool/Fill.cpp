@@ -13,7 +13,7 @@ void Fill::handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key) {}
 
 void Fill::update() { Tool::update(); }
 
-void Fill::render(sf::RenderWindow& win, sf::Vector2<float> offset) {}
+void Fill::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {}
 
 void Fill::fill_section(uint8_t const prev_val, uint8_t const new_val, uint32_t i, uint32_t j, Canvas& canvas) {
 	if (i < 0 || i >= canvas.dimensions.x || j < 0 || j >= canvas.dimensions.y) {

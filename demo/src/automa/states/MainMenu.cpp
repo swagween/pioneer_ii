@@ -9,13 +9,13 @@ MainMenu::MainMenu(ServiceProvider& svc, player::Player& player, std::string_vie
 	// playtester edition
 	flags.set(GameStateFlags::playtest);
 	// playtester edition
-
+	svc.app_flags.reset(AppFlags::in_game);
 	svc.state_controller.actions.reset(Actions::intro_done);
 
 	left_dot.set_position(options.at(current_selection.get()).left_offset);
 	right_dot.set_position(options.at(current_selection.get()).right_offset);
 
-	if (flags.test(GameStateFlags::playtest)) { subtitle.setString("Playtester Edition"); }
+	if (flags.test(GameStateFlags::playtest)) { subtitle.setString(svc.version.version_title()); }
 	subtitle.setLineSpacing(1.5f);
 	subtitle.setFont(subtitle_font);
 	subtitle.setLetterSpacing(1.2f);
@@ -37,9 +37,7 @@ MainMenu::MainMenu(ServiceProvider& svc, player::Player& player, std::string_vie
 	player.set_position({(float)(svc.constants.screen_dimensions.x / 2) + 80, 360});
 	player.antennae.at(0).set_position({(float)(svc.constants.screen_dimensions.x / 2) + 80, 360});
 	player.antennae.at(1).set_position({(float)(svc.constants.screen_dimensions.x / 2) + 80, 360});
-
-	svc.music.load("clay");
-	svc.music.play_looped(20);
+	loading.start();
 };
 
 void MainMenu::init(ServiceProvider& svc, int room_number) {}
@@ -47,6 +45,14 @@ void MainMenu::init(ServiceProvider& svc, int room_number) {}
 void MainMenu::handle_events(ServiceProvider& svc, sf::Event& event) {}
 
 void MainMenu::tick_update(ServiceProvider& svc) {
+	svc.a11y.set_action_ctx_bar_enabled(true);
+
+	if (loading.is_almost_complete()) {
+		svc.music.load("clay");
+		svc.music.play_looped(20);
+	}
+	loading.update();
+
 	svc.controller_map.set_action_set(config::ActionSet::Menu);
 
 	if (svc.controller_map.digital_action_status(config::DigitalAction::menu_down).triggered) {

@@ -1,48 +1,44 @@
 #pragma once
 #include <imgui.h>
+#include <filesystem>
 #include <random>
-#include "../automa/StateManager.hpp"
-#include "../service/ServiceProvider.hpp"
-#include "../entities/player/Player.hpp"
 #include "../audio/MusicPlayer.hpp"
+#include "../automa/StateManager.hpp"
+#include "../entities/player/Player.hpp"
+#include "../service/ServiceProvider.hpp"
 #include "../utils/BitFlags.hpp"
 #include <imgui-SFML.h>
-#include <filesystem>
 
 namespace fornani {
 
 class WindowManager;
-enum class GameFlags { playtest, in_game, standard_display };
+enum class GameFlags { playtest, in_game };
+enum class KeyboardFlags { control };
 
 class Game {
   public:
 	Game() = default;
-	Game(char** argv, WindowManager& window);
+	Game(char** argv, WindowManager& window, Version& version);
 	~Game() {}
-	void run(bool demo = false, int room_id = 100, std::filesystem::path levelpath = std::filesystem::path{},
-			 sf::Vector2<float> player_position = {});
+	void run(bool demo = false, int room_id = 100, std::filesystem::path levelpath = std::filesystem::path{}, sf::Vector2<float> player_position = {});
+	void shutdown();
 
 	void playtest_sync();
 	void toggle_weapon(bool flag, int id);
 	util::BitFlags<GameFlags> flags{};
+	util::BitFlags<KeyboardFlags> key_flags{};
 
   private:
-
-	void debug_window(sf::RenderWindow& window);
 	void playtester_portal(sf::RenderWindow& window);
 	void take_screenshot(sf::Texture& screencap);
-	bool debug();
-	automa::ServiceProvider services{};
+
+	automa::ServiceProvider services;
 
 	struct {
 		sf::Vector2u win_size{};
 		float height_ratio{};
 		float width_ratio{};
 	} measurements{};
-
-	struct {
-		int draw_calls{};
-	} trackers{};
 
 	struct {
 		bool m_musicplayer{};
@@ -61,6 +57,11 @@ class Game {
 			bool gnat{};
 		} weapons{};
 	} playtest{};
+
+	struct {
+		int sample{};
+		int total{};
+	} rng_test{};
 
 	player::Player player;
 	automa::StateManager game_state{};

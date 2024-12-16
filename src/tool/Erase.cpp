@@ -28,7 +28,7 @@ void Erase::update() {
     Tool::update();
 }
 
-void Erase::render(sf::RenderWindow& win, sf::Vector2<float> offset) {
+void Erase::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {
     
 }
 

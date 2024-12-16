@@ -10,7 +10,7 @@ namespace entity {
 FloatingPart::FloatingPart(sf::Texture& tex, float force, float friction, sf::Vector2<float> offset) {
 	sprite.setTexture(tex);
 	sprite.setOrigin(sprite.getLocalBounds().getSize() * 0.5f);
-	gravitator = std::make_unique<vfx::Gravitator>(sf::Vector2<float>{}, sf::Color::Transparent, force);
+	gravitator = std::make_unique<vfx::Gravitator>(sf::Vector2<float>{}, sf::Color::Yellow, force);
 	gravitator->collider.physics = components::PhysicsComponent(sf::Vector2<float>{friction, friction}, 1.0f);
 	gravitator->collider.physics.maximum_velocity = sf::Vector2<float>(20.f, 20.f);
 	left = offset;
@@ -25,7 +25,7 @@ FloatingPart::FloatingPart(sf::Texture& tex, float force, float friction, sf::Ve
 void FloatingPart::update(automa::ServiceProvider& svc, world::Map& map, player::Player& player, dir::Direction direction, sf::Vector2<float> scale, sf::Vector2<float> position) {
 	if (init) {
 		gravitator->set_position(position + actual);
-		movement.time = svc.random.random_range_float(0.f, 2.f * std::numbers::pi);
+		movement.time = svc.random.random_range_float(0.f, 2.f * static_cast<float>(std::numbers::pi));
 		init = false;
 	}
 	actual = direction.lr == dir::LR::left ? position + left : position + right;
@@ -41,10 +41,10 @@ void FloatingPart::update(automa::ServiceProvider& svc, world::Map& map, player:
 	}
 	if (shieldbox) {
 		for (auto& proj : map.active_projectiles) {
-			if (proj.bounding_box.overlaps(shieldbox.value())) {
+			if (proj.get_bounding_box().overlaps(shieldbox.value())) {
 				if (!proj.destruction_initiated()) {
-					map.effects.push_back(entity::Effect(svc, proj.destruction_point + proj.physics.position, {}, 0, 6));
-					if (proj.direction.lr == dir::LR::neutral) { map.effects.back().rotate(); }
+					map.effects.push_back(entity::Effect(svc, proj.get_destruction_point() + proj.get_position(), {}, 0, 6));
+					if (proj.get_direction().up_or_down()) { map.effects.back().rotate(); }
 					svc.soundboard.flags.world.set(audio::World::hard_hit);
 				}
 				proj.destroy(false);
@@ -57,6 +57,7 @@ void FloatingPart::render(automa::ServiceProvider& svc, sf::RenderWindow& win, s
 	sprite.setPosition(gravitator->position() - cam);
 	win.draw(sprite);
 	if(svc.greyblock_mode()) {
+		gravitator->render(svc, win, cam);
 		if (hitbox) {
 			debugbox.setSize(hitbox.value().dimensions);
 			debugbox.setPosition(hitbox.value().position);

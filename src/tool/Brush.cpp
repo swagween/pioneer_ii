@@ -22,7 +22,7 @@ void Brush::handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key) {}
 
 void Brush::update() { Tool::update(); }
 
-void Brush::render(sf::RenderWindow& win, sf::Vector2<float> offset) {}
+void Brush::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {}
 
 void Brush::store_tile(int index) { tile = index; }
 

@@ -53,7 +53,7 @@ class Demon : public Enemy {
 		util::Cooldown post_jump{400};
 		util::Cooldown rush_hit{600};
 		util::Cooldown post_rush{128};
-		util::Cooldown awaken{300};
+		util::Cooldown awaken{180};
 	} cooldowns{};
 
 	// lookup, duration, framerate, num_loops

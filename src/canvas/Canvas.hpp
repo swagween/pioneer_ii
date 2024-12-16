@@ -1,9 +1,3 @@
-//
-//  Canvas.hpp
-//  Pioneer-Lab
-//
-//  Created by Alex Frasca on 9/30/20.
-//
 
 #pragma once
 
@@ -18,12 +12,14 @@
 #include <system_error>
 #include <iostream>
 #include <djson/json.hpp>
+#include "../util/BitFlags.hpp"
+#include "../util/Camera.hpp"
+#include "EntitySet.hpp"
 
 namespace pi {
 
 const int NUM_LAYERS{8};
 const int CHUNK_SIZE{16};
-const int num_critter_types{ 17 };
 
 enum class Backdrop {
     BG_DUSK,
@@ -57,200 +53,70 @@ enum LAYER_ORDER {
 
 enum class Style { firstwind, overturned, base, factory, greatwing, provisional, END };
 
-enum class CRITTER_TYPE {
-    hulmet,
-    tank,
-    bunker,
-    thug,
-    worker,
-    frdog,
-    jackdaw,
-    frcat,
-    biter,
-    bee,
-    roller,
-    snek,
-    behemoth,
-    stinger,
-    watchman,
-    gnat,
-    moth
-};
-
 const int CELL_SIZE{32};
 float const f_cell_size{32.f};
-
-
-struct Portal {
-    sf::Vector2<uint32_t> dimensions{};
-    bool activate_on_contact{};
-	bool already_open{};
-    int source_map_id{};
-    int destination_map_id{};
-    bool locked{};
-	int key_id{};
-    sf::Vector2<uint32_t> position{};
-};
-
-struct Inspectable {
-    sf::Vector2<uint32_t> dimensions{};
-    bool activate_on_contact{};
-    std::string key{};
-	std::vector<std::vector<std::string>> suites{};
-	std::vector<std::vector<std::string>> responses{};
-
-    sf::Vector2<uint32_t> position{};
-	int alternates{};
-};
-
-struct Critter {
-    CRITTER_TYPE type{};
-    int id{};
-    sf::Vector2<uint32_t> position{};
-};
-
-struct Animator {
-    sf::Vector2<uint32_t> dimensions{};
-    int id{};
-    bool automatic{};
-    bool foreground{};
-	int style{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct Bed {
-	sf::Vector2<uint32_t> position{};
-};
-
-struct Scenery {
-	int style{};
-	int layer{};
-    int variant{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct InteractiveScenery {
-	int length{};
-	int size{};
-	bool foreground{};
-	int type{};
-	bool has_platform{};
-	std::vector<int> link_indeces{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct Platform {
-    sf::Vector2<uint32_t> position{};
-    sf::Vector2<uint32_t> dimensions{};
-    int extent{};
-    int style{};
-    std::string type{};
-    float start{};
-};
-
-struct SpecialBlock {
-    sf::Vector2<uint32_t> dimensions{};
-    int type{};
-    int id{};
-    sf::Vector2<uint32_t> position{};
-};
-
-struct NPC {
-    int id{};
-	bool background{};
-    sf::Vector2<uint32_t> position{};
-	std::vector<std::vector<std::string>> suites{};
-};
-
-struct Chest {
-    int id{};
-    int item_id{};
-	int type{};
-	float rarity{};
-	int amount{};
-    sf::Vector2<uint32_t> position{};
-};
-
-struct SwitchBlock {
-	int id{};
-	int type{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct Destroyer {
-	int id{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct SwitchButton {
-	int id{};
-	int type{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct SavePoint {
-	bool placed{};
-	sf::Vector2<uint32_t> position{};
-};
+enum class CanvasState { hovered };
 
 struct Map {
     std::vector<Layer> layers{};
 };
 
 class Tool;
+class ResourceFinder;
 
 class Canvas {
     
 public:
     
-    Canvas();
+    Canvas() = default;
     Canvas(sf::Vector2<uint32_t> dim);
-    void load(const std::string& path);
-    bool save(const std::string& path);
+	void update(Tool& tool, bool transformed = false);
+	void render(sf::RenderWindow& win, sf::Sprite& tileset);
+	void load(ResourceFinder& finder, std::string const& room_name, bool local = false);
+	bool save(ResourceFinder& finder, std::string const& room_name);
     void clear();
-	void save_state(Tool& tool);
+	void save_state(Tool& tool, bool force = false);
     void undo();
     void redo();
     void clear_redo_states();
+	void unhover();
+	void move(sf::Vector2<float> distance);
+	void set_position(sf::Vector2<float> to_position);
 	Map& get_layers();
-	bool has_switch_block_at(sf::Vector2<uint32_t> pos) const;
+	sf::Vector2<int> get_tile_coord(int lookup);
+	[[nodiscard]] auto states_empty() const -> bool { return map_states.empty(); }
+	[[nodiscard]] auto hovered() const -> bool { return state.test(CanvasState::hovered); }
+	[[nodiscard]] auto get_position() const -> sf::Vector2<float> { return camera.position; }
+	[[nodiscard]] auto within_bounds(sf::Vector2<float> const& point) const -> bool { return point.x > camera.position.x && point.x < real_dimensions.x + camera.position.x && point.y > camera.position.y && point.y < real_dimensions.y + camera.position.y; }
 
     void edit_tile_at(int i, int j, int new_val, int layer_index);
 	void erase_at(int i, int j, int layer_index);
-    int tile_val_at(int i, int j, int layer);
+	int tile_val_at(int i, int j, int layer);
+	int tile_val_at_scaled(int i, int j, int layer);
+	sf::Vector2<float> get_tile_position_at(int i, int j, int layer = 4);
+	Tile& get_tile_at(int i, int j, int layer = 4);
     TILE_TYPE lookup_type(int idx);
     
     //layers
-    std::vector<Map> map_states{};
-    std::vector<Map> redo_states{};
     sf::Vector2<float> real_dimensions{};
     sf::Vector2<uint32_t> dimensions{};
     sf::Vector2<uint32_t> chunk_dimensions{};
 	sf::Vector2<int> metagrid_coordinates{};
 
-    //entities
-    std::vector<Portal> portals{};
-    std::vector<Inspectable> inspectables{};
-    std::vector<Animator> animators{};
-    std::vector<Critter> critters{};
-    std::vector<NPC> npcs{};
-    std::vector<Chest> chests{};
-    std::vector<SpecialBlock> special_blocks{};
-	std::vector<Platform> platforms{};
-	std::vector<SwitchBlock> switch_blocks{};
-	std::vector<SwitchButton> switch_buttons{};
-	std::vector<Bed> beds{};
-	std::vector<InteractiveScenery> interactive_scenery{};
-	std::vector<Scenery> scenery{};
-	std::vector<Destroyer> destroyers{};
-	SavePoint save_point{};
-	std::string music{};
+    struct {
+		bool show_grid{true};
+		bool show_all_layers{true};
+		bool show_obscured_layer{true};
+		bool show_indicated_layers{true};
+		bool show_entities{true};
+	} flags{};
+
+	EntitySet entities;
 
     // read and write
     struct {
         dj::Json meta{};
         dj::Json tiles{};
-        dj::Json inspectables{};
     } data{};
 
     struct {
@@ -275,7 +141,13 @@ public:
     Backdrop bg{};
     
     uint32_t room_id{}; // should be assigned to its constituent chunks
-    
+  private:
+	std::vector<Map> map_states{};
+	std::vector<Map> redo_states{};
+	util::BitFlags<CanvasState> state{};
+	Camera camera{};
+	sf::RectangleShape box{};
+	sf::RectangleShape gridbox{};
 };
 
 }

@@ -1,22 +1,14 @@
-//
-//  Layer.cpp
-//  Pioneer-Lab
-//
-//  Created by Alex Frasca on 9/30/20.
-//
 
 #include "Layer.hpp"
 
 namespace pi {
 
 void Layer::clear() {
-    for(auto& cell : grid.cells) {
-        cell.value = 0;
-    }
+	for (auto& cell : grid.cells) { cell.value = 0; }
 }
 
-void Layer::erase() {
-    grid.cells.clear();
-}
+void Layer::erase() { grid.cells.clear(); }
 
-}
+void Layer::set_position(sf::Vector2<float> to_position) { grid.set_position(to_position); }
+
+} // namespace pi

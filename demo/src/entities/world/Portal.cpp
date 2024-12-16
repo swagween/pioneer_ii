@@ -6,17 +6,23 @@
 
 namespace entity {
 
-Portal::Portal(automa::ServiceProvider& svc, Vecu32 dim, Vecu32 pos, int src, int dest, bool activate_on_contact, bool locked, bool already_open, int key_id) : scaled_dimensions(dim), scaled_position(pos), meta({src, dest, key_id}) {
+Portal::Portal(automa::ServiceProvider& svc, Vecu32 dim, Vecu32 pos, int src, int dest, bool activate_on_contact, bool locked, bool already_open, int key_id, int style, sf::Vector2<int> map_dim)
+	: scaled_dimensions(dim), scaled_position(pos), meta({src, dest, key_id}) {
 	dimensions = static_cast<Vec>(dim * svc.constants.u32_cell_size);
 	position = static_cast<Vec>(pos * svc.constants.u32_cell_size);
 	bounding_box = shape::Shape(dimensions);
 	bounding_box.set_position(position);
 	sprite.setTexture(svc.assets.t_portals);
+	meta.orientation = PortalOrientation::central;
+	if (pos.x == 0) { meta.orientation = PortalOrientation::left; }
+	if (pos.y == 0) { meta.orientation = PortalOrientation::top; }
+	if (pos.x == map_dim.x - 1) { meta.orientation = PortalOrientation::right; }
+	if (pos.y == map_dim.y - 1) { meta.orientation = PortalOrientation::bottom; }
 	if (already_open) {
 		state = PortalRenderState::open;
 		flags.attributes.set(PortalAttributes::already_open);
 	}
-	lookup = sf::IntRect({static_cast<int>(state) * svc.constants.i_cell_size, 0}, {svc.constants.i_cell_size, svc.constants.i_cell_size * 2});
+	lookup = sf::IntRect({static_cast<int>(state) * svc.constants.i_cell_size, style * svc.constants.i_cell_size * 2}, {svc.constants.i_cell_size, svc.constants.i_cell_size * 2});
 	sprite.setTextureRect(lookup);
 	if (activate_on_contact) { flags.attributes.set(PortalAttributes::activate_on_contact); }
 	if (locked) { flags.state.set(PortalState::locked); }
@@ -39,7 +45,7 @@ void Portal::render(automa::ServiceProvider& svc, sf::RenderWindow& win, Vec cam
 		} else {
 			box.setFillColor(sf::Color{180, 120, 80, 100});
 		}
-		box.setOutlineColor(sf::Color::White);
+		is_bottom() ? box.setOutlineColor(sf::Color::Blue) : box.setOutlineColor(sf::Color::White);
 		box.setOutlineThickness(-1);
 		box.setPosition(bounding_box.position - campos);
 		box.setSize(dimensions);
@@ -56,15 +62,17 @@ void Portal::handle_activation(automa::ServiceProvider& svc, player::Player& pla
 	if (bounding_box.overlaps(player.collider.bounding_box)) {
 		if (flags.attributes.test(PortalAttributes::activate_on_contact) && flags.state.test(PortalState::ready)) {
 			flags.state.set(PortalState::activated);
-			player.controller.prevent_movement();
-			player.controller.autonomous_walk();
-			player.walk();
+			if (is_left_or_right()) {
+				player.controller.prevent_movement();
+				player.controller.autonomous_walk();
+				player.walk();
+			}
 		} else if (player.controller.inspecting()) {
 			flags.state.set(PortalState::activated);
 			player.controller.prevent_movement();
 		}
 		// player just entered room via border portal
-		if (!flags.state.test(PortalState::ready) && flags.attributes.test(PortalAttributes::activate_on_contact)) {
+		if (!flags.state.test(PortalState::ready) && flags.attributes.test(PortalAttributes::activate_on_contact) && is_left_or_right()) {
 			player.controller.direction.lr = player.entered_from();
 			player.controller.prevent_movement();
 			player.controller.autonomous_walk();
@@ -113,9 +121,14 @@ void Portal::change_states(automa::ServiceProvider& svc, int room_id, flfx::Tran
 	}
 	transition.start();
 	if (transition.is_done()) {
-		try {
+		if (svc.data.exists(meta.destination_map_id)) {
 			svc.state_controller.next_state = meta.destination_map_id;
-		} catch (std::out_of_range) { svc.state_controller.next_state = room_id; }
+		} else {
+			svc.state_controller.next_state = meta.source_map_id;
+			meta.source_map_id = meta.destination_map_id;
+			meta.destination_map_id = room_id;
+			svc.state_controller.status.set(automa::Status::out_of_bounds);
+		}
 		svc.state_controller.actions.set(automa::Actions::trigger);
 		svc.state_controller.refresh(meta.source_map_id);
 	}

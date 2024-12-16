@@ -26,6 +26,7 @@ class MapTexture {
 	sf::Sprite sprite();
 	sf::RenderTexture& get();
 	sf::Vector2<float> get_position();
+	sf::Vector2<float> get_dimensions() const;
 	sf::RectangleShape tile_box{};
 	sf::RectangleShape plat_box{};
 	sf::RectangleShape portal_box{};
@@ -36,7 +37,9 @@ class MapTexture {
   private:
 	sf::RenderTexture map_texture{};
 	sf::Color tile_color{};
+	sf::Color border_color{};
 	sf::Vector2<int> global_offset{};
+	sf::Vector2<float> map_dimensions{};
 	util::BitFlags<MapTextureFlags> flags{};
 };
 

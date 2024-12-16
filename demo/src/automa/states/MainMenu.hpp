@@ -8,7 +8,6 @@ namespace automa {
 class MainMenu : public GameState {
 
   public:
-
 	MainMenu() = default;
 	MainMenu(ServiceProvider& svc, player::Player& player, std::string_view scene, int id = 0);
 	~MainMenu() {}
@@ -23,6 +22,7 @@ class MainMenu : public GameState {
 	sf::Text subtitle{};
 	sf::Text instruction{};
 	std::vector<sf::Sprite> title_assets{};
+	util::Cooldown loading{16};
 };
 
-}
+} // namespace automa

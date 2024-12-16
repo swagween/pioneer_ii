@@ -3,70 +3,66 @@
     "new": false
   },
   "player_data": {
-    "max_hp": 4.000000,
-    "hp": 4.000000,
-    "orbs": 56,
+    "max_hp": 3.000000,
+    "hp": 1.000000,
+    "orbs": 17,
     "position": {
-      "x": 174.142914,
-      "y": 1387.000000
+      "x": 1286.191895,
+      "y": 395.000000
     },
     "arsenal": [
-      0
+      0,
+      1,
+      2
     ],
-    "equipped_gun": 0,
+    "equipped_gun": 1,
     "abilities": [
 
     ],
+    "wardrobe": {
+      "hairstyle": 0,
+      "shirt": 0,
+      "pants": 0
+    },
     "items": [
-      {
-        "id": 16,
-        "quantity": 1
-      },
-      {
-        "id": 29,
-        "quantity": 1
-      }
+
     ],
     "stats": {
-      "death_count": 45,
-      "bullets_fired": 76,
-      "guns_collected": 1,
-      "items_collected": 2,
-      "orbs_collected": 56,
+      "death_count": 2,
+      "bullets_fired": 883,
+      "guns_collected": 0,
+      "items_collected": 4,
+      "orbs_collected": 17,
       "blue_orbs": 0,
-      "highest_indicator_amount": 38,
-      "enemies_killed": 2,
-      "rooms_discovered": 17,
-      "seconds_played": 330.232697,
+      "highest_indicator_amount": 8,
+      "enemies_killed": 0,
+      "rooms_discovered": 7,
+      "seconds_played": 177.745056,
       "time_trials": {
-        "bryns_gun": 25.041019
+        "bryns_gun": 0.000000
       }
-    }
+    },
+    "hotbar": [
+      0,
+      1,
+      2
+    ]
   },
-  "save_point_id": 200,
+  "save_point_id": 20094,
   "unlocked_doors": [
 
   ],
   "opened_chests": [
-    377,
-    567911,
-    1240
+
   ],
   "activated_switches": [
     445,
-    1
+    44
   ],
   "destroyed_blocks": [
 
   ],
   "quest_progressions": [
-    [
-      1,
-      111,
-      1,
-      1,
-      0
-    ],
     [
       88,
       1,
@@ -79,7 +75,7 @@
 
   ],
   "tutorial": {
-    "state": 4,
+    "state": 1,
     "closed": true,
     "on": false,
     "jump": true,
@@ -92,19 +88,29 @@
     100,
     101,
     102,
-    110,
-    108,
-    116,
-    107,
+    104,
     106,
     117,
-    105,
-    199,
-    103,
-    121,
-    124,
-    224,
-    299,
-    200
-  ]
+    20094
+  ],
+  "piggybacker": 0,
+  "marketplace": [
+    [
+      24,
+      66,
+      23,
+      26
+    ]
+  ],
+  "npc_locations": [
+    [
+      20,
+      100
+    ]
+  ],
+  "map_data": {
+    "fallen_enemies": [
+
+    ]
+  }
 }

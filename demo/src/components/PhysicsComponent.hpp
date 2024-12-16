@@ -34,9 +34,12 @@ class PhysicsComponent {
 	// basic physics variables
 	sf::Vector2<float> acceleration{};
 	sf::Vector2<float> velocity{};
+	sf::Vector2<float> real_velocity{};
 	sf::Vector2<float> position{};
 	sf::Vector2<float> ground_friction{};
 	sf::Vector2<float> air_friction{};
+	sf::Vector2<float> forced_momentum{};
+	sf::Vector2<float> forced_acceleration{};
 	sf::Vector2<float> mtv{};
 
 	sf::Vector2<float> previous_acceleration{};
@@ -55,14 +58,18 @@ class PhysicsComponent {
 	void integrate(automa::ServiceProvider& svc);
 	void update(automa::ServiceProvider& svc);
 	void update_dampen(automa::ServiceProvider& svc);
+	void simple_update();
+	void impart_momentum();
+	void hard_stop_x();
+	void stop_x();
 	void zero();
 	void zero_x();
 	void zero_y();
 	void hitstun();
 	void set_constant_friction(sf::Vector2<float> fric);
 	void set_global_friction(float fric);
-	[[nodiscard]] auto apparent_velocity() const -> sf::Vector2<float> { return position - previous_position; }
-	[[nodiscard]] auto apparent_acceleration() const -> sf::Vector2<float> { return apparent_velocity() - previous_velocity; }
+	[[nodiscard]] auto apparent_velocity() const -> sf::Vector2<float> { return real_velocity; }
+	[[nodiscard]] auto apparent_acceleration() const -> sf::Vector2<float> { return real_velocity - previous_velocity; }
 	[[nodiscard]] auto elastic_collision() const -> bool { return velocity.x * previous_velocity.x < elastic_threshold || velocity.y * previous_velocity.y < elastic_threshold; }
 	[[nodiscard]] auto stationary() const -> bool { return abs(velocity.x) < epsilon && abs(velocity.y) < epsilon; }
 

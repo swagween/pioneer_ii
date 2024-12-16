@@ -5,10 +5,10 @@
 
 namespace enemy {
 
-Tank::Tank(automa::ServiceProvider& svc, world::Map& map) : Enemy(svc, "tank"), gun(svc, "skycorps ar", 2), m_services(&svc), m_map(&map) {
+Tank::Tank(automa::ServiceProvider& svc, world::Map& map) : Enemy(svc, "tank"), gun(svc, 0), m_services(&svc), m_map(&map) {
 	animation.set_params(idle);
 	gun.clip_cooldown_time = 360;
-	gun.get().projectile.team = arms::TEAMS::SKYCORPS;
+	gun.get().set_team(arms::Team::skycorps);
 	collider.physics.maximum_velocity = {3.f, 12.f};
 	collider.physics.air_friction = {0.95f, 0.999f};
 	secondary_collider = shape::Collider({28.f, 28.f});
@@ -25,7 +25,7 @@ void Tank::unique_update(automa::ServiceProvider& svc, world::Map& map, player::
 
 	flags.state.set(StateFlags::vulnerable); // tank is always vulnerable
 	gun.update(svc, map, *this);
-	caution.avoid_ledges(map, collider, 1);
+	caution.avoid_ledges(map, collider, directions.actual, 1);
 
 	// reset animation states to determine next animation state
 	state = {};
@@ -37,20 +37,20 @@ void Tank::unique_update(automa::ServiceProvider& svc, world::Map& map, player::
 	secondary_collider.physics.position = collider.physics.position - sf::Vector2<float>{0.f, 14.f};
 	secondary_collider.physics.position.x += directions.actual.lr == dir::LR::left ? 10.f : collider.dimensions.x - secondary_collider.dimensions.x - 10.f;
 	secondary_collider.sync_components();
-
-	player.collider.handle_collider_collision(secondary_collider.bounding_box);
-
-	if (svc.ticker.every_x_ticks(200)) {
-		if (svc.random.percent_chance(4) && !caution.danger(directions.actual)) { state = TankState::run; }
+	
+	player.collider.handle_collider_collision(secondary_collider);
+	if (svc.ticker.every_x_ticks(20)) {
+		if (svc.random.percent_chance(8) && !caution.danger()) { state = TankState::run; }
 	}
 
-	if(flags.state.test(StateFlags::hurt)) {
+	if (flags.state.test(StateFlags::hurt) && !sound.hurt_sound_cooldown.running()) {
 		if (m_services->random.percent_chance(50)) {
 			m_services->soundboard.flags.tank.set(audio::Tank::hurt_1);
 		} else {
 			m_services->soundboard.flags.tank.set(audio::Tank::hurt_2);
 		}
 		hurt_effect.start(128);
+		sound.hurt_sound_cooldown.start();
 		flags.state.reset(StateFlags::hurt);
 	}
 
@@ -67,7 +67,7 @@ void Tank::unique_update(automa::ServiceProvider& svc, world::Map& map, player::
 
 	if (hostility_triggered()) { state = TankState::alert; }
 	if (hostile() && !hostility_triggered()) {
-		if (m_services->random.percent_chance(fire_chance) || caution.danger(directions.actual)) {
+		if (m_services->random.percent_chance(fire_chance) || caution.danger()) {
 			state = TankState::shoot;
 		} else {
 			state = TankState::run;
@@ -106,7 +106,7 @@ fsm::StateFunction Tank::update_run() {
 	animation.label = "run";
 	auto facing = directions.actual.lr == dir::LR::left ? -1.f : 1.f;
 	collider.physics.apply_force({attributes.speed * facing, 0.f});
-	if (caution.danger(directions.movement) || animation.complete()) {
+	if (caution.danger() || animation.complete()) {
 		state = TankState::idle;
 		animation.set_params(idle);
 		return TANK_BIND(update_idle);

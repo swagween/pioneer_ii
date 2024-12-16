@@ -5,6 +5,7 @@
 #include "../../utils/Collider.hpp"
 #include "../Entity.hpp"
 #include "NPCAnimation.hpp"
+#include "Vendor.hpp"
 #include "../animation/AnimatedSprite.hpp"
 #include <deque>
 #include <string_view>
@@ -27,7 +28,7 @@ class Player;
 
 namespace npc {
 
-enum class NPCState { engaged, force_interact, introduced, background, talking, cutscene };
+enum class NPCState { engaged, force_interact, introduced, background, talking, cutscene, piggybacking, hidden };
 enum class NPCTrigger { distant_interact, engaged, cutscene };
 
 class NPC : public entity::Entity {
@@ -37,6 +38,7 @@ class NPC : public entity::Entity {
 	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> campos);
 	void force_engage();
 	void set_position(sf::Vector2<float> pos);
+	void apply_force(sf::Vector2<float> force) { collider.physics.apply_force(force); };
 	void set_position_from_scaled(sf::Vector2<float> scaled_pos);
 	void set_id(int new_id);
 	void start_conversation(automa::ServiceProvider& svc, gui::Console& console);
@@ -44,9 +46,16 @@ class NPC : public entity::Entity {
 	void pop_conversation();
 	void flush_conversations();
 	void push_to_background() { state_flags.set(NPCState::background); }
+	void hide() { state_flags.set(NPCState::hidden); }
+	void unhide() { state_flags.reset(NPCState::hidden); }
+	void set_current_location(int location) { current_location = location; }
 	[[nodiscard]] auto background() const -> bool { return state_flags.test(NPCState::background); }
 	[[nodiscard]] auto num_suites() const -> int { return static_cast<int>(conversations.size()); }
 	[[nodiscard]] auto get_id() const -> int { return id; }
+	[[nodiscard]] auto is_vendor() const -> bool { return static_cast<bool>(vendor); }
+	[[nodiscard]] auto piggybacking() const -> bool { return state_flags.test(NPCState::piggybacking); }
+	[[nodiscard]] auto hidden() const -> bool { return state_flags.test(NPCState::hidden); }
+	Vendor& get_vendor() { return *vendor.value(); }
 
 	std::string_view label{};
 
@@ -56,10 +65,12 @@ class NPC : public entity::Entity {
 	std::deque<std::string_view> conversations{};
 	shape::Collider collider{};
 	sf::Sound voice_sound{};
+	std::optional<Vendor*> vendor;
   private:
 	std::unique_ptr<NPCAnimation> animation_machine{};
 	anim::AnimatedSprite indicator;
 	int id{};
+	int current_location{};
 
 	struct {
 		float walk_threshold{0.5f};

@@ -1,30 +1,46 @@
 #pragma once
-#include "../utils/BitFlags.hpp"
-#include "../setup/WindowManager.hpp"
-#include "../setup/AssetManager.hpp"
-#include "../setup/DataManager.hpp"
-#include "../setup/TextManager.hpp"
-#include "../setup/Tables.hpp"
+#include "../audio/MusicPlayer.hpp"
+#include "../audio/Soundboard.hpp"
+#include "../automa/MenuController.hpp"
 #include "../automa/StateController.hpp"
 #include "../graphics/Style.hpp"
-#include "../utils/Random.hpp"
-#include "../utils/Ticker.hpp"
-#include "../utils/Constants.hpp"
-#include "../audio/Soundboard.hpp"
-#include "../audio/MusicPlayer.hpp"
+#include "../setup/AccessibilityService.hpp"
+#include "../setup/AssetManager.hpp"
 #include "../setup/ControllerMap.hpp"
-#include "../utils/Stopwatch.hpp"
+#include "../setup/DataManager.hpp"
+#include "../setup/Tables.hpp"
+#include "../setup/TextManager.hpp"
+#include "../setup/WindowManager.hpp"
 #include "../story/QuestTracker.hpp"
 #include "../story/StatTracker.hpp"
+#include "../utils/BitFlags.hpp"
+#include "../utils/Constants.hpp"
+#include "../utils/Random.hpp"
+#include "../utils/Stopwatch.hpp"
+#include "../utils/Ticker.hpp"
+#include "../setup/Version.hpp"
 
 namespace automa {
-enum class DebugFlags { imgui_overlay, greyblock_mode, greyblock_trigger, demo_mode };
-enum class AppFlags { fullscreen, tutorial };
-enum class StateFlags { hide_hud };
+enum class DebugFlags { imgui_overlay, greyblock_mode, greyblock_trigger, demo_mode, debug_mode };
+enum class AppFlags { fullscreen, tutorial, in_game };
+enum class StateFlags { hide_hud, no_menu };
+struct PlayerDat {
+	void set_piggy_id(int id) { piggy_id = id; }
+	void unpiggy() { drop_piggy = true; }
+	int piggy_id{};
+	bool drop_piggy{};
+};
+struct MapDebug {
+	int active_projectiles{};
+};
 struct ServiceProvider {
+	ServiceProvider(char** argv) : data(*this, argv) {};
+
+	fornani::Version version{};
 	fornani::WindowManager* window;
+	lookup::Tables tables{};
 	asset::AssetManager assets{};
-	data::DataManager data{*this};
+	data::DataManager data;
 	data::TextManager text{};
 	config::ControllerMap controller_map{*this};
 	style::Style styles{};
@@ -34,27 +50,34 @@ struct ServiceProvider {
 	util::Random random{};
 	util::Ticker ticker{};
 	util::Constants constants{};
-	lookup::Tables tables{};
 	StateController state_controller{};
+	MenuController menu_controller{};
 	audio::Soundboard soundboard{};
 	audio::MusicPlayer music{};
 	fornani::QuestTracker quest{};
 	fornani::StatTracker stats{};
+	PlayerDat player_dat{};
+	MapDebug map_debug{};
+	config::AccessibilityService a11y{};
 
-	//debug stuff
+	// debug stuff
 	util::Stopwatch stopwatch{};
+	sf::Text debug_text{};
 
 	void toggle_fullscreen() { fullscreen() ? app_flags.reset(AppFlags::fullscreen) : app_flags.set(AppFlags::fullscreen); }
 	void toggle_tutorial() { tutorial() ? app_flags.reset(AppFlags::tutorial) : app_flags.set(AppFlags::tutorial); }
+	void toggle_debug() { debug_mode() ? debug_flags.reset(DebugFlags::debug_mode) : debug_flags.set(DebugFlags::debug_mode); }
 	void set_fullscreen(bool flag) { flag ? app_flags.set(AppFlags::fullscreen) : app_flags.reset(AppFlags::fullscreen); }
 	void set_tutorial(bool flag) { flag ? app_flags.set(AppFlags::tutorial) : app_flags.reset(AppFlags::tutorial); }
 
 	[[nodiscard]] auto fullscreen() const -> bool { return app_flags.test(AppFlags::fullscreen); }
 	[[nodiscard]] auto tutorial() const -> bool { return app_flags.test(AppFlags::tutorial); }
+	[[nodiscard]] auto in_game() const -> bool { return app_flags.test(AppFlags::in_game); }
 	[[nodiscard]] auto hide_hud() const -> bool { return state_flags.test(StateFlags::hide_hud); }
+	[[nodiscard]] auto no_menu() const -> bool { return state_flags.test(StateFlags::no_menu); }
 	[[nodiscard]] auto demo_mode() const -> bool { return debug_flags.test(DebugFlags::demo_mode); }
 	[[nodiscard]] auto greyblock_mode() const -> bool { return debug_flags.test(DebugFlags::greyblock_mode); }
+	[[nodiscard]] auto debug_mode() const -> bool { return debug_flags.test(DebugFlags::debug_mode); }
 	[[nodiscard]] auto death_mode() const -> bool { return state_controller.actions.test(Actions::death_mode); }
-
 };
 } // namespace automa

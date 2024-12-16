@@ -7,51 +7,51 @@ namespace pi {
 		if (in_bounds(canvas.dimensions) && ready) {
 			bool anim_available{ true };
 			bool crit_available{ true };
-			for(auto& animator : canvas.animators) {
+			for(auto& animator : canvas.entities.variables.animators) {
 				if (animator.position == scaled_position - current_animator.dimensions + sf::Vector2<uint32_t>(1, 1)) { anim_available = false; }
 			}
-			for(auto& critter : canvas.critters) {
+			for(auto& critter : canvas.entities.variables.critters) {
 				if (critter.position == scaled_position) { crit_available = false; }
 			}
 			switch (ent_type) {
-			case ENTITY_TYPE::PORTAL: canvas.portals.push_back(current_portal); break;
-			case ENTITY_TYPE::INSPECTABLE: canvas.inspectables.push_back(current_inspectable); break;
-			case ENTITY_TYPE::BED: canvas.beds.push_back(Bed(scaled_position)); break;
-			case ENTITY_TYPE::INTERACTIVE_SCENERY: canvas.interactive_scenery.push_back(current_interactive_scenery); break;
-			case ENTITY_TYPE::SCENERY: canvas.scenery.push_back(current_scenery); break;
-			case ENTITY_TYPE::PLATFORM: canvas.platforms.push_back(current_platform); break;
-			case ENTITY_TYPE::PLAYER_PLACER: canvas.player_start = scaled_position; break;
+			case ENTITY_TYPE::PORTAL: canvas.entities.variables.portals.push_back(current_portal); break;
+			case ENTITY_TYPE::INSPECTABLE: canvas.entities.variables.inspectables.push_back(current_inspectable); break;
+			case ENTITY_TYPE::BED: canvas.entities.variables.beds.push_back(Bed(scaled_position)); break;
+			case ENTITY_TYPE::INTERACTIVE_SCENERY: canvas.entities.variables.interactive_scenery.push_back(current_interactive_scenery); break;
+			case ENTITY_TYPE::SCENERY: canvas.entities.variables.scenery.push_back(current_scenery); break;
+			case ENTITY_TYPE::PLATFORM: canvas.entities.variables.platforms.push_back(current_platform); break;
+			case ENTITY_TYPE::PLAYER_PLACER: canvas.entities.variables.player_start = scaled_position; break;
 			case ENTITY_TYPE::SAVE_POINT:
-				canvas.save_point.position = scaled_position;
-				canvas.save_point.placed = true;
+				canvas.entities.variables.save_point.position = scaled_position;
+				canvas.entities.variables.save_point.placed = true;
 				break;
 			case ENTITY_TYPE::CRITTER:
-				if (crit_available) { canvas.critters.push_back(current_critter); }
+				if (crit_available) { canvas.entities.variables.critters.push_back(current_critter); }
 				break;
 			case ENTITY_TYPE::ANIMATOR:
-				if (anim_available) { canvas.animators.push_back(current_animator); }
+				if (anim_available) { canvas.entities.variables.animators.push_back(current_animator); }
 				break;
 			case ENTITY_TYPE::CHEST:
-				canvas.chests.push_back(current_chest); break;
+				canvas.entities.variables.chests.push_back(current_chest); break;
 			case ENTITY_TYPE::SWITCH_BUTTON:
-				canvas.switch_buttons.push_back(current_switch); break;
+				canvas.entities.variables.switch_buttons.push_back(current_switch); break;
 			case ENTITY_TYPE::SWITCH_BLOCK:
-				if (!canvas.has_switch_block_at(current_switch_block.position)) { canvas.switch_blocks.push_back(current_switch_block); }
+				if (!canvas.entities.has_switch_block_at(current_switch_block.position)) { canvas.entities.variables.switch_blocks.push_back(current_switch_block); }
 				break;
 
 				// for erasing existing entities
 			case ENTITY_TYPE::ENTITY_EDITOR:
-				std::erase_if(canvas.animators, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.critters, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.inspectables, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.portals, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.platforms, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.chests, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.switch_blocks, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.switch_buttons, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.beds, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.interactive_scenery, [this](auto& c) { return c.position == scaled_position; });
-				std::erase_if(canvas.scenery, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.animators, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.critters, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.inspectables, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.portals, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.platforms, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.chests, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.switch_blocks, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.switch_buttons, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.beds, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.interactive_scenery, [this](auto& c) { return c.position == scaled_position; });
+				std::erase_if(canvas.entities.variables.scenery, [this](auto& c) { return c.position == scaled_position; });
 				break;
 			}
 			if (ent_type != ENTITY_TYPE::ANIMATOR && ent_type != ENTITY_TYPE::CRITTER && ent_type != ENTITY_TYPE::ENTITY_EDITOR && ent_type != ENTITY_TYPE::PLATFORM && ent_type != ENTITY_TYPE::SWITCH_BLOCK &&
@@ -82,7 +82,7 @@ namespace pi {
 		current_scenery.position = scaled_position;
 	}
 
-	void EntityPlacer::render(sf::RenderWindow& win, sf::Vector2<float> offset) {
+	void EntityPlacer::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {
 		sf::RectangleShape box{};
 
 		box.setOutlineColor(sf::Color{ 200, 200, 200, 80 });
@@ -118,7 +118,7 @@ namespace pi {
 		current_inspectable = Inspectable(dim, activate_on_contact, msg);
 	}
 
-	void EntityPlacer::store_critter(CRITTER_TYPE type) {
+	void EntityPlacer::store_critter(int type) {
 		current_critter = Critter(type);
 	}
 

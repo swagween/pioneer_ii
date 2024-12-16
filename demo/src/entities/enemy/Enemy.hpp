@@ -12,6 +12,7 @@
 #include "../packages/Shockwave.hpp"
 #include "../packages/FloatingPart.hpp"
 #include "../player/Indicator.hpp"
+#include "../../audio/Soundboard.hpp"
 #include <string_view>
 #include <iostream>
 
@@ -29,8 +30,8 @@ class Projectile;
 
 namespace enemy {
 
-enum class GeneralFlags { mobile, gravity, player_collision, hurt_on_contact, map_collision, post_death_render, no_loot, custom_sounds, uncrushable, foreground, spawned, transcendent };
-enum class StateFlags { alive, alert, hostile, shot, vulnerable, hurt, shaking, special_death_mode };
+enum class GeneralFlags { mobile, gravity, player_collision, hurt_on_contact, map_collision, post_death_render, no_loot, custom_sounds, uncrushable, foreground, spawned, transcendent, rare_drops, permadeath };
+enum class StateFlags { alive, alert, hostile, shot, vulnerable, hurt, shaking, special_death_mode, invisible };
 enum class Triggers { hostile, alert };
 enum class Variant { beast, soldier, elemental, worker, guardian };
 struct Attributes {
@@ -39,6 +40,8 @@ struct Attributes {
 	float speed{};
 	float loot_multiplier{};
 	sf::Vector2<int> drop_range{};
+	int rare_drop_id{};
+	int respawn_distance{};
 };
 
 struct Flags {
@@ -52,6 +55,7 @@ class Enemy : public entity::Entity {
 	Enemy() = default;
 	virtual ~Enemy() {}
 	Enemy(automa::ServiceProvider& svc, std::string_view label, bool spawned = false);
+	void set_external_id(std::pair<int, sf::Vector2<int>> code);
 	void update(automa::ServiceProvider& svc, world::Map& map, player::Player& player);
 	void post_update(automa::ServiceProvider& svc, world::Map& map, player::Player& player);
 	void render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam) override;
@@ -60,6 +64,7 @@ class Enemy : public entity::Entity {
 	virtual void unique_render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam){};
 	virtual void gui_render(automa::ServiceProvider& svc, sf::RenderWindow& win, sf::Vector2<float> cam){};
 	void handle_player_collision(player::Player& player) const;
+	void handle_collision(shape::Collider& other);
 	void on_hit(automa::ServiceProvider& svc, world::Map& map, arms::Projectile& proj);
 	void on_crush(world::Map& map);
 	[[nodiscard]] auto hostile() const -> bool { return flags.state.test(StateFlags::hostile); }
@@ -68,6 +73,7 @@ class Enemy : public entity::Entity {
 	[[nodiscard]] auto alertness_triggered() const -> bool { return flags.triggers.test(Triggers::alert); }
 	[[nodiscard]] auto get_attributes() const -> Attributes { return attributes; }
 	[[nodiscard]] auto get_flags() const -> Flags { return flags; }
+	[[nodiscard]] auto get_external_id() const -> int { return metadata.external_id; }
 	[[nodiscard]] auto get_collider() -> shape::Collider& { return collider; }
 	[[nodiscard]] auto get_secondary_collider() -> shape::Collider& { return secondary_collider; }
 	[[nodiscard]] auto died() const -> bool { return health.is_dead(); }
@@ -77,6 +83,7 @@ class Enemy : public entity::Entity {
 	[[nodiscard]] auto spawn_loot() const -> bool { return !flags.general.test(GeneralFlags::no_loot); }
 	[[nodiscard]] auto is_foreground() const -> bool { return flags.general.test(GeneralFlags::foreground); }
 	[[nodiscard]] auto is_transcendent() const -> bool { return flags.general.test(GeneralFlags::transcendent); }
+	[[nodiscard]] auto permadeath() const -> bool { return flags.general.test(GeneralFlags::permadeath); }
 	[[nodiscard]] bool player_behind(player::Player& player) const;
 	void set_position(sf::Vector2<float> pos) {
 		collider.physics.position = pos;
@@ -110,6 +117,7 @@ class Enemy : public entity::Entity {
 	struct {
 		int id{};
 		std::string_view variant{};
+		int external_id{};
 	} metadata{};
 
 	struct {
@@ -125,9 +133,9 @@ class Enemy : public entity::Entity {
 	} visual{};
 
 	struct {
-		sf::Sound hit{};
-		sf::Sound inv_hit{};
-	} sounds{};
+		audio::Enemy hit_flag{};
+		util::Cooldown hurt_sound_cooldown{24};
+	} sound{};
 
 	// shake
 	float energy{};
