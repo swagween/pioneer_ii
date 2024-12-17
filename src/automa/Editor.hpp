@@ -57,6 +57,7 @@ class Editor {
 	std::vector<sf::Texture> tileset_textures{};
 	sf::Texture tool_texture{};
 	sf::Sprite tool_sprites{};
+	sf::RectangleShape wallpaper{};
 	sf::RectangleShape backdrop{};
 	sf::RectangleShape target{};
 	sf::RectangleShape selector{};

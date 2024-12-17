@@ -99,7 +99,7 @@ void Canvas::load(ResourceFinder& finder, std::string const& room_name, bool loc
 	data.tiles = dj::Json::from_file((tilepath).c_str());
 	assert(!data.tiles.is_null());
 
-	if (!local) { entities = EntitySet{finder, room_name}; }
+	if (!local) { entities = EntitySet{finder, data.meta, room_name}; }
 
 	auto const& meta = data.meta["meta"];
 	room_id = meta["room_id"].as<int>();
@@ -169,7 +169,7 @@ bool Canvas::save(ResourceFinder& finder, std::string const& room_name) {
 
 	int value{};
 	int counter = 0;
-	entities.save(finder, room_name);
+	entities.save(finder, data.meta, room_name);
 
 	data.tiles["layers"] = wipe;
 	for (int i = 0; i < NUM_LAYERS; ++i) { data.tiles["layers"].push_back(wipe); }

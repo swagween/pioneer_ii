@@ -125,10 +125,10 @@ struct SavePoint {
 class EntitySet {
   public:
 	EntitySet() = default;
-	EntitySet(ResourceFinder& finder, std::string const& room_name);
+	EntitySet(ResourceFinder& finder, dj::Json& metadata, std::string const& room_name);
 	void render(sf::RenderWindow& win, sf::Vector2<float> cam);
-	void load(ResourceFinder& finder, std::string const& room_name);
-	bool save(ResourceFinder& finder, std::string const& room_name);
+	void load(ResourceFinder& finder, dj::Json& metadata, std::string const& room_name);
+	bool save(ResourceFinder& finder, dj::Json& metadata, std::string const& room_name);
 	void clear();
 	bool has_switch_block_at(sf::Vector2<uint32_t> pos) const;
 
@@ -180,7 +180,6 @@ class EntitySet {
 
 	// read and write
 	struct {
-		dj::Json meta{};
 		dj::Json inspectables{};
 	} data{};
 };

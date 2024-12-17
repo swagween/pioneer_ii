@@ -35,9 +35,10 @@ void Editor::run() {
 	
 	bool debug_mode = false;
 
-	sf::RectangleShape background{};
-	background.setSize(static_cast<sf::Vector2<float>>(screen_dimensions));
+	wallpaper.setSize(static_cast<sf::Vector2<float>>(screen_dimensions));
 	colors.backdrop = sf::Color{40, 60, 80};
+	wallpaper.setFillColor(colors.backdrop);
+	backdrop.setFillColor(colors.backdrop);
 	sf::Clock delta_clock{};
 
 	// editor loop
@@ -84,8 +85,9 @@ void Editor::run() {
 		delta_clock.restart();
 
 		window->get().clear();
-		background.setFillColor(colors.backdrop);
-		window->get().draw(background);
+		backdrop.setFillColor(colors.backdrop);
+		wallpaper.setFillColor(colors.backdrop);
+		window->get().draw(wallpaper);
 
 		render(window->get());
 
@@ -97,7 +99,6 @@ void Editor::run() {
 void Editor::init(std::string const& load_path) {
 
 	tool_texture.loadFromFile((finder->paths.local / "gui" / "tools.png").string());
-
 	sprites.tool.setTexture(tool_texture);
 
 	for (int i = 0; i < static_cast<int>(Style::END); ++i) {
@@ -117,7 +118,6 @@ void Editor::init(std::string const& load_path) {
 	std::cout << static_cast<int>(map.styles.tile) << "\n";
 	sprites.tileset.setTexture(tileset_textures.at(static_cast<int>(map.styles.tile)));
 
-	colors.backdrop = sf::Color{60, 40, 60, 40};
 	backdrop.setOutlineColor(sf::Color{240, 230, 255, 40});
 	backdrop.setOutlineThickness(4);
 	backdrop.setSize(map.real_dimensions);
@@ -239,7 +239,6 @@ void Editor::load() {
 bool Editor::save() { return map.save(*finder, finder->paths.room_name); }
 
 void Editor::render(sf::RenderWindow& win) {
-	backdrop.setFillColor(colors.backdrop);
 	backdrop.setPosition(map.get_position());
 	map.hovered() ? backdrop.setOutlineColor({240, 230, 255, 80}) : backdrop.setOutlineColor({240, 230, 255, 40});
 	backdrop.setSize(map.real_dimensions);
@@ -1116,8 +1115,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Backdrop")) {
-				static ImVec4 color{};
-				ImGui::ColorEdit3("MyColor##1", (float*)&color);
+				static ImVec4 color{static_cast<float>(colors.backdrop.r) / 255.f, static_cast<float>(colors.backdrop.g) / 255.f, static_cast<float>(colors.backdrop.b) / 255.f, 1.f}; 
+				ImGui::ColorEdit3("Backdrop Color##1", (float*)&color);
 				colors.backdrop.r = static_cast<uint8_t>(color.x * 255);
 				colors.backdrop.g = static_cast<uint8_t>(color.y * 255);
 				colors.backdrop.b = static_cast<uint8_t>(color.z * 255);
