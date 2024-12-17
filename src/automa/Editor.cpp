@@ -30,16 +30,14 @@ void Editor::run() {
 		std::string filename = style + "_tiles.png";
 		tileset_textures.back().loadFromFile((finder->paths.resources / "image" / "tile" / filename).string());
 	}
-	init("new_file");
-	setTilesetTexture(tileset_textures.at(0));
-	
 
+	init("new_file");
+	
 	bool debug_mode = false;
 
 	sf::RectangleShape background{};
 	background.setSize(static_cast<sf::Vector2<float>>(screen_dimensions));
-	background.setPosition(0, 0);
-	background.setFillColor(sf::Color(40, 60, 80));
+	colors.backdrop = sf::Color{40, 60, 80};
 	sf::Clock delta_clock{};
 
 	// editor loop
@@ -77,9 +75,16 @@ void Editor::run() {
 		logic();
 
 		// ImGui update
-		ImGui::SFML::Update(window->get(), delta_clock.restart());
+
+		ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+		ImGuiIO& io = ImGui::GetIO();
+		io.MouseDrawCursor = window_hovered && !palette.hovered();
+		window->get().setMouseCursorVisible(io.MouseDrawCursor);
+		ImGui::SFML::Update(window->get(), delta_clock.getElapsedTime());
+		delta_clock.restart();
 
 		window->get().clear();
+		background.setFillColor(colors.backdrop);
 		window->get().draw(background);
 
 		render(window->get());
@@ -90,15 +95,9 @@ void Editor::run() {
 }
 
 void Editor::init(std::string const& load_path) {
-	finder->paths.room_name = load_path;
-	std::string msg = "Loading room: " + finder->paths.room_name;
-	console.add_log(msg.data());
-	load();
-	window->get().setMouseCursorVisible(false);
 
 	tool_texture.loadFromFile((finder->paths.local / "gui" / "tools.png").string());
 
-	map.get_layers().layers.at(MIDDLEGROUND).active = true;
 	sprites.tool.setTexture(tool_texture);
 
 	for (int i = 0; i < static_cast<int>(Style::END); ++i) {
@@ -110,12 +109,15 @@ void Editor::init(std::string const& load_path) {
 		bgs[i] = next;
 	}
 
-	sprites.tileset.setTexture(tileset_textures.at(static_cast<int>(map.style)));
+	finder->paths.room_name = load_path;
+	std::string msg = "Loading room: " + finder->paths.room_name;
+	console.add_log(msg.data());
+	load();
+	map.get_layers().layers.at(MIDDLEGROUND).active = true;
+	std::cout << static_cast<int>(map.styles.tile) << "\n";
+	sprites.tileset.setTexture(tileset_textures.at(static_cast<int>(map.styles.tile)));
 
-	setTilesetTexture(tileset_textures.at(static_cast<int>(map.style)));
-	std::cout << get_style_string.at(map.style) << "\n";
-
-	backdrop.setFillColor(sf::Color{60, 40, 60, 40});
+	colors.backdrop = sf::Color{60, 40, 60, 40};
 	backdrop.setOutlineColor(sf::Color{240, 230, 255, 40});
 	backdrop.setOutlineThickness(4);
 	backdrop.setSize(map.real_dimensions);
@@ -124,15 +126,15 @@ void Editor::init(std::string const& load_path) {
 	target.setOutlineColor(sf::Color{240, 230, 255, 100});
 	target.setOutlineThickness(-2);
 	target.setSize({CELL_SIZE, CELL_SIZE});
-}
 
-void Editor::setTilesetTexture(sf::Texture& new_tex) { sprites.tileset.setTexture(new_tex); }
+	map.center(window->f_center_screen());
+}
 
 void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 
-	auto& target = flags.test(GlobalFlags::palette_mode) ? palette : map;
+	auto& target = palette_mode() ? palette : map;
 
-	current_tool.get()->ready = !window_hovered;
+	current_tool.get()->ready = !window_hovered || palette.hovered();
 	secondary_tool.get()->ready = !window_hovered;
 	if (event.type == sf::Event::EventType::KeyPressed) {
 		current_tool.get()->ready = false;
@@ -152,8 +154,8 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 			if (current_tool->type == ToolType::brush) { current_tool = std::move(std::make_unique<Eyedropper>()); }
 		}
 		if (event.key.code == sf::Keyboard::Z) {
-			if (control_pressed() && !shift_pressed()) { target.undo(); }
-			if (control_pressed() && shift_pressed()) { target.redo(); }
+			if (control_pressed() && !shift_pressed()) { map.undo(); }
+			if (control_pressed() && shift_pressed()) { map.redo(); }
 		}
 	}
 	if (event.type == sf::Event::EventType::KeyReleased) {
@@ -166,12 +168,14 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 		}
 	}
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-		if (!palette.hovered()) { pressed_keys.set(PressedKeys::mouse); }
+		pressed_keys.set(PressedKeys::mouse);
+		if (palette.hovered()) { current_tool->clear(); }
+		current_tool->has_palette_selection = false;
 		target.save_state(*current_tool);
 		current_tool.get()->handle_events(target, event);
 		current_tool.get()->active = true;
 		if (current_tool->type == ToolType::eyedropper) { selected_block = current_tool->tile; }
-		if (palette.hovered() && current_tool->type != ToolType::select) {
+		if (palette_mode() && current_tool->type != ToolType::select) {
 			auto pos = current_tool->get_window_position() - palette.get_position();
 			auto idx = palette.tile_val_at_scaled(pos.x, pos.y, 4);
 			current_tool.get()->store_tile(idx);
@@ -202,11 +206,11 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 
 void Editor::logic() {
 
-	auto& target = flags.test(GlobalFlags::palette_mode) ? palette : map;
+	auto& target = palette_mode() ? palette : map;
 
 	window_hovered = ImGui::IsAnyItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive() || palette.hovered();
+	palette.active_layer = 4;
 	map.active_layer = active_layer;
-	map.entities.variables.player_start = map.player_start;
 	if (current_tool->trigger_switch) { current_tool = std::move(std::make_unique<Hand>()); }
 	current_tool->update();
 	secondary_tool->update();
@@ -218,11 +222,13 @@ void Editor::logic() {
 		target.move(secondary_tool.get()->relative_position);
 		secondary_tool.get()->relative_position = {0.0f, 0.0f};
 	}
-	map.update(*current_tool, true);
+	map.update(*current_tool);
 	palette.update(*current_tool);
 	palette.set_position({12.f, 32.f});
 	if (palette.hovered()) { map.unhover(); }
-	palette.hovered() && !pressed_keys.test(PressedKeys::mouse) ? flags.set(GlobalFlags::palette_mode) : flags.reset(GlobalFlags::palette_mode);
+
+	show_palette && !menu_hovered && (palette.hovered() || current_tool->has_palette_selection) && (!pressed_keys.test(PressedKeys::mouse) || current_tool->type == ToolType::select) && !current_tool->clipboard() ? flags.set(GlobalFlags::palette_mode)
+																																												   : flags.reset(GlobalFlags::palette_mode);
 }
 
 void Editor::load() {
@@ -233,17 +239,15 @@ void Editor::load() {
 bool Editor::save() { return map.save(*finder, finder->paths.room_name); }
 
 void Editor::render(sf::RenderWindow& win) {
+	backdrop.setFillColor(colors.backdrop);
 	backdrop.setPosition(map.get_position());
 	map.hovered() ? backdrop.setOutlineColor({240, 230, 255, 80}) : backdrop.setOutlineColor({240, 230, 255, 40});
 	backdrop.setSize(map.real_dimensions);
 	win.draw(backdrop);
-	if (show_background) {
-		// TODO: background rendering
-	}
 
 	map.render(win, sprites.tileset);
 
-	if (current_tool.get()->ready && current_tool.get()->in_bounds(map.dimensions) &&
+	if (current_tool.get()->ready && current_tool.get()->in_bounds(map.dimensions) && !menu_hovered && !palette_mode() &&
 		(current_tool.get()->type == ToolType::brush || current_tool.get()->type == ToolType::fill || current_tool.get()->type == ToolType::erase || current_tool.get()->type == ToolType::entity_placer)) {
 		for (int i = 0; i < current_tool.get()->size; i++) {
 			for (int j = 0; j < current_tool.get()->size; j++) {
@@ -257,12 +261,12 @@ void Editor::render(sf::RenderWindow& win) {
 		auto palette_bg = sf::RectangleShape({512, 512});
 		palette_bg.setFillColor({20, 20, 20, 160});
 		palette_bg.setPosition(palette.get_position());
-		flags.test(GlobalFlags::palette_mode) ? palette_bg.setOutlineColor({255, 255, 255, 180}) : palette.hovered() ? palette_bg.setOutlineColor({255, 100, 60, 180}) : palette_bg.setOutlineColor({255, 255, 255, 60});
+		flags.test(GlobalFlags::palette_mode) ? palette_bg.setOutlineColor({255, 255, 255, 180}) : palette.hovered() && !menu_hovered ? palette_bg.setOutlineColor({60, 255, 90, 180}) : palette_bg.setOutlineColor({255, 255, 255, 60});
 		palette_bg.setOutlineThickness(2.f);
 		win.draw(palette_bg);
 		palette.render(win, sprites.tileset);
 
-		if (palette.hovered()) {
+		if (palette_mode()) {
 			selector.setSize({32.f, 32.f});
 			selector.setOutlineColor({255, 255, 255, 80});
 			selector.setOutlineThickness(-2.f);
@@ -272,9 +276,10 @@ void Editor::render(sf::RenderWindow& win) {
 		}
 	}
 
-	current_tool.get()->render(win, map.get_position(), !palette.hovered());
-	float tool_x = current_tool.get()->position.x + map.get_position().x;
-	float tool_y = current_tool.get()->position.y + map.get_position().y;
+	auto& target = palette_mode() ? palette : map;
+	current_tool.get()->render(win, target.get_position(), !palette_mode());
+	float tool_x = current_tool.get()->position.x + target.get_position().x;
+	float tool_y = current_tool.get()->position.y + target.get_position().y;
 	if (!window_hovered || palette.hovered()) {
 		sprites.tool.setTextureRect({{static_cast<int>(current_tool.get()->type) * 32, 0}, {32, 32}});
 		sprites.tool.setPosition(tool_x, tool_y);
@@ -288,12 +293,16 @@ void Editor::render(sf::RenderWindow& win) {
 void Editor::gui_render(sf::RenderWindow& win) {
 	bool* debug{};
 	float const PAD = 10.0f;
-	static int corner = 0;
 	ImGuiIO& io = ImGui::GetIO();
 	io.FontGlobalScale = 1.0;
+	ImGuiViewport const* viewport = ImGui::GetMainViewport();
+	ImVec2 work_pos = viewport->WorkPos; // Use work area to avoid menu-bar/task-bar
+	ImVec2 work_size = viewport->WorkSize;
+	auto f_work_size = sf::Vector2<float>{static_cast<float>(work_size.x), static_cast<float>(work_size.y)};
 
-	current_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - map.get_position();
-	secondary_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - map.get_position();
+	auto& target = palette_mode() ? palette : map;
+	current_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - target.get_position();
+	secondary_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - target.get_position();
 	current_tool->set_window_position(sf::Vector2<float>{io.MousePos.x, io.MousePos.y});
 	secondary_tool->set_window_position(sf::Vector2<float>{io.MousePos.x, io.MousePos.y});
 
@@ -334,13 +343,16 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	}
 
 	//ImGui::ShowDemoWindow();
+	bool insp{};
 
 	// Main Menu
+	menu_hovered = false;
 	if (ImGui::BeginMainMenuBar()) {
 		bool new_popup{};
 		bool save_popup{};
 		bool save_as_popup{};
 		if (ImGui::BeginMenu("File")) {
+			menu_hovered = true;
 			if (ImGui::MenuItem("New", NULL, &new_popup)) {}
 
 			// Always center this window when appearing
@@ -448,19 +460,19 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::SameLine();
 			if (ImGui::Button("Create")) {
 
-				static int style_current = static_cast<int>(map.style);
+				static int style_current = static_cast<int>(map.styles.tile);
 				static int bg_current = static_cast<int>(map.bg);
 
 				map = Canvas({static_cast<uint32_t>(width * CHUNK_SIZE), static_cast<uint32_t>(height * CHUNK_SIZE)});
-				map.style = static_cast<Style>(style_current);
-				setTilesetTexture(tileset_textures.at(style_current));
+				map.styles.tile = static_cast<Style>(style_current);
+				sprites.tileset.setTexture(tileset_textures.at(style_current));
 				map.bg = static_cast<Backdrop>(bg_current);
 				map.metagrid_coordinates = {metagrid_x, metagrid_y};
 				finder->paths.room_name = buffer;
 				map.room_id = room_id;
 				save();
 				load();
-				map.set_position({});
+				map.center(window->f_center_screen());
 				std::string message = "Created new room with id " + std::to_string(room_id) + " and name " + finder->paths.room_name;
 				console.add_log(message.data());
 				ImGui::CloseCurrentPopup();
@@ -491,37 +503,56 @@ void Editor::gui_render(sf::RenderWindow& win) {
 
 			ImGui::EndPopup();
 		}
-		// none of the below have been implemented and will likely be removed
 		if (ImGui::BeginMenu("Edit")) {
+			menu_hovered = true;
 			if (ImGui::MenuItem("Undo", "CTRL+Z")) { map.undo(); }
 			if (ImGui::MenuItem("Redo", "CTRL+SHIFT+Z")) { map.redo(); }
 			ImGui::EndMenu();
 		}
+		bool flag{};
+		if (ImGui::BeginMenu("Insert")) {
+			menu_hovered = true;
+			if (ImGui::MenuItem("Inspectable", NULL, &insp)) {}
+			if (ImGui::MenuItem("Save Point")) {
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::SAVE_POINT;
+			}
+			if (ImGui::MenuItem("Player Placer")) {
+				current_tool = std::move(std::make_unique<EntityPlacer>());
+				current_tool.get()->ent_type = ENTITY_TYPE::PLAYER_PLACER;
+			}
+			ImGui::EndMenu();
+		}
+		
+
 		if (ImGui::BeginMenu("Help")) {
+			menu_hovered = true;
 			ImGui::Text("Eyedropper Tool: Alt");
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
 	}
 
+	if (insp) { ImGui::OpenPopup("Inspectable Message"); }
+	popup.launch("Inspectable Message", current_tool);
+	
+
 	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
 
-	ImGuiViewport const* viewport = ImGui::GetMainViewport();
-	ImVec2 work_pos = viewport->WorkPos; // Use work area to avoid menu-bar/task-bar
-	ImVec2 work_size = viewport->WorkSize;
-	ImVec2 window_pos, window_pos_pivot;
+	ImVec2 window_pos;
 	ImVec2 prev_window_pos{};
 	ImVec2 prev_window_size{};
-	window_pos.x = (corner & 1) ? (work_pos.x + work_size.x - PAD) : (work_pos.x + PAD);
-	window_pos.y = (corner & 2) ? (work_pos.y + work_size.y - PAD) : (work_pos.y + PAD);
-	window_pos_pivot.x = (corner & 1) ? 1.0f : 0.0f;
-	window_pos_pivot.y = (corner & 2) ? 1.0f : 0.0f;
-	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+	window_pos.x = PAD;
+	window_pos.y = work_pos.y + palette.dimensions.y * CELL_SIZE + 2 * PAD;
 	window_flags |= ImGuiWindowFlags_NoMove;
 
 	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
 	if (show_overlay) {
+		ImGui::ShowDemoWindow();
+		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
 		if (ImGui::Begin("Debug Mode", debug, window_flags)) {
+			prev_window_size = ImGui::GetWindowSize();
+			prev_window_pos = ImGui::GetWindowPos();
 			ImGui::Text("Pioneer (beta version 1.0.0) - Level Editor");
 			ImGui::Separator();
 			if (ImGui::IsMousePosValid()) {
@@ -532,19 +563,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 			if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags)) {
 				if (ImGui::BeginTabItem("General")) {
-					ImGui::Text("Any Window Hovered: ");
-					ImGui::SameLine();
-					if (window_hovered) {
-						ImGui::Text("Yes");
-					} else {
-						ImGui::Text("No");
-					};
-
-					/*constexpr auto text = R"({ "foo": "party", "universe": 42 })";
-					auto const json = dj::Json::parse(text);
-					ImGui::Text("djson test: %i", json[1]);*/
+					ImGui::Text("Any Window Hovered: %s", window_hovered ? "Yes" : "No");
+					ImGui::Text("Palette Mode: %s", palette_mode() ? "Yes" : "No");
 					ImGui::Text("Room ID: %u", map.room_id);
-					//                    ImGui::Text("Room Name: %s", room_name_lookup.at(map.room_id).c_str());
 					ImGui::Text("Camera Position: (%.1f,%.1f)", map.get_position().x, map.get_position().y);
 					ImGui::Text("Active Layer: %i", active_layer);
 					ImGui::Text("Num Layers: %lu", map.get_layers().layers.size());
@@ -555,8 +576,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 						ImGui::Text("Tile Value at Mouse Pos: <invalid>");
 					}
 					ImGui::Separator();
-					ImGui::Text("Current Style: %s", get_style_string.at(map.style));
-					ImGui::Text("Current Backdrop: %s", get_backdrop_string.at(map.bg));
+					ImGui::Text("Current Style: %s", get_style_string.at(map.styles.tile));
+					//ImGui::Text("Current Backdrop: %s", get_backdrop_string.at(map.bg));
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Tool")) {
@@ -565,28 +586,9 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					ImGui::Text("Relative Position: (%.1f,%.1f)", current_tool.get()->relative_position.x, current_tool.get()->relative_position.y);
 					ImGui::Text("Tool Position (scaled): (%i,%i)", current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y);
 					ImGui::Text("Tool Clicked Position (scaled): (%i,%i)", current_tool.get()->scaled_clicked_position.x, current_tool.get()->scaled_clicked_position.y);
-					ImGui::Text("Tool in Bounds: ");
-					ImGui::SameLine();
-					if (current_tool.get()->in_bounds(map.dimensions)) {
-						ImGui::Text("Yes");
-					} else {
-						ImGui::Text("No");
-					};
-					ImGui::Text("Tool Ready: ");
-					ImGui::SameLine();
-					if (current_tool.get()->ready) {
-						ImGui::Text("Yes");
-					} else {
-						ImGui::Text("No");
-					};
-					ImGui::Text("Tool Active: ");
-					ImGui::SameLine();
-					if (current_tool.get()->active) {
-						ImGui::Text("Yes");
-					} else {
-						ImGui::Text("No");
-					};
-
+					ImGui::Text("Tool in Bounds: %s", current_tool.get()->in_bounds(map.dimensions) ? "Yes" : "No");
+					ImGui::Text("Tool Ready: %s", current_tool.get()->ready ? "Yes" : "No");
+					ImGui::Text("Tool Active: %s", current_tool.get()->active ? "Yes" : "No");
 					ImGui::Text("Current Tool: %s", get_tool_string.at(current_tool->type).c_str());
 					ImGui::Text("Secondary Tool: %s", get_tool_string.at(secondary_tool->type).c_str());
 					ImGui::EndTabItem();
@@ -632,10 +634,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			ImGui::End();
 		}
 		ImGui::SetNextWindowBgAlpha(0.95f); // Transparent background
-		work_size = viewport->WorkSize;
 		window_pos = {window_pos.x, window_pos.y + prev_window_size.y + PAD};
 		window_flags = ImGuiWindowFlags_NoCollapse;
-		ImGui::SetNextWindowSizeConstraints(ImVec2{work_size.x / 12, work_size.y / 4 - prev_window_size.y - PAD * 4}, ImVec2{work_size.x / 2, work_size.y - prev_window_size.y - PAD * 4});
 		ImGui::SetNextWindowPos(window_pos);
 		if (ImGui::Begin("Entities", debug, window_flags)) {
 			prev_window_size = ImGui::GetWindowSize();
@@ -764,38 +764,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
 				ImGui::EndPopup();
 			}
-			ImGui::SameLine();
-			if (ImGui::Button("Inspectable")) { ImGui::OpenPopup("Inspectable Message"); }
-			if (ImGui::BeginPopupModal("Inspectable Message", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-				static bool activate_on_contact{false};
-				static char keybuffer[128] = "";
-				static char msgbuffer[512] = "";
-
-				ImGui::InputTextWithHint("Key", "Title (invisible in-game; must be unique per room)", keybuffer, IM_ARRAYSIZE(keybuffer));
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				ImGui::InputTextWithHint("Message", "Type message here...", msgbuffer, IM_ARRAYSIZE(msgbuffer));
-				ImGui::Separator();
-				ImGui::NewLine();
-
-				ImGui::Checkbox("Activate on contact?", &activate_on_contact);
-				ImGui::SameLine();
-				help_marker("If left unchecked, the player will have to inspect the portal to activate it.");
-
-				if (ImGui::Button("Create")) {
-					// switch to entity tool, and store the specified portal for placement
-					current_tool = std::move(std::make_unique<EntityPlacer>());
-					current_tool.get()->ent_type = ENTITY_TYPE::INSPECTABLE;
-					current_tool.get()->current_inspectable = Inspectable(sf::Vector2<uint32_t>{1, 1}, activate_on_contact, keybuffer);
-					current_tool.get()->current_inspectable.suites.push_back(std::vector<std::string>{msgbuffer});
-					ImGui::CloseCurrentPopup();
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
-				ImGui::EndPopup();
-			}
+			
 			if (ImGui::Button("Platform")) { ImGui::OpenPopup("Platform Specifications"); }
 			if (ImGui::BeginPopupModal("Platform Specifications", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
 
@@ -1032,14 +1001,6 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				if (ImGui::Button("Close")) { ImGui::CloseCurrentPopup(); }
 				ImGui::EndPopup();
 			}
-			if (ImGui::Button("Save Point")) {
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::SAVE_POINT;
-			}
-			if (ImGui::Button("Player Placer")) {
-				current_tool = std::move(std::make_unique<EntityPlacer>());
-				current_tool.get()->ent_type = ENTITY_TYPE::PLAYER_PLACER;
-			}
 
 			ImGui::End();
 		}
@@ -1050,10 +1011,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	work_size = viewport->WorkSize;
 	window_pos.x = work_pos.x + work_size.x - PAD;
 	window_pos.y = work_pos.y + PAD;
-	window_pos_pivot.x = 1.0f;
-	window_pos_pivot.y = 0.0f;
 	window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
-	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, {1, 0});
 	if (ImGui::Begin("Settings", debug, window_flags)) {
 		ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
 		window_flags |= ImGuiWindowFlags_MenuBar;
@@ -1125,8 +1084,6 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		} else {
 			ImGui::Text("Tool Position : ---");
 		}
-		ImGui::Text("Mouse Pressed : %s", pressed_keys.test(PressedKeys::mouse) ? "Yes" : "No");
-		ImGui::Text("Palette Mode : %s", flags.test(GlobalFlags::palette_mode) ? "Yes" : "No");
 
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
 		ImGui::BeginChild("ChildS", ImVec2(320, 172), true, window_flags);
@@ -1143,11 +1100,11 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::Text("Canvas Settings");
 		ImGui::Separator();
 
-		//ImGui::Checkbox("Debug Overlay", &show_overlay);
 		if(ImGui::BeginTabBar("##gensettings")) {
-			if(ImGui::BeginTabItem("General")) {
+			if (ImGui::BeginTabItem("General")) {
+				ImGui::Checkbox("Debug Overlay", &show_overlay);
 				ImGui::Checkbox("Show Entities", &map.flags.show_entities);
-				ImGui::Checkbox("Show Background", &show_background);
+				ImGui::Checkbox("Show Background", &map.flags.show_background);
 				ImGui::Checkbox("Show Grid", &map.flags.show_grid);
 				ImGui::Checkbox("Show Palette", &show_palette);
 				ImGui::EndTabItem();
@@ -1158,16 +1115,24 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				ImGui::Checkbox("Show Indicated Layers", &map.flags.show_indicated_layers);
 				ImGui::EndTabItem();
 			}
+			if (ImGui::BeginTabItem("Backdrop")) {
+				static ImVec4 color{};
+				ImGui::ColorEdit3("MyColor##1", (float*)&color);
+				colors.backdrop.r = static_cast<uint8_t>(color.x * 255);
+				colors.backdrop.g = static_cast<uint8_t>(color.y * 255);
+				colors.backdrop.b = static_cast<uint8_t>(color.z * 255);
+				ImGui::EndTabItem();
+			}
 			ImGui::EndTabBar();
 		}
 
 		ImGui::Separator();
 		ImGui::Text("Actions");
 		ImGui::Separator();
+		if (ImGui::Button("Center Canvas")) { map.center(window->f_center_screen()); }
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.5, 0.6f, 0.5f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.5, 0.7f, 0.6f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.5, 0.8f, 0.7f));
-
 		if (ImGui::Button("Launch Demo")) {
 			trigger_demo = true;
 			save();
@@ -1182,10 +1147,10 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		if (ImGui::Button("Redo")) { map.redo(); }
 
 		ImGui::Text("Scene Style: ");
-		int style_current = static_cast<int>(map.style);
+		int style_current = static_cast<int>(map.styles.tile);
 		if (ImGui::Combo("##scenestyle", &style_current, styles, IM_ARRAYSIZE(styles))) {
-			map.style = static_cast<Style>(style_current);
-			setTilesetTexture(tileset_textures.at(style_current));
+			map.styles.tile = static_cast<Style>(style_current);
+			sprites.tileset.setTexture(tileset_textures.at(style_current));
 		}
 		ImGui::Text("Scene Background: ");
 		int bg_current = static_cast<int>(map.bg);
@@ -1231,7 +1196,7 @@ void Editor::export_layer_texture() {
 			if (cell.value > 0) {
 				auto x_coord = (cell.value % 16) * TILE_WIDTH;
 				auto y_coord = std::floor(cell.value / 16) * TILE_WIDTH;
-				tile_sprite.setTexture(tileset_textures.at(static_cast<int>(map.style)));
+				tile_sprite.setTexture(tileset_textures.at(static_cast<int>(map.styles.tile)));
 				tile_sprite.setTextureRect(sf::IntRect({static_cast<int>(x_coord), static_cast<int>(y_coord)}, {32, 32}));
 				tile_sprite.setPosition(cell.position);
 				screencap.draw(tile_sprite);

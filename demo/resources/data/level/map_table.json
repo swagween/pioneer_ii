@@ -218,6 +218,10 @@
     },
     {
       "room_id": 0,
+      "label": "palette_edit"
+    },
+    {
+      "room_id": 0,
       "label": "ppp"
     },
     {

@@ -16,6 +16,7 @@ void Fill::update() { Tool::update(); }
 void Fill::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {}
 
 void Fill::fill_section(uint8_t const prev_val, uint8_t const new_val, uint32_t i, uint32_t j, Canvas& canvas) {
+	if (!canvas.editable()) { return; }
 	if (i < 0 || i >= canvas.dimensions.x || j < 0 || j >= canvas.dimensions.y) {
 		return;
 	} else if (canvas.tile_val_at(i, j, canvas.active_layer) != prev_val) {

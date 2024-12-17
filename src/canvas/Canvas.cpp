@@ -7,6 +7,18 @@
 
 namespace pi {
 
+Canvas::Canvas(bool editable) {
+	editable ? properties.set(CanvasProperties::editable) : properties.reset(CanvasProperties::editable);
+	box.setOutlineColor(sf::Color{200, 200, 200, 20});
+	box.setOutlineThickness(-2);
+	box.setSize({CELL_SIZE, CELL_SIZE});
+
+	gridbox.setFillColor(sf::Color::Transparent);
+	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
+	gridbox.setOutlineThickness(-1);
+	gridbox.setSize({CELL_SIZE, CELL_SIZE});
+}
+
 Canvas::Canvas(sf::Vector2<uint32_t> dim) {
     dimensions = dim;
     real_dimensions = {(float)dim.x * CELL_SIZE, (float)dim.y * CELL_SIZE};
@@ -33,12 +45,14 @@ void Canvas::update(Tool& tool, bool transformed) {
 		within_bounds(tool.get_window_position()) ? state.set(CanvasState::hovered) : state.reset(CanvasState::hovered);
     }
 	camera.update();
+	background->update();
 }
 
 void Canvas::render(sf::RenderWindow& win, sf::Sprite& tileset) {
+	if (flags.show_background) { background->render(win, camera.position); }
 	if (!states_empty()) {
 		for (auto& layer : get_layers().layers) {
-			box.setFillColor(sf::Color{static_cast<uint8_t>(layer.render_order * 30), 230, static_cast<uint8_t>(255 - layer.render_order * 30), 40});
+			box.setFillColor(sf::Color{40, 240, 80, 40});
 			for (auto& cell : layer.grid.cells) {
 				if (cell.value == 0) { continue; }
 				if (layer.render_order == active_layer || flags.show_all_layers) {
@@ -99,7 +113,7 @@ void Canvas::load(ResourceFinder& finder, std::string const& room_name, bool loc
 	for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
 
 	auto style_value = meta["style"].as<int>();
-	style = static_cast<Style>(meta["style"].as<int>());
+	styles.tile = static_cast<Style>(meta["style"].as<int>());
 	bg = static_cast<Backdrop>(meta["background"].as<int>());
 	entities.variables.music = meta["music"].as_string();
 	styles.breakable = meta["styles"]["breakables"].as<int>();
@@ -107,6 +121,8 @@ void Canvas::load(ResourceFinder& finder, std::string const& room_name, bool loc
 	cutscene.type = meta["cutscene_on_entry"]["type"].as<int>();
 	cutscene.id = meta["cutscene_on_entry"]["id"].as<int>();
 	cutscene.source = meta["cutscene_on_entry"]["source"].as<int>();
+
+	background = std::make_unique<Background>(finder, meta["background"].as<int>());
 
     // tiles
     int layer_counter{};
@@ -142,7 +158,7 @@ bool Canvas::save(ResourceFinder& finder, std::string const& room_name) {
 	data.meta["meta"]["dimensions"][1] = dimensions.y;
 	data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
 	data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
-	data.meta["meta"]["style"] = static_cast<int>(style);
+	data.meta["meta"]["style"] = static_cast<int>(styles.tile);
 	data.meta["meta"]["background"] = static_cast<int>(bg);
 	data.meta["meta"]["music"] = entities.variables.music;
 	data.meta["meta"]["styles"]["breakables"] = styles.breakable;
@@ -215,6 +231,8 @@ void Canvas::unhover() { state.reset(CanvasState::hovered); }
 void Canvas::move(sf::Vector2<float> distance) { camera.move(distance); }
 
 void Canvas::set_position(sf::Vector2<float> to_position) { camera.set_position(to_position); }
+
+void Canvas::center(sf::Vector2<float> point) { set_position(point - real_dimensions * 0.5f); }
 
 Map& Canvas::get_layers() { return map_states.back(); }
 

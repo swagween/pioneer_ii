@@ -17,6 +17,7 @@
 #include <windows.h>
 #include <string_view>
 #include <filesystem>
+#include "PopupHandler.hpp"
 
 namespace pi {
 
@@ -37,7 +38,6 @@ class Editor {
 	Editor(char** argv, WindowManager& window, ResourceFinder& finder);
 	void run();
 	void init(std::string const& load_path);
-	void setTilesetTexture(sf::Texture& new_tex);
 	void handle_events(sf::Event& event, sf::RenderWindow& win);
 	void logic();
 	void load();
@@ -49,9 +49,10 @@ class Editor {
 	void launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position);
 	[[nodiscard]] auto control_pressed() const -> bool { return pressed_keys.test(PressedKeys::control); }
 	[[nodiscard]] auto shift_pressed() const -> bool { return pressed_keys.test(PressedKeys::shift); }
+	[[nodiscard]] auto palette_mode() const -> bool { return flags.test(GlobalFlags::palette_mode); }
 
 	Canvas map{};
-	Canvas palette{};
+	Canvas palette{false};
 
 	std::vector<sf::Texture> tileset_textures{};
 	sf::Texture tool_texture{};
@@ -77,7 +78,6 @@ class Editor {
 	sf::Vector2<float> mouse_clicked_position{};
 
 	bool mouse_held{};
-	bool show_background{};
 	bool show_palette{true};
 	bool show_overlay{};
 	bool demo_mode{};
@@ -87,18 +87,23 @@ class Editor {
 
 	bool trigger_demo{false};
 	bool window_hovered{};
+	bool menu_hovered{};
 	int active_layer{4};
 	int selected_block{};
 
   private:
 	WindowManager* window;
 	ResourceFinder* finder;
+	PopupHandler popup{};
 	std::unique_ptr<Tool> current_tool = std::make_unique<Hand>();
 	std::unique_ptr<Tool> secondary_tool = std::make_unique<Hand>();
 	util::BitFlags<PressedKeys> pressed_keys{};
 	util::BitFlags<GlobalFlags> flags{};
 	char** args{};
 	Console console{};
+	struct {
+		sf::Color backdrop{};
+	} colors{};
 };
 
 } // namespace pi

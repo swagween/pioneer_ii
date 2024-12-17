@@ -60,7 +60,7 @@ EntitySet::EntitySet(ResourceFinder& finder, std::string const& room_name) {
 	platbox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	platbox.setOutlineThickness(-4);
 }
-
+
 void EntitySet::render(sf::RenderWindow& win, sf::Vector2<float> cam) {
 
 	for (auto& portal : variables.portals) {

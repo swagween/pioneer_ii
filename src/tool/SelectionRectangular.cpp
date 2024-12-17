@@ -4,7 +4,7 @@
 namespace pi {
 
 void SelectionRectangular::handle_events(Canvas& canvas, sf::Event& e) {
-	sf::Vector2<uint32_t> dim = {static_cast<uint32_t>(canvas.dimensions.x + 1), static_cast<uint32_t>(canvas.dimensions.y + 1)};
+	sf::Vector2<uint32_t> dim = {static_cast<uint32_t>(canvas.dimensions.x), static_cast<uint32_t>(canvas.dimensions.y)};
 	if (in_bounds(dim) && ready) {
 		if (active) {
 			if (just_clicked) {
@@ -18,21 +18,26 @@ void SelectionRectangular::handle_events(Canvas& canvas, sf::Event& e) {
 			}
 			// I'm being long-winded here to provision for the mouse
 			// being dragged above or left of the clicked position
+			auto tweak = 1;
 			sf::Vector2<uint32_t> adjustment{};
-			if (scaled_position.x > scaled_clicked_position.x) {
-				adjustment.x = scaled_position.x - selection.position.x;
+			if (scaled_position.x >= scaled_clicked_position.x) {
+				adjustment.x = scaled_position.x + tweak - selection.position.x;
 			} else {
 				adjustment.x = scaled_clicked_position.x - scaled_position.x;
-				selection.position.x = scaled_position.x;
+				selection.position.x = scaled_position.x + tweak;
 			}
-			if (scaled_position.y > scaled_clicked_position.y) {
-				adjustment.y = scaled_position.y - selection.position.y;
+			if (scaled_position.y >= scaled_clicked_position.y) {
+				adjustment.y = scaled_position.y + tweak - selection.position.y;
 			} else {
 				adjustment.y = scaled_clicked_position.y - scaled_position.y;
-				selection.position.y = scaled_position.y;
+				selection.position.y = scaled_position.y + tweak;
 			}
 			selection.adjust(adjustment);
-			clipboard = Clipboard(selection.dimensions);
+			if (!selection.empty()) {
+				clipboard = Clipboard(selection.dimensions);
+				if (!canvas.editable()) { has_palette_selection = true; }
+			}
+			
 		}
 	}
 	update();
@@ -42,17 +47,12 @@ void SelectionRectangular::handle_keyboard_events(Canvas& canvas, sf::Keyboard::
 	if (!clipboard) { return; }
 	if (key == sf::Keyboard::X) { cut(canvas); }
 	if (key == sf::Keyboard::C) { copy(canvas); }
-	if (key == sf::Keyboard::V) {
-		if (!clipboard.value().empty()) { paste(canvas); }
-	}
+	if (key == sf::Keyboard::V && !clipboard.value().empty()) { paste(canvas); }
 }
 
-void SelectionRectangular::update() {
-	Tool::update();
-}
+void SelectionRectangular::update() { Tool::update(); }
 
 void SelectionRectangular::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {
-	if (!transformed) { offset = {}; }
 	sf::RectangleShape box{};
 	switch (mode) {
 	case SelectMode::clipboard:
@@ -61,15 +61,15 @@ void SelectionRectangular::render(sf::RenderWindow& win, sf::Vector2<float> offs
 		box.setOutlineThickness(-2);
 		if (clipboard) { box.setSize(clipboard.value().real_dimensions() * f_cell_size); }
 		if (clipboard) { box.setPosition(f_scaled_position() * f_cell_size + offset - clipboard.value().real_dimensions() * f_cell_size + sf::Vector2<float>{32.f, 32.f}); }
-		win.draw(box);
+		if (transformed) { win.draw(box); }
 		[[fallthrough]];
 	case SelectMode::select:
-		box.setOutlineColor(sf::Color{200, 200, 200, 80});
+		box.setOutlineColor(sf::Color{100, 255, 160, 180});
 		box.setFillColor(sf::Color{110, 100, 180, 40});
 		box.setOutlineThickness(-2);
 		box.setSize({selection.dimensions.x * f_cell_size, selection.dimensions.y * f_cell_size});
 		box.setPosition(selection.f_position() * f_cell_size + offset);
-		win.draw(box);
+		if (!has_palette_selection || !transformed) { win.draw(box); }
 		break;
 	}
 }
@@ -86,7 +86,7 @@ void SelectionRectangular::cut(Canvas& canvas) {
 			for (auto k{0}; k < canvas.get_layers().layers.size(); ++k) {
 				if (!pervasive && k != canvas.active_layer) { continue; }
 				clipboard.value().write_to_clipboard(canvas.tile_val_at(selection.position.x + i, selection.position.y + j, k), i, j, k);
-				canvas.erase_at(selection.position.x + i, selection.position.y + j, k);
+				if (canvas.editable()) { canvas.erase_at(selection.position.x + i, selection.position.y + j, k); }
 			}
 		}
 	}
@@ -108,6 +108,7 @@ void SelectionRectangular::copy(Canvas& canvas) {
 
 void SelectionRectangular::paste(Canvas& canvas) {
 	if (!clipboard) { return; }
+	if (!canvas.editable()) { return; }
 	canvas.save_state(*this, true);
 	for (uint32_t i = 0; i < selection.dimensions.x; ++i) {
 		for (uint32_t j = 0; j < selection.dimensions.y; ++j) {
@@ -124,6 +125,10 @@ void SelectionRectangular::paste(Canvas& canvas) {
 	}
 }
 
-void SelectionRectangular::clear() { clipboard = {}; }
+void SelectionRectangular::clear() {
+	clipboard = {};
+	mode = SelectMode::select;
+	has_palette_selection = false;
+}
 
 } // namespace pi

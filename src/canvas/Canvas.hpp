@@ -15,6 +15,7 @@
 #include "../util/BitFlags.hpp"
 #include "../util/Camera.hpp"
 #include "EntitySet.hpp"
+#include "Background.hpp"
 
 namespace pi {
 
@@ -55,6 +56,7 @@ enum class Style { firstwind, overturned, base, factory, greatwing, provisional,
 
 const int CELL_SIZE{32};
 float const f_cell_size{32.f};
+enum class CanvasProperties { editable };
 enum class CanvasState { hovered };
 
 struct Map {
@@ -68,7 +70,7 @@ class Canvas {
     
 public:
     
-    Canvas() = default;
+    Canvas(bool editable = true);
     Canvas(sf::Vector2<uint32_t> dim);
 	void update(Tool& tool, bool transformed = false);
 	void render(sf::RenderWindow& win, sf::Sprite& tileset);
@@ -82,10 +84,12 @@ public:
 	void unhover();
 	void move(sf::Vector2<float> distance);
 	void set_position(sf::Vector2<float> to_position);
+	void center(sf::Vector2<float> point);
 	Map& get_layers();
 	sf::Vector2<int> get_tile_coord(int lookup);
 	[[nodiscard]] auto states_empty() const -> bool { return map_states.empty(); }
 	[[nodiscard]] auto hovered() const -> bool { return state.test(CanvasState::hovered); }
+	[[nodiscard]] auto editable() const -> bool { return properties.test(CanvasProperties::editable); }
 	[[nodiscard]] auto get_position() const -> sf::Vector2<float> { return camera.position; }
 	[[nodiscard]] auto within_bounds(sf::Vector2<float> const& point) const -> bool { return point.x > camera.position.x && point.x < real_dimensions.x + camera.position.x && point.y > camera.position.y && point.y < real_dimensions.y + camera.position.y; }
 
@@ -109,6 +113,7 @@ public:
 		bool show_obscured_layer{true};
 		bool show_indicated_layers{true};
 		bool show_entities{true};
+		bool show_background{};
 	} flags{};
 
 	EntitySet entities;
@@ -124,6 +129,7 @@ public:
     } constants{};
 
     struct {
+		Style tile{};
 		int breakable{};
 	} styles{};
 
@@ -137,7 +143,6 @@ public:
 	sf::Vector2u player_start{};
     int active_layer{};
     
-    Style style{};
     Backdrop bg{};
     
     uint32_t room_id{}; // should be assigned to its constituent chunks
@@ -145,9 +150,11 @@ public:
 	std::vector<Map> map_states{};
 	std::vector<Map> redo_states{};
 	util::BitFlags<CanvasState> state{};
+	util::BitFlags<CanvasProperties> properties{};
 	Camera camera{};
 	sf::RectangleShape box{};
 	sf::RectangleShape gridbox{};
+	std::unique_ptr<Background> background{};
 };
 
 }

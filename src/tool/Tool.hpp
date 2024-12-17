@@ -12,6 +12,8 @@ namespace pi {
 enum class ToolType { brush, fill, select, erase, hand, entity_placer, eyedropper };
 enum class ENTITY_TYPE { PORTAL, INSPECTABLE, CRITTER, CHEST, ANIMATOR, ENTITY_EDITOR, PLAYER_PLACER, PLATFORM, SAVE_POINT, SWITCH_BUTTON, SWITCH_BLOCK, BED, INTERACTIVE_SCENERY, SCENERY };
 
+enum class SelectMode { none, select, clipboard };
+
 class Tool {
   public:
 	Tool& operator=(Tool const&) = delete;
@@ -28,6 +30,7 @@ class Tool {
 	[[nodiscard]] auto get_window_position() const -> sf::Vector2<float> { return window_position; }
 	[[nodiscard]] auto get_window_position_scaled() const -> sf::Vector2<float> { return window_position / 32.f; }
 	[[nodiscard]] auto palette_interactable() const -> bool { return type == ToolType::select || type == ToolType::eyedropper; }
+	[[nodiscard]] auto clipboard() const -> bool { return mode == SelectMode::clipboard; }
 
 	bool in_bounds(sf::Vector2<uint32_t>& bounds) const;
 	bool is_paintable() const;
@@ -36,6 +39,7 @@ class Tool {
 	bool active{};
 	bool ready{};
 	bool just_clicked = true;
+	bool has_palette_selection{};
 
 	sf::Vector2<float> position{};
 	sf::Vector2<float> clicked_position{};
@@ -67,6 +71,8 @@ class Tool {
 	ToolType type{};
 	ENTITY_TYPE ent_type{};
 
+  protected:
+	SelectMode mode{};
   private:
 	sf::Vector2<float> window_position{};
 };
@@ -145,11 +151,11 @@ struct SelectBox {
 	}
 	void adjust(sf::Vector2<uint32_t> adjustment) { dimensions = adjustment; }
 	[[nodiscard]] auto f_position() const -> sf::Vector2<float> { return {static_cast<float>(position.x), static_cast<float>(position.y)}; }
+	[[nodiscard]] auto empty() const -> bool { return dimensions.x * dimensions.y == 0; }
 	sf::Vector2<uint32_t> position{};
 	sf::Vector2<uint32_t> dimensions{};
 };
 
-enum class SelectMode{ select, clipboard };
 
 class SelectionRectangular : public Tool {
   public:
@@ -167,7 +173,6 @@ class SelectionRectangular : public Tool {
   private:
 	SelectBox selection{};
 	std::optional<Clipboard> clipboard{};
-	SelectMode mode{};
 };
 
 class Eyedropper : public Tool {

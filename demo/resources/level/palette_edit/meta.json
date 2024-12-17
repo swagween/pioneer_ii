@@ -1,6 +1,6 @@
 {
   "meta": {
-    "room_id": 1,
+    "room_id": 0,
     "metagrid": [
       0,
       0
@@ -13,8 +13,8 @@
       1,
       1
     ],
-    "style": 1,
-    "background": 18,
+    "style": 0,
+    "background": 4,
     "music": "",
     "styles": {
       "breakables": 0

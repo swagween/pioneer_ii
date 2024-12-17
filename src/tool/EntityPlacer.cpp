@@ -4,7 +4,7 @@
 namespace pi {
 
 	void EntityPlacer::handle_events(Canvas& canvas, sf::Event& e) {
-		if (in_bounds(canvas.dimensions) && ready) {
+		if (in_bounds(canvas.dimensions) && ready && canvas.editable()) {
 			bool anim_available{ true };
 			bool crit_available{ true };
 			for(auto& animator : canvas.entities.variables.animators) {
