@@ -17,7 +17,7 @@ Editor::Editor(char** argv, WindowManager& window, ResourceFinder& finder) : win
 }
 
 void Editor::run() {
-
+	std::cout << "running editor\n";
 	// load textures
 	int const TILE_WIDTH = 32;
 
@@ -79,7 +79,7 @@ void Editor::run() {
 
 		ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 		ImGuiIO& io = ImGui::GetIO();
-		io.MouseDrawCursor = window_hovered && !palette.hovered();
+		io.MouseDrawCursor = (window_hovered || menu_hovered) && !palette.hovered();
 		window->get().setMouseCursorVisible(io.MouseDrawCursor);
 		ImGui::SFML::Update(window->get(), delta_clock.getElapsedTime());
 		delta_clock.restart();
@@ -120,12 +120,12 @@ void Editor::init(std::string const& load_path) {
 
 	backdrop.setOutlineColor(sf::Color{240, 230, 255, 40});
 	backdrop.setOutlineThickness(4);
-	backdrop.setSize(map.real_dimensions);
+	backdrop.setSize(map.get_real_dimensions());
 
 	target.setFillColor(sf::Color{110, 90, 200, 80});
 	target.setOutlineColor(sf::Color{240, 230, 255, 100});
 	target.setOutlineThickness(-2);
-	target.setSize({CELL_SIZE, CELL_SIZE});
+	target.setSize({map.f_cell_size(), map.f_cell_size()});
 
 	map.center(window->f_center_screen());
 }
@@ -167,41 +167,36 @@ void Editor::handle_events(sf::Event& event, sf::RenderWindow& win) {
 			if (current_tool->type == ToolType::eyedropper) { current_tool = std::move(std::make_unique<Brush>()); }
 		}
 	}
-	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+	if (event.type == sf::Event::MouseWheelMoved) {
+		auto delta = event.mouseWheel.delta * zoom_factor * map.get_scale();
+		if (map.within_zoom_limits(delta)) { map.move(current_tool->f_position() * -delta); }
+		map.zoom(delta);
+		
+	}
+
+	auto& tool = sf::Mouse::isButtonPressed(sf::Mouse::Left) ? current_tool : secondary_tool;
+	if (sf::Mouse::isButtonPressed(sf::Mouse::Left) || sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
 		pressed_keys.set(PressedKeys::mouse);
 		if (palette.hovered()) { current_tool->clear(); }
-		current_tool->has_palette_selection = false;
-		target.save_state(*current_tool);
-		current_tool.get()->handle_events(target, event);
-		current_tool.get()->active = true;
-		if (current_tool->type == ToolType::eyedropper) { selected_block = current_tool->tile; }
-		if (palette_mode() && current_tool->type != ToolType::select) {
-			auto pos = current_tool->get_window_position() - palette.get_position();
+		tool->has_palette_selection = false;
+		target.save_state(*tool);
+		tool.get()->handle_events(target, event);
+		tool.get()->activate();
+		if (tool->type == ToolType::eyedropper) { selected_block = current_tool->tile; }
+		if (palette_mode() && tool->type != ToolType::select) {
+			auto pos = tool->get_window_position() - palette.get_position();
 			auto idx = palette.tile_val_at_scaled(pos.x, pos.y, 4);
-			current_tool.get()->store_tile(idx);
+			tool.get()->store_tile(idx);
 			selected_block = idx;
-			if (!current_tool.get()->is_paintable()) { current_tool = std::move(std::make_unique<Brush>()); }
+			if (!tool.get()->is_paintable()) { tool = std::move(std::make_unique<Brush>()); }
 		}
 	} else {
 		pressed_keys.reset(PressedKeys::mouse);
-		current_tool.get()->active = false;
-		current_tool.get()->just_clicked = true;
-		current_tool.get()->clicked_position = {0.0f, 0.0f};
-		current_tool.get()->scaled_clicked_position = {0, 0};
-		current_tool.get()->relative_position = {0.0f, 0.0f};
-	}
-	if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-		secondary_tool.get()->handle_events(target, event);
-		secondary_tool.get()->active = true;
-	} else {
-		secondary_tool.get()->active = false;
-		secondary_tool.get()->just_clicked = true;
-		secondary_tool.get()->clicked_position = {0.0f, 0.0f};
-		secondary_tool.get()->scaled_clicked_position = {0, 0};
-		secondary_tool.get()->relative_position = {0.0f, 0.0f};
+		current_tool->reset();
+		secondary_tool->reset();
 	}
 	// select tool gets special treatment, because it can be used without the mouse being pressed (copy/paste)
-	if (current_tool.get()->type == ToolType::select) { current_tool.get()->handle_events(target, event); }
+	if (tool.get()->type == ToolType::select) { tool.get()->handle_events(target, event); }
 }
 
 void Editor::logic() {
@@ -215,13 +210,7 @@ void Editor::logic() {
 	current_tool->update();
 	secondary_tool->update();
 	current_tool->tile = selected_block;
-	if (current_tool.get()->type == ToolType::hand && current_tool.get()->active) {
-		target.move(current_tool.get()->relative_position);
-		current_tool.get()->relative_position = {0.0f, 0.0f};
-	} else if (secondary_tool.get()->type == ToolType::hand && secondary_tool.get()->active) {
-		target.move(secondary_tool.get()->relative_position);
-		secondary_tool.get()->relative_position = {0.0f, 0.0f};
-	}
+
 	map.update(*current_tool);
 	palette.update(*current_tool);
 	palette.set_position({12.f, 32.f});
@@ -234,6 +223,8 @@ void Editor::logic() {
 void Editor::load() {
 	map.load(*finder, finder->paths.room_name);
 	palette.load(*finder, "palette", true);
+	map.set_origin({});
+	palette.set_origin({});
 }
 
 bool Editor::save() { return map.save(*finder, finder->paths.room_name); }
@@ -241,7 +232,7 @@ bool Editor::save() { return map.save(*finder, finder->paths.room_name); }
 void Editor::render(sf::RenderWindow& win) {
 	backdrop.setPosition(map.get_position());
 	map.hovered() ? backdrop.setOutlineColor({240, 230, 255, 80}) : backdrop.setOutlineColor({240, 230, 255, 40});
-	backdrop.setSize(map.real_dimensions);
+	backdrop.setSize(map.get_real_dimensions());
 	win.draw(backdrop);
 
 	map.render(win, sprites.tileset);
@@ -250,7 +241,8 @@ void Editor::render(sf::RenderWindow& win) {
 		(current_tool.get()->type == ToolType::brush || current_tool.get()->type == ToolType::fill || current_tool.get()->type == ToolType::erase || current_tool.get()->type == ToolType::entity_placer)) {
 		for (int i = 0; i < current_tool.get()->size; i++) {
 			for (int j = 0; j < current_tool.get()->size; j++) {
-				target.setPosition((current_tool.get()->scaled_position.x - i) * CELL_SIZE + map.get_position().x, (current_tool.get()->scaled_position.y - j) * CELL_SIZE + map.get_position().y);
+				target.setPosition((current_tool.get()->f_scaled_position().x - i) * map.f_cell_size() + map.get_position().x, (current_tool.get()->f_scaled_position().y - j) * map.f_cell_size() + map.get_position().y);
+				target.setScale({map.get_scale(), map.get_scale()});
 				win.draw(target);
 			}
 		}
@@ -275,13 +267,13 @@ void Editor::render(sf::RenderWindow& win) {
 		}
 	}
 
-	auto& target = palette_mode() ? palette : map;
-	current_tool.get()->render(win, target.get_position(), !palette_mode());
-	float tool_x = current_tool.get()->position.x + target.get_position().x;
-	float tool_y = current_tool.get()->position.y + target.get_position().y;
-	if (!window_hovered || palette.hovered()) {
+	auto& canvas = palette_mode() ? palette : map;
+	current_tool.get()->render(map, win, canvas.get_position(), !palette_mode());
+	float tool_x = current_tool.get()->f_position().x * canvas.get_scale() + canvas.get_position().x;
+	float tool_y = current_tool.get()->f_position().y * canvas.get_scale() + canvas.get_position().y;
+	if (!ImGui::GetIO().MouseDrawCursor) {
 		sprites.tool.setTextureRect({{static_cast<int>(current_tool.get()->type) * 32, 0}, {32, 32}});
-		sprites.tool.setPosition(tool_x, tool_y);
+		palette_mode() ? sprites.tool.setPosition(selector.getPosition()) : sprites.tool.setPosition(tool_x, tool_y);
 		win.draw(sprites.tool);
 	}
 
@@ -300,8 +292,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	auto f_work_size = sf::Vector2<float>{static_cast<float>(work_size.x), static_cast<float>(work_size.y)};
 
 	auto& target = palette_mode() ? palette : map;
-	current_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - target.get_position();
-	secondary_tool.get()->position = sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - target.get_position();
+	current_tool->set_position((sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - target.get_position()) / map.get_scale());
+	secondary_tool->set_position((sf::Vector2<float>{io.MousePos.x, io.MousePos.y} - target.get_position()) / map.get_scale());
 	current_tool->set_window_position(sf::Vector2<float>{io.MousePos.x, io.MousePos.y});
 	secondary_tool->set_window_position(sf::Vector2<float>{io.MousePos.x, io.MousePos.y});
 
@@ -542,7 +534,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 	ImVec2 prev_window_pos{};
 	ImVec2 prev_window_size{};
 	window_pos.x = PAD;
-	window_pos.y = work_pos.y + palette.dimensions.y * CELL_SIZE + 2 * PAD;
+	window_pos.y = work_pos.y + palette.dimensions.y * map.f_cell_size() + 2 * PAD;
 	window_flags |= ImGuiWindowFlags_NoMove;
 
 	ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
@@ -564,13 +556,19 @@ void Editor::gui_render(sf::RenderWindow& win) {
 				if (ImGui::BeginTabItem("General")) {
 					ImGui::Text("Any Window Hovered: %s", window_hovered ? "Yes" : "No");
 					ImGui::Text("Palette Mode: %s", palette_mode() ? "Yes" : "No");
+					ImGui::Separator();
+					ImGui::Text("Zoom: %.2f", map.get_scale());
+					ImGui::Separator();
 					ImGui::Text("Room ID: %u", map.room_id);
-					ImGui::Text("Camera Position: (%.1f,%.1f)", map.get_position().x, map.get_position().y);
+					ImGui::Text("Tool Position: (%.1f,%.1f)", current_tool->f_position().x, current_tool->f_position().y);
+					ImGui::Text("Map/Camera Position: (%.1f,%.1f)", map.get_position().x, map.get_position().y);
 					ImGui::Text("Active Layer: %i", active_layer);
 					ImGui::Text("Num Layers: %lu", map.get_layers().layers.size());
 					ImGui::Text("Stored Tile Value: %u", current_tool.get()->tile);
 					if (current_tool.get()->in_bounds(map.dimensions)) {
-						ImGui::Text("Tile Value at Mouse Pos: %u", map.tile_val_at(current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y, active_layer));
+						ImGui::Text("Tile Value at Mouse Pos: %u", map.tile_val_at(current_tool.get()->scaled_position().x, current_tool.get()->scaled_position().y, active_layer));
+						auto pos = map.get_tile_position_at(current_tool.get()->scaled_position().x, current_tool.get()->scaled_position().y, active_layer);
+						ImGui::Text("Tile Position at Mouse Pos: (%.1f,%.1f)", pos.x, pos.y);
 					} else {
 						ImGui::Text("Tile Value at Mouse Pos: <invalid>");
 					}
@@ -580,16 +578,16 @@ void Editor::gui_render(sf::RenderWindow& win) {
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Tool")) {
-					ImGui::Text("Tool Position: (%.1f,%.1f)", current_tool.get()->position.x, current_tool.get()->position.y);
-					ImGui::Text("Clicked Position: (%.1f,%.1f)", current_tool.get()->clicked_position.x, current_tool.get()->clicked_position.y);
-					ImGui::Text("Relative Position: (%.1f,%.1f)", current_tool.get()->relative_position.x, current_tool.get()->relative_position.y);
-					ImGui::Text("Tool Position (scaled): (%i,%i)", current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y);
-					ImGui::Text("Tool Clicked Position (scaled): (%i,%i)", current_tool.get()->scaled_clicked_position.x, current_tool.get()->scaled_clicked_position.y);
-					ImGui::Text("Tool in Bounds: %s", current_tool.get()->in_bounds(map.dimensions) ? "Yes" : "No");
-					ImGui::Text("Tool Ready: %s", current_tool.get()->ready ? "Yes" : "No");
-					ImGui::Text("Tool Active: %s", current_tool.get()->active ? "Yes" : "No");
-					ImGui::Text("Current Tool: %s", get_tool_string.at(current_tool->type).c_str());
-					ImGui::Text("Secondary Tool: %s", get_tool_string.at(secondary_tool->type).c_str());
+					static bool current{};
+					ImGui::Checkbox("##current", &current);
+					auto& tool = current ? current_tool : secondary_tool;
+					ImGui::Text("Tool Position: (%.1f,%.1f)", tool->f_position().x, tool->f_position().y);
+					ImGui::Text("Tool Position (scaled): (%i,%i)", tool.get()->scaled_position().x, tool.get()->scaled_position().y);
+					ImGui::Text("Tool Window Position: (%.1f,%.1f)", tool->get_window_position().x, tool->get_window_position().y);
+					ImGui::Text("Tool in Bounds: %s", tool.get()->in_bounds(map.dimensions) ? "Yes" : "No");
+					ImGui::Text("Tool Ready: %s", tool.get()->ready ? "Yes" : "No");
+					ImGui::Text("Tool Active: %s", tool.get()->is_active() ? "Yes" : "No");
+					ImGui::Text("Label: %s", get_tool_string.at(tool->type).c_str());
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("Resources")) {
@@ -1079,7 +1077,7 @@ void Editor::gui_render(sf::RenderWindow& win) {
 			}
 		}
 		if (current_tool.get()->in_bounds(map.dimensions)) {
-			ImGui::Text("Tool Position : (%i,%i)", current_tool.get()->scaled_position.x, current_tool.get()->scaled_position.y);
+			ImGui::Text("Tool Position : (%i,%i)", current_tool.get()->scaled_position().x, current_tool.get()->scaled_position().y);
 		} else {
 			ImGui::Text("Tool Position : ---");
 		}
@@ -1129,6 +1127,8 @@ void Editor::gui_render(sf::RenderWindow& win) {
 		ImGui::Text("Actions");
 		ImGui::Separator();
 		if (ImGui::Button("Center Canvas")) { map.center(window->f_center_screen()); }
+		ImGui::SameLine();
+		if (ImGui::Button("Reset Zoom")) { map.set_scale(1.f); }
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.5, 0.6f, 0.5f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.5, 0.7f, 0.6f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.5, 0.8f, 0.7f));
@@ -1188,7 +1188,7 @@ void Editor::help_marker(char const* desc) {
 
 void Editor::export_layer_texture() {
 	screencap.clear(sf::Color::Transparent);
-	sf::Vector2u mapdim{map.real_dimensions};
+	sf::Vector2u mapdim{map.get_real_dimensions()};
 	screencap.create(mapdim.x, mapdim.y);
 	for (int i = 0; i <= active_layer; ++i) {
 		for (auto& cell : map.get_layers().layers.at(i).grid.cells) {
@@ -1197,7 +1197,7 @@ void Editor::export_layer_texture() {
 				auto y_coord = std::floor(cell.value / 16) * TILE_WIDTH;
 				tile_sprite.setTexture(tileset_textures.at(static_cast<int>(map.styles.tile)));
 				tile_sprite.setTextureRect(sf::IntRect({static_cast<int>(x_coord), static_cast<int>(y_coord)}, {32, 32}));
-				tile_sprite.setPosition(cell.position);
+				tile_sprite.setPosition(cell.scaled_position());
 				screencap.draw(tile_sprite);
 			}
 		}

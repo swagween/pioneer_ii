@@ -25,27 +25,22 @@ EntitySet::EntitySet(ResourceFinder& finder, dj::Json& metadata, std::string con
 	player_box.setFillColor(sf::Color{100, 200, 100, 10});
 	player_box.setOutlineColor(sf::Color{100, 200, 100, 70});
 	player_box.setOutlineThickness(-2);
-	player_box.setSize({CELL_SIZE, CELL_SIZE});
 
 	portalbox.setFillColor(sf::Color{120, 220, 200, 128});
 	portalbox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	portalbox.setOutlineThickness(-1);
-	portalbox.setSize({CELL_SIZE, CELL_SIZE});
 
 	chestbox.setFillColor(sf::Color{220, 220, 80, 128});
 	chestbox.setOutlineColor(sf::Color{40, 30, 255, 180});
 	chestbox.setOutlineThickness(-3);
-	chestbox.setSize({CELL_SIZE, CELL_SIZE});
 
 	savebox.setFillColor(sf::Color{220, 20, 220, 128});
 	savebox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	savebox.setOutlineThickness(-1);
-	savebox.setSize({CELL_SIZE, CELL_SIZE});
 
 	inspbox.setFillColor(sf::Color{220, 120, 100, 128});
 	inspbox.setOutlineColor(sf::Color{240, 230, 255, 180});
 	inspbox.setOutlineThickness(-1);
-	inspbox.setSize({CELL_SIZE, CELL_SIZE});
 
 	vinebox.setOutlineColor(sf::Color{240, 230, 80, 80});
 	vinebox.setOutlineThickness(-1);
@@ -61,53 +56,72 @@ EntitySet::EntitySet(ResourceFinder& finder, dj::Json& metadata, std::string con
 	platbox.setOutlineThickness(-4);
 }
 
-void EntitySet::render(sf::RenderWindow& win, sf::Vector2<float> cam) {
+void EntitySet::render(Canvas& map, sf::RenderWindow& win, sf::Vector2<float> cam) {
+
+	//scale and orient boxes for zooming
+	scenerybox.setOrigin(map.get_origin());
+	platextent.setOrigin(map.get_origin());
+	player_box.setOrigin(map.get_origin());
+	portalbox.setOrigin(map.get_origin());
+	chestbox.setOrigin(map.get_origin());
+	savebox.setOrigin(map.get_origin());
+	//inspbox.setOrigin(map.get_origin());
+	vinebox.setOrigin(map.get_origin());
+	scenerybox.setSize({map.f_cell_size(), map.f_cell_size()});
+	platextent.setSize({map.f_cell_size(), map.f_cell_size()});
+	player_box.setSize({map.f_cell_size(), map.f_cell_size()});
+	portalbox.setSize({map.f_cell_size(), map.f_cell_size()});
+	chestbox.setSize({map.f_cell_size(), map.f_cell_size()});
+	savebox.setSize({map.f_cell_size(), map.f_cell_size()});
+	inspbox.setSize({map.f_cell_size(), map.f_cell_size()});
+	platbox.setSize({map.f_cell_size(), map.f_cell_size()});
+	vinebox.setSize({map.f_cell_size(), map.f_cell_size()});
 
 	for (auto& portal : variables.portals) {
 		for (uint32_t i = 0; i < portal.dimensions.x; ++i) {
 			for (uint32_t j = 0; j < portal.dimensions.y; ++j) {
-				portalbox.setPosition((portal.position.x + i) * CELL_SIZE + cam.x, (portal.position.y + j) * CELL_SIZE + cam.y);
+				portalbox.setPosition((portal.position.x + i) * map.f_cell_size() + cam.x, (portal.position.y + j) * map.f_cell_size() + cam.y);
 				win.draw(portalbox);
 			}
 		}
 	}
 
 	for (auto& inspectable : variables.inspectables) {
-		inspbox.setPosition((inspectable.position.x) * CELL_SIZE + cam.x, (inspectable.position.y) * CELL_SIZE + cam.y);
+		inspbox.setPosition((inspectable.position.x) * map.f_cell_size() + cam.x, (inspectable.position.y) * map.f_cell_size() + cam.y);
 		win.draw(inspbox);
 	}
 
 	for (auto& block : variables.switch_blocks) {
-		inspbox.setPosition((block.position.x) * CELL_SIZE + cam.x, (block.position.y) * CELL_SIZE + cam.y);
+		inspbox.setPosition((block.position.x) * map.f_cell_size() + cam.x, (block.position.y) * map.f_cell_size() + cam.y);
 		win.draw(inspbox);
 	}
 
 	for (auto& button : variables.switch_buttons) {
-		inspbox.setPosition((button.position.x) * CELL_SIZE + cam.x, (button.position.y) * CELL_SIZE + cam.y);
+		inspbox.setPosition((button.position.x) * map.f_cell_size() + cam.x, (button.position.y) * map.f_cell_size() + cam.y);
 		win.draw(inspbox);
 	}
 
 	for (auto& chest : variables.chests) {
-		chestbox.setPosition((chest.position.x) * CELL_SIZE + cam.x, (chest.position.y) * CELL_SIZE + cam.y);
+		chestbox.setPosition((chest.position.x) * map.f_cell_size() + cam.x, (chest.position.y) * map.f_cell_size() + cam.y);
 		win.draw(chestbox);
 	}
 	for (auto& scenery : variables.scenery) {
-		scenerybox.setPosition((scenery.position.x) * CELL_SIZE + cam.x, (scenery.position.y) * CELL_SIZE + cam.y);
+		scenerybox.setPosition((scenery.position.x) * map.f_cell_size() + cam.x, (scenery.position.y) * map.f_cell_size() + cam.y);
 		win.draw(scenerybox);
 	}
 
 	for (auto& scenery : variables.interactive_scenery) {
-		vinebox.setPosition((scenery.position.x) * CELL_SIZE + cam.x, (scenery.position.y) * CELL_SIZE + cam.y);
-		scenery.type == 0 ? vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * CELL_SIZE})
-						  : vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * CELL_SIZE});
+		vinebox.setPosition((scenery.position.x) * map.f_cell_size() + cam.x, (scenery.position.y) * map.f_cell_size() + cam.y);
+		scenery.type == 0 ? vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * map.f_cell_size()})
+						  : vinebox.setSize({static_cast<float>(scenery.size) * 8.f, static_cast<float>(scenery.length) * map.f_cell_size()});
 		scenery.foreground ? vinebox.setFillColor(sf::Color{90, 120, 80, 88}) : vinebox.setFillColor(sf::Color{220, 120, 80, 88});
 		scenery.type == 0 ? vinebox.setOutlineColor(sf::Color::White) : vinebox.setOutlineColor(sf::Color::Blue);
 		win.draw(vinebox);
 		if (scenery.has_platform) {
 			for (auto& link : scenery.link_indeces) {
 				vinebox.setSize({64, 16});
-				vinebox.setOrigin({32, 0});
-				vinebox.setPosition(vinebox.getPosition() + sf::Vector2<float>(0.f, static_cast<float>(CELL_SIZE * link)));
+				vinebox.setOrigin(vinebox.getOrigin() + sf::Vector2<float>{32.f, 0.f});
+				vinebox.setPosition(vinebox.getPosition() + sf::Vector2<float>(0.f, static_cast<float>(map.f_cell_size() * link)));
 				win.draw(vinebox);
 			}
 		}
@@ -115,16 +129,16 @@ void EntitySet::render(sf::RenderWindow& win, sf::Vector2<float> cam) {
 	}
 
 	if (variables.save_point.placed) {
-		savebox.setPosition((variables.save_point.position.x) * CELL_SIZE + cam.x, (variables.save_point.position.y) * CELL_SIZE + cam.y);
+		savebox.setPosition((variables.save_point.position.x) * map.f_cell_size() + cam.x, (variables.save_point.position.y) * map.f_cell_size() + cam.y);
 		win.draw(savebox);
 	}
 
 	for (auto& platform : variables.platforms) {
 		auto f_extent = platform.extent * 32.f;
 		platextent.setSize({f_extent, f_extent});
-		platextent.setPosition((platform.position.x) * CELL_SIZE + cam.x + platform.dimensions.x * 16.f, (platform.position.y) * CELL_SIZE + cam.y + platform.dimensions.y * 16.f);
+		platextent.setPosition((platform.position.x) * map.f_cell_size() + cam.x + platform.dimensions.x * 16.f, (platform.position.y) * map.f_cell_size() + cam.y + platform.dimensions.y * 16.f);
 		platbox.setSize({platform.dimensions.x * 32.f, platform.dimensions.y * 32.f});
-		platbox.setPosition((platform.position.x) * CELL_SIZE + cam.x, (platform.position.y) * CELL_SIZE + cam.y);
+		platbox.setPosition((platform.position.x) * map.f_cell_size() + cam.x, (platform.position.y) * map.f_cell_size() + cam.y);
 		win.draw(platextent);
 		win.draw(platbox);
 	}
@@ -133,12 +147,12 @@ void EntitySet::render(sf::RenderWindow& win, sf::Vector2<float> cam) {
 		int idx = critter.id;
 		sprites.current_enemy.setTextureRect(sf::IntRect({(idx * 16) % (64), (idx / 4) * 16}, {16, 16}));
 		sprites.current_enemy.setScale({2.0f, 2.0f});
-		sprites.current_enemy.setPosition((critter.position.x) * CELL_SIZE + cam.x, (critter.position.y) * CELL_SIZE + cam.y);
+		sprites.current_enemy.setPosition((critter.position.x) * map.f_cell_size() + cam.x, (critter.position.y) * map.f_cell_size() + cam.y);
 		win.draw(sprites.current_enemy);
 	}
 
 	for (auto& animator : variables.animators) {
-		sf::Vector2<float> anim_pos = {animator.position.x * CELL_SIZE + cam.x, animator.position.y * CELL_SIZE + cam.y};
+		sf::Vector2<float> anim_pos = {animator.position.x * map.f_cell_size() + cam.x, animator.position.y * map.f_cell_size() + cam.y};
 		inspbox.setPosition(anim_pos.x, anim_pos.y);
 		auto which = static_cast<int>(animator.id / 100);
 		auto lookup = static_cast<int>(animator.id % 100);
@@ -157,7 +171,7 @@ void EntitySet::render(sf::RenderWindow& win, sf::Vector2<float> cam) {
 	}
 
 	// player start
-	player_box.setPosition(static_cast<sf::Vector2<float>>(variables.player_start) * (float)CELL_SIZE + cam);
+	player_box.setPosition(static_cast<sf::Vector2<float>>(variables.player_start) * (float)map.f_cell_size() + cam);
 	win.draw(player_box);
 }
 
@@ -166,8 +180,6 @@ void EntitySet::load(ResourceFinder& finder, dj::Json& metadata, std::string con
 	std::string inspectable_path = (finder.paths.levels / room_name / "inspectables.json").string();
 
 	data.inspectables = dj::Json::from_file((inspectable_path).c_str());
-
-	// get npc data
 
 	variables.music = metadata["music"].as_string();
 
@@ -300,18 +312,6 @@ void EntitySet::load(ResourceFinder& finder, dj::Json& metadata, std::string con
 		p.start = entry["start"].as<float>();
 		p.type = entry["type"].as_string();
 		variables.platforms.push_back(p);
-	}
-
-	for (auto& entry : metadata["inspectables"].array_view()) {
-		Inspectable i{};
-		i.key = entry["key"].as_string();
-		i.position.x = entry["position"][0].as<int>();
-		i.position.y = entry["position"][1].as<int>();
-		i.dimensions.x = entry["dimensions"][0].as<int>();
-		i.dimensions.y = entry["dimensions"][1].as<int>();
-		i.alternates = entry["alternates"].as<int>();
-		variables.inspectables.push_back(i);
-		variables.inspectables.back().activate_on_contact = static_cast<bool>(entry["activate_on_contact"].as_bool());
 	}
 	for (auto& entry : metadata["inspectables"].array_view()) {
 		Inspectable i{};

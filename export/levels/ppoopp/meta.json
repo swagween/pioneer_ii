@@ -1,17 +1,17 @@
 {
   "meta": {
-    "room_id": 1,
+    "room_id": 90,
     "metagrid": [
       0,
       0
     ],
     "dimensions": [
-      16,
-      16
+      64,
+      112
     ],
     "chunk_dimensions": [
-      1,
-      1
+      4,
+      7
     ],
     "style": 1,
     "background": 18,
@@ -25,20 +25,5 @@
       "id": 0,
       "source": 0
     }
-  },
-  "inspectables": [
-    {
-      "dimensions": [
-        1,
-        1
-      ],
-      "position": [
-        7,
-        9
-      ],
-      "activate_on_contact": false,
-      "key": "qqq",
-      "alternates": 0
-    }
-  ]
+  }
 }

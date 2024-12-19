@@ -40,7 +40,6 @@
 
 int const NUM_LAYERS{8};
 int const CHUNK_SIZE{16};
-int const CELL_SIZE{32};
 
 namespace automa {
 struct ServiceProvider;

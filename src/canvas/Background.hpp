@@ -8,6 +8,7 @@
 namespace pi {
 
 class ResourceFinder;
+class Canvas;
 
 struct BackgroundLayer {
 	int render_layer{};
@@ -16,6 +17,7 @@ struct BackgroundLayer {
 	sf::Sprite sprite{};
 	sf::Vector2<float> position{};
 	sf::Vector2<float> velocity{};
+	sf::Vector2<float> final_position{};
 };
 
 class Background {
@@ -24,7 +26,7 @@ class Background {
 	Background(ResourceFinder& finder, int bg_id);
 
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float>& campos);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float>& campos);
 	void debug();
 
   private:

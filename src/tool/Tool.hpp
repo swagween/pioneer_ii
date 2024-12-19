@@ -20,32 +20,32 @@ class Tool {
 	virtual void handle_events(Canvas& canvas, sf::Event& e) = 0;
 	virtual void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key) = 0;
 	virtual void update() = 0;
-	virtual void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true) = 0;
+	virtual void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true) = 0;
 	virtual void store_tile(int index) = 0;
 	virtual void clear() = 0;
 
-	void set_window_position(sf::Vector2<float> to_position); 
-
-	[[nodiscard]] auto f_scaled_position() const -> sf::Vector2<float> { return {static_cast<float>(scaled_position.x), static_cast<float>(scaled_position.y)}; }
+	void set_position(sf::Vector2<float> to_position); 
+	void set_window_position(sf::Vector2<float> to_position);
+	void reset();
+	void activate();
+	
+	[[nodiscard]] auto f_position() const -> sf::Vector2<float> { return position; }
+	[[nodiscard]] auto scaled_position() const -> sf::Vector2<uint32_t> { return {static_cast<uint32_t>(position.x / 32.f), static_cast<uint32_t>(position.y / 32.f)}; }
+	[[nodiscard]] auto f_scaled_position() const -> sf::Vector2<float> { return {static_cast<float>(scaled_position().x), static_cast<float>(scaled_position().y)}; }
+	[[nodiscard]] auto scaled_clicked_position() const -> sf::Vector2<uint32_t> { return {static_cast<uint32_t>(clicked_position.x / 32.f), static_cast<uint32_t>(clicked_position.y / 32.f)}; }
 	[[nodiscard]] auto get_window_position() const -> sf::Vector2<float> { return window_position; }
 	[[nodiscard]] auto get_window_position_scaled() const -> sf::Vector2<float> { return window_position / 32.f; }
 	[[nodiscard]] auto palette_interactable() const -> bool { return type == ToolType::select || type == ToolType::eyedropper; }
+	[[nodiscard]] auto is_active() const -> bool { return active; }
 	[[nodiscard]] auto clipboard() const -> bool { return mode == SelectMode::clipboard; }
 
 	bool in_bounds(sf::Vector2<uint32_t>& bounds) const;
 	bool is_paintable() const;
 
 	bool pervasive{};
-	bool active{};
 	bool ready{};
 	bool just_clicked = true;
 	bool has_palette_selection{};
-
-	sf::Vector2<float> position{};
-	sf::Vector2<float> clicked_position{};
-	sf::Vector2<float> relative_position{};
-	sf::Vector2<uint32_t> scaled_position{};
-	sf::Vector2<uint32_t> scaled_clicked_position{};
 
 	int xorigin{};
 	int yorigin{};
@@ -72,8 +72,12 @@ class Tool {
 	ENTITY_TYPE ent_type{};
 
   protected:
+	bool active{};
 	SelectMode mode{};
-  private:
+	float scale{};
+	sf::Vector2<float> position{};
+	sf::Vector2<float> clicked_position{};
+	sf::Vector2<float> relative_position{};
 	sf::Vector2<float> window_position{};
 };
 
@@ -83,7 +87,7 @@ class Hand : public Tool {
 	void handle_events(Canvas& canvas, sf::Event& e);
 	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
 	void store_tile(int index);
 	void clear();
 };
@@ -94,7 +98,7 @@ class Brush : public Tool {
 	void handle_events(Canvas& canvas, sf::Event& e);
 	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
 	void store_tile(int index);
 	void clear();
 
@@ -107,7 +111,7 @@ class Erase : public Tool {
 	void handle_events(Canvas& canvas, sf::Event& e);
 	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
 	void store_tile(int index);
 	void clear();
 
@@ -120,7 +124,7 @@ class Fill : public Tool {
 	void handle_events(Canvas& canvas, sf::Event& e);
 	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
 	void store_tile(int index);
 	void clear();
 
@@ -133,7 +137,7 @@ class EntityPlacer : public Tool {
 	void handle_events(Canvas& canvas, sf::Event& e);
 	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
 	void store_portal(sf::Vector2<uint32_t> dim, bool activate_on_contact, int src_id, int dest_id);
 	void store_inspectable(sf::Vector2<uint32_t> dim, bool activate_on_contact, std::string);
 	void store_critter(int type);
@@ -163,7 +167,7 @@ class SelectionRectangular : public Tool {
 	void handle_events(Canvas& canvas, sf::Event& e);
 	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
 	void store_tile(int index);
 	void cut(Canvas& canvas);
 	void copy(Canvas& canvas);
@@ -181,7 +185,7 @@ class Eyedropper : public Tool {
 	void handle_events(Canvas& canvas, sf::Event& e);
 	void handle_keyboard_events(Canvas& canvas, sf::Keyboard::Key& key);
 	void update();
-	void render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
+	void render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed = true);
 	void store_tile(int index);
 	void clear();
 };

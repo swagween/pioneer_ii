@@ -9,9 +9,7 @@ void SelectionRectangular::handle_events(Canvas& canvas, sf::Event& e) {
 		if (active) {
 			if (just_clicked) {
 				clicked_position = position;
-				scaled_clicked_position.x = static_cast<uint32_t>(clicked_position.x / f_cell_size);
-				scaled_clicked_position.y = static_cast<uint32_t>(clicked_position.y / f_cell_size);
-				selection = SelectBox(scaled_clicked_position, {0, 0});
+				selection = SelectBox(scaled_clicked_position(), {0, 0});
 				clipboard = {};
 				mode = SelectMode::select;
 				just_clicked = false;
@@ -20,17 +18,17 @@ void SelectionRectangular::handle_events(Canvas& canvas, sf::Event& e) {
 			// being dragged above or left of the clicked position
 			auto tweak = 1;
 			sf::Vector2<uint32_t> adjustment{};
-			if (scaled_position.x >= scaled_clicked_position.x) {
-				adjustment.x = scaled_position.x + tweak - selection.position.x;
+			if (scaled_position().x >= scaled_clicked_position().x) {
+				adjustment.x = scaled_position().x + tweak - selection.position.x;
 			} else {
-				adjustment.x = scaled_clicked_position.x - scaled_position.x;
-				selection.position.x = scaled_position.x + tweak;
+				adjustment.x = scaled_clicked_position().x - scaled_position().x;
+				selection.position.x = scaled_position().x + tweak;
 			}
-			if (scaled_position.y >= scaled_clicked_position.y) {
-				adjustment.y = scaled_position.y + tweak - selection.position.y;
+			if (scaled_position().y >= scaled_clicked_position().y) {
+				adjustment.y = scaled_position().y + tweak - selection.position.y;
 			} else {
-				adjustment.y = scaled_clicked_position.y - scaled_position.y;
-				selection.position.y = scaled_position.y + tweak;
+				adjustment.y = scaled_clicked_position().y - scaled_position().y;
+				selection.position.y = scaled_position().y + tweak;
 			}
 			selection.adjust(adjustment);
 			if (!selection.empty()) {
@@ -52,23 +50,23 @@ void SelectionRectangular::handle_keyboard_events(Canvas& canvas, sf::Keyboard::
 
 void SelectionRectangular::update() { Tool::update(); }
 
-void SelectionRectangular::render(sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {
+void SelectionRectangular::render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float> offset, bool transformed) {
 	sf::RectangleShape box{};
 	switch (mode) {
 	case SelectMode::clipboard:
 		box.setOutlineColor(sf::Color{200, 200, 200, 40});
 		box.setFillColor(sf::Color{150, 190, 110, 40});
 		box.setOutlineThickness(-2);
-		if (clipboard) { box.setSize(clipboard.value().real_dimensions() * f_cell_size); }
-		if (clipboard) { box.setPosition(f_scaled_position() * f_cell_size + offset - clipboard.value().real_dimensions() * f_cell_size + sf::Vector2<float>{32.f, 32.f}); }
+		if (clipboard) { box.setSize(clipboard.value().real_dimensions() * canvas.f_cell_size()); }
+		if (clipboard) { box.setPosition(f_scaled_position() * canvas.f_cell_size() + offset - clipboard.value().real_dimensions() * canvas.f_cell_size() + sf::Vector2<float>{32.f, 32.f}); }
 		if (transformed) { win.draw(box); }
 		[[fallthrough]];
 	case SelectMode::select:
 		box.setOutlineColor(sf::Color{100, 255, 160, 180});
 		box.setFillColor(sf::Color{110, 100, 180, 40});
 		box.setOutlineThickness(-2);
-		box.setSize({selection.dimensions.x * f_cell_size, selection.dimensions.y * f_cell_size});
-		box.setPosition(selection.f_position() * f_cell_size + offset);
+		box.setSize({selection.dimensions.x * canvas.f_cell_size(), selection.dimensions.y * canvas.f_cell_size()});
+		box.setPosition(selection.f_position() * canvas.f_cell_size() + offset);
 		if (!has_palette_selection || !transformed) { win.draw(box); }
 		break;
 	}
@@ -112,8 +110,8 @@ void SelectionRectangular::paste(Canvas& canvas) {
 	canvas.save_state(*this, true);
 	for (uint32_t i = 0; i < selection.dimensions.x; ++i) {
 		for (uint32_t j = 0; j < selection.dimensions.y; ++j) {
-			auto edit_x = scaled_position.x + i - clipboard.value().scaled_dimensions().x + 1;
-			auto edit_y = scaled_position.y + j - clipboard.value().scaled_dimensions().y + 1;
+			auto edit_x = scaled_position().x + i - clipboard.value().scaled_dimensions().x + 1;
+			auto edit_y = scaled_position().y + j - clipboard.value().scaled_dimensions().y + 1;
 			if (edit_x < canvas.dimensions.x && edit_y < canvas.dimensions.y) {
 				if (pervasive) {
 					for (auto k{0}; k < canvas.get_layers().layers.size(); ++k) { canvas.edit_tile_at(edit_x, edit_y, clipboard.value().get_value_at(i, j, k), k); }

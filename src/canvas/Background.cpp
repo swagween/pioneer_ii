@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include "../setup/ResourceFinder.hpp"
+#include "Canvas.hpp"
 
 namespace pi {
 
@@ -28,32 +29,23 @@ Background::Background(ResourceFinder& finder, int bg_id) : labels{{0, "dusk"}, 
 
 void Background::update() {
 	for (auto& layer : layers) {
-		// backtrack sprites for infinite scroll effect
-		if (layer.position.x < -scroll_pane.x) { layer.position.x = 0.f; }
-		if (layer.position.x > 0.f) { layer.position.x = -scroll_pane.x; }
-		if (layer.position.y < -scroll_pane.y) { layer.position.y = layer.position.y + scroll_pane.y; }
-		if (layer.position.y > 0.f) { layer.position.y = -scroll_pane.y + layer.position.y; }
 		layer.velocity.x = layer.scroll_speed * 0.1f;
 		layer.position += layer.velocity;
 	}
 }
 
-void Background::render(sf::RenderWindow& win, sf::Vector2<float>& campos) {
-	auto epsilon = 0.999f;
+void Background::render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float>& campos) {
+	auto epsilon = 0.99999f;
 	for (auto& layer : layers) {
-		auto final_position = layer.position - campos * layer.parallax;
-		for (auto i{0}; i < 2; ++i) {
-
-			for (auto j{0}; j < 2; ++j) {
-				layer.sprite.setPosition(final_position + sf::Vector2<float>{static_cast<float>(dimensions.x * epsilon) * static_cast<float>(i), static_cast<float>(dimensions.y * epsilon) * static_cast<float>(j)});
-				win.draw(layer.sprite);
-			}
-		}
+		layer.final_position = (canvas.get_scaled_center() + canvas.get_scaled_position()) * layer.parallax;
+		layer.sprite.setScale({canvas.get_scale(), canvas.get_scale()});
+		layer.sprite.setPosition(layer.final_position);
+		win.draw(layer.sprite);
 	}
 }
 
 void Background::debug() {
-	ImGuiIO& io = ImGui::GetIO();
+	auto& io = ImGui::GetIO();
 	io.FontGlobalScale = 1.0;
 	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
 	ImGuiViewport const* viewport = ImGui::GetMainViewport();

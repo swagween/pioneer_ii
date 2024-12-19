@@ -9,6 +9,6 @@ void Layer::clear() {
 
 void Layer::erase() { grid.cells.clear(); }
 
-void Layer::set_position(sf::Vector2<float> to_position) { grid.set_position(to_position); }
+void Layer::set_position(sf::Vector2<float> to_position, float scale) { grid.set_position(to_position, scale); }
 
 } // namespace pi

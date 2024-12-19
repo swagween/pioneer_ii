@@ -11,17 +11,18 @@ Canvas::Canvas(bool editable) {
 	editable ? properties.set(CanvasProperties::editable) : properties.reset(CanvasProperties::editable);
 	box.setOutlineColor(sf::Color{200, 200, 200, 20});
 	box.setOutlineThickness(-2);
-	box.setSize({CELL_SIZE, CELL_SIZE});
+	box.setSize({f_cell_size(), f_cell_size()});
 
 	gridbox.setFillColor(sf::Color::Transparent);
 	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
 	gridbox.setOutlineThickness(-1);
-	gridbox.setSize({CELL_SIZE, CELL_SIZE});
+	gridbox.setSize({f_cell_size(), f_cell_size()});
 }
 
-Canvas::Canvas(sf::Vector2<uint32_t> dim) {
+Canvas::Canvas(sf::Vector2<uint32_t> dim, bool editable) {
+	editable ? properties.set(CanvasProperties::editable) : properties.reset(CanvasProperties::editable);
     dimensions = dim;
-    real_dimensions = {(float)dim.x * CELL_SIZE, (float)dim.y * CELL_SIZE};
+    real_dimensions = {(float)dim.x * f_cell_size(), (float)dim.y * f_cell_size()};
     chunk_dimensions.x = dim.x / CHUNK_SIZE;
     chunk_dimensions.y = dim.y / CHUNK_SIZE;
     clear();
@@ -30,51 +31,61 @@ Canvas::Canvas(sf::Vector2<uint32_t> dim) {
 
 	box.setOutlineColor(sf::Color{200, 200, 200, 20});
 	box.setOutlineThickness(-2);
-	box.setSize({CELL_SIZE, CELL_SIZE});
+	box.setSize({f_cell_size(), f_cell_size()});
 
 	gridbox.setFillColor(sf::Color::Transparent);
 	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
 	gridbox.setOutlineThickness(-1);
-	gridbox.setSize({CELL_SIZE, CELL_SIZE});
+	gridbox.setSize({f_cell_size(), f_cell_size()});
 }
 
 void Canvas::update(Tool& tool, bool transformed) {
 	if (transformed) {
-		within_bounds(tool.position) ? state.set(CanvasState::hovered) : state.reset(CanvasState::hovered);
+		within_bounds(tool.f_position()) ? state.set(CanvasState::hovered) : state.reset(CanvasState::hovered);
 	} else {
 		within_bounds(tool.get_window_position()) ? state.set(CanvasState::hovered) : state.reset(CanvasState::hovered);
-    }
+	}
 	camera.update();
 	background->update();
+
+	// update grid
+	for (auto& layer : get_layers().layers) { layer.set_position({}, f_native_cell_size()); }
 }
 
 void Canvas::render(sf::RenderWindow& win, sf::Sprite& tileset) {
-	if (flags.show_background) { background->render(win, camera.position); }
+	if (flags.show_background) { background->render(*this, win, camera.position); }
 	if (!states_empty()) {
 		for (auto& layer : get_layers().layers) {
 			box.setFillColor(sf::Color{40, 240, 80, 40});
 			for (auto& cell : layer.grid.cells) {
+				cell.set_scale(scale);
 				if (cell.value == 0) { continue; }
 				if (layer.render_order == active_layer || flags.show_all_layers) {
 					tileset.setTextureRect(sf::IntRect{get_tile_coord(cell.value), {32, 32}});
-					tileset.setPosition(cell.position + camera.position);
+					tileset.setScale({scale, scale});
+					tileset.setOrigin(get_origin());
+					tileset.setPosition(cell.scaled_position() + camera.position);
 					if (layer.render_order != 7 || flags.show_obscured_layer) { win.draw(tileset); }
 				} else if (flags.show_indicated_layers) {
-					box.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
+					box.setScale({scale, scale});
+					box.setOrigin(get_origin());
+					box.setPosition(cell.scaled_position() + camera.position);
 					win.draw(box);
 				}
 			}
 		}
 	}
-	if (flags.show_entities) { entities.render(win, get_position()); }
+	if (flags.show_entities) { entities.render(*this, win, get_position()); }
 	if (flags.show_grid && !states_empty()) {
 		if (get_layers().layers.empty()) { return; }
 		for (auto& cell : get_layers().layers.back().grid.cells) {
-			if (cell.position.x + camera.bounding_box.left < 0) { continue; }
-			if (cell.position.x + camera.bounding_box.left > screen_dimensions.x) { continue; }
-			if (cell.position.y + camera.bounding_box.top < 0) { continue; }
-			if (cell.position.y + camera.bounding_box.top > screen_dimensions.y) { continue; }
-			gridbox.setPosition(cell.position.x + camera.position.x, cell.position.y + camera.position.y);
+			if (cell.scaled_position().x + camera.bounding_box.left < 0) { continue; }
+			if (cell.scaled_position().x + camera.bounding_box.left > screen_dimensions.x) { continue; }
+			if (cell.scaled_position().y + camera.bounding_box.top < 0) { continue; }
+			if (cell.scaled_position().y + camera.bounding_box.top > screen_dimensions.y) { continue; }
+			gridbox.setScale({scale, scale});
+			gridbox.setOrigin(get_origin());
+			gridbox.setPosition(cell.scaled_position() + camera.position);
 			win.draw(gridbox);
 		}
 	}
@@ -203,7 +214,7 @@ void Canvas::clear() {
 void Canvas::save_state(Tool& tool, bool force) {
     auto const& type = tool.type;
     auto undoable_tool = type == ToolType::brush || type == ToolType::fill || type == ToolType::select || type == ToolType::erase;
-    auto just_clicked = !tool.active && tool.ready;
+    auto just_clicked = !tool.is_active() && tool.ready;
 	if ((undoable_tool && just_clicked) || force) {
 		map_states.emplace_back(Map{map_states.back()});
         clear_redo_states();
@@ -232,7 +243,13 @@ void Canvas::move(sf::Vector2<float> distance) { camera.move(distance); }
 
 void Canvas::set_position(sf::Vector2<float> to_position) { camera.set_position(to_position); }
 
+void Canvas::set_origin(sf::Vector2<float> to_origin) { origin = to_origin; }
+
+void Canvas::set_scale(float to_scale) { scale = to_scale; }
+
 void Canvas::center(sf::Vector2<float> point) { set_position(point - real_dimensions * 0.5f); }
+
+void Canvas::zoom(float amount) { scale = std::clamp(scale + amount, min_scale, max_scale); }
 
 Map& Canvas::get_layers() { return map_states.back(); }
 
@@ -266,7 +283,7 @@ sf::Vector2<float> Canvas::get_tile_position_at(int i, int j, int layer) {
 	auto v = std::floor(j / 32);
 	auto idx = static_cast<std::size_t>(u + v * dimensions.x);
 	if (idx < 0 || idx >= map_states.back().layers.at(layer).grid.cells.size()) { return {}; }
-	return map_states.back().layers.at(layer).grid.cells.at(idx).position;
+	return map_states.back().layers.at(layer).grid.cells.at(idx).scaled_position();
 }
 
 Tile& Canvas::get_tile_at(int i, int j, int layer) {

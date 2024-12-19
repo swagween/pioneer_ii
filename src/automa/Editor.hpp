@@ -105,6 +105,7 @@ class Editor {
 	struct {
 		sf::Color backdrop{};
 	} colors{};
+	float zoom_factor{0.05f};
 };
 
 } // namespace pi

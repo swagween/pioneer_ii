@@ -9,17 +9,7 @@
 namespace pi {
 
 class ResourceFinder;
-
-struct Portal {
-	sf::Vector2<uint32_t> dimensions{};
-	bool activate_on_contact{};
-	bool already_open{};
-	int source_map_id{};
-	int destination_map_id{};
-	bool locked{};
-	int key_id{};
-	sf::Vector2<uint32_t> position{};
-};
+class Canvas;
 
 struct Inspectable {
 	sf::Vector2<uint32_t> dimensions{};
@@ -50,10 +40,14 @@ struct Bed {
 	sf::Vector2<uint32_t> position{};
 };
 
-struct Scenery {
-	int style{};
-	int layer{};
-	int variant{};
+struct Portal {
+	sf::Vector2<uint32_t> dimensions{};
+	bool activate_on_contact{};
+	bool already_open{};
+	int source_map_id{};
+	int destination_map_id{};
+	bool locked{};
+	int key_id{};
 	sf::Vector2<uint32_t> position{};
 };
 
@@ -67,6 +61,13 @@ struct InteractiveScenery {
 	sf::Vector2<uint32_t> position{};
 };
 
+struct NPC {
+	int id{};
+	bool background{};
+	sf::Vector2<uint32_t> position{};
+	std::vector<std::vector<std::string>> suites{};
+};
+
 struct Platform {
 	sf::Vector2<uint32_t> position{};
 	sf::Vector2<uint32_t> dimensions{};
@@ -74,20 +75,6 @@ struct Platform {
 	int style{};
 	std::string type{};
 	float start{};
-};
-
-struct SpecialBlock {
-	sf::Vector2<uint32_t> dimensions{};
-	int type{};
-	int id{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct NPC {
-	int id{};
-	bool background{};
-	sf::Vector2<uint32_t> position{};
-	std::vector<std::vector<std::string>> suites{};
 };
 
 struct Chest {
@@ -99,7 +86,20 @@ struct Chest {
 	sf::Vector2<uint32_t> position{};
 };
 
+struct Scenery {
+	int style{};
+	int layer{};
+	int variant{};
+	sf::Vector2<uint32_t> position{};
+};
+
 struct SwitchBlock {
+	int id{};
+	int type{};
+	sf::Vector2<uint32_t> position{};
+};
+
+struct SwitchButton {
 	int id{};
 	int type{};
 	sf::Vector2<uint32_t> position{};
@@ -107,12 +107,6 @@ struct SwitchBlock {
 
 struct Destroyer {
 	int id{};
-	sf::Vector2<uint32_t> position{};
-};
-
-struct SwitchButton {
-	int id{};
-	int type{};
 	sf::Vector2<uint32_t> position{};
 };
 
@@ -126,7 +120,7 @@ class EntitySet {
   public:
 	EntitySet() = default;
 	EntitySet(ResourceFinder& finder, dj::Json& metadata, std::string const& room_name);
-	void render(sf::RenderWindow& win, sf::Vector2<float> cam);
+	void render(Canvas& map, sf::RenderWindow& win, sf::Vector2<float> cam);
 	void load(ResourceFinder& finder, dj::Json& metadata, std::string const& room_name);
 	bool save(ResourceFinder& finder, dj::Json& metadata, std::string const& room_name);
 	void clear();
@@ -148,7 +142,6 @@ class EntitySet {
 		std::vector<Critter> critters{};
 		std::vector<NPC> npcs{};
 		std::vector<Chest> chests{};
-		std::vector<SpecialBlock> special_blocks{};
 		std::vector<Platform> platforms{};
 		std::vector<SwitchBlock> switch_blocks{};
 		std::vector<SwitchButton> switch_buttons{};
