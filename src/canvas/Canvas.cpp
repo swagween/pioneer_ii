@@ -7,24 +7,12 @@
 
 namespace pi {
 
-Canvas::Canvas(bool editable) {
-	editable ? properties.set(CanvasProperties::editable) : properties.reset(CanvasProperties::editable);
-	box.setOutlineColor(sf::Color{200, 200, 200, 20});
-	box.setOutlineThickness(-2);
-	box.setSize({f_cell_size(), f_cell_size()});
+Canvas::Canvas(bool editable) : Canvas({}, editable) {}
 
-	gridbox.setFillColor(sf::Color::Transparent);
-	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
-	gridbox.setOutlineThickness(-1);
-	gridbox.setSize({f_cell_size(), f_cell_size()});
-}
-
-Canvas::Canvas(sf::Vector2<uint32_t> dim, bool editable) {
+Canvas::Canvas(sf::Vector2<uint32_t> dim, bool editable) : camera{sf::Vector2<float>{static_cast<float>(dim.x), static_cast<float>(dim.y)}} {
 	editable ? properties.set(CanvasProperties::editable) : properties.reset(CanvasProperties::editable);
     dimensions = dim;
-    real_dimensions = {(float)dim.x * f_cell_size(), (float)dim.y * f_cell_size()};
-    chunk_dimensions.x = dim.x / CHUNK_SIZE;
-    chunk_dimensions.y = dim.y / CHUNK_SIZE;
+	real_dimensions = {static_cast<float>(dim.x) * f_cell_size(), static_cast<float>(dim.y) * f_cell_size()};
     clear();
     map_states.push_back(Map());
 	for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dim)); }
@@ -37,6 +25,9 @@ Canvas::Canvas(sf::Vector2<uint32_t> dim, bool editable) {
 	gridbox.setOutlineColor(sf::Color{240, 230, 255, 20});
 	gridbox.setOutlineThickness(-1);
 	gridbox.setSize({f_cell_size(), f_cell_size()});
+
+	border.setFillColor(sf::Color::Transparent);
+	border.setOutlineThickness(4);
 }
 
 void Canvas::update(Tool& tool, bool transformed) {
@@ -54,6 +45,10 @@ void Canvas::update(Tool& tool, bool transformed) {
 
 void Canvas::render(sf::RenderWindow& win, sf::Sprite& tileset) {
 	if (flags.show_background) { background->render(*this, win, camera.position); }
+	border.setPosition(get_position());
+	hovered() ? border.setOutlineColor({240, 230, 255, 80}) : border.setOutlineColor({240, 230, 255, 40});
+	border.setSize(get_real_dimensions());
+	win.draw(border);
 	if (!states_empty()) {
 		for (auto& layer : get_layers().layers) {
 			box.setFillColor(sf::Color{40, 240, 80, 40});
@@ -80,10 +75,10 @@ void Canvas::render(sf::RenderWindow& win, sf::Sprite& tileset) {
 		if (get_layers().layers.empty()) { return; }
 		for (auto& cell : get_layers().layers.back().grid.cells) {
 			if (cell.scaled_position().x + camera.bounding_box.left < 0) { continue; }
-			if (cell.scaled_position().x + camera.bounding_box.left > screen_dimensions.x) { continue; }
+			if (cell.scaled_position().x + camera.bounding_box.left > win.getSize().x) { continue; }
 			if (cell.scaled_position().y + camera.bounding_box.top < 0) { continue; }
-			if (cell.scaled_position().y + camera.bounding_box.top > screen_dimensions.y) { continue; }
-			gridbox.setScale({scale, scale});
+			if (cell.scaled_position().y + camera.bounding_box.top > win.getSize().y) { continue; }
+			gridbox.setSize({f_cell_size(), f_cell_size()});
 			gridbox.setOrigin(get_origin());
 			gridbox.setPosition(cell.scaled_position() + camera.position);
 			win.draw(gridbox);
@@ -118,8 +113,6 @@ void Canvas::load(ResourceFinder& finder, std::string const& room_name, bool loc
 	metagrid_coordinates.y = meta["metagrid"][1].as<int>();
 	dimensions.x = meta["dimensions"][0].as<int>();
 	dimensions.y = meta["dimensions"][1].as<int>();
-	chunk_dimensions.x = meta["chunk_dimensions"][0].as<int>();
-	chunk_dimensions.y = meta["chunk_dimensions"][1].as<int>();
 	real_dimensions = {(float)dimensions.x * constants.cell_size, (float)dimensions.y * constants.cell_size};
 	for (int i = 0; i < NUM_LAYERS; ++i) { map_states.back().layers.push_back(Layer(i, (i == MIDDLEGROUND), dimensions)); }
 
@@ -167,8 +160,8 @@ bool Canvas::save(ResourceFinder& finder, std::string const& room_name) {
 	data.meta["meta"]["metagrid"][1] = metagrid_coordinates.y;
 	data.meta["meta"]["dimensions"][0] = dimensions.x;
 	data.meta["meta"]["dimensions"][1] = dimensions.y;
-	data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions.x;
-	data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions.y;
+	data.meta["meta"]["chunk_dimensions"][0] = chunk_dimensions().x;
+	data.meta["meta"]["chunk_dimensions"][1] = chunk_dimensions().y;
 	data.meta["meta"]["style"] = static_cast<int>(styles.tile);
 	data.meta["meta"]["background"] = static_cast<int>(bg);
 	data.meta["meta"]["music"] = entities.variables.music;
@@ -245,11 +238,15 @@ void Canvas::set_position(sf::Vector2<float> to_position) { camera.set_position(
 
 void Canvas::set_origin(sf::Vector2<float> to_origin) { origin = to_origin; }
 
+void Canvas::set_offset_from_center(sf::Vector2<float> offset) { offset_from_center = offset; }
+
 void Canvas::set_scale(float to_scale) { scale = to_scale; }
 
 void Canvas::center(sf::Vector2<float> point) { set_position(point - real_dimensions * 0.5f); }
 
 void Canvas::zoom(float amount) { scale = std::clamp(scale + amount, min_scale, max_scale); }
+
+void Canvas::set_backdrop_color(sf::Color color) { border.setFillColor(color); }
 
 Map& Canvas::get_layers() { return map_states.back(); }
 

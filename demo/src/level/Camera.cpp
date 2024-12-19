@@ -1,6 +1,7 @@
 #include "Camera.hpp"
 #include "../service/ServiceProvider.hpp"
 #include <algorithm>
+#include "Camera.hpp"
 
 namespace fornani {
 

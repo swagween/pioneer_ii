@@ -49,6 +49,7 @@ class Editor {
 	void launch_demo(char** argv, int room_id, std::filesystem::path path, sf::Vector2<float> player_position);
 	[[nodiscard]] auto control_pressed() const -> bool { return pressed_keys.test(PressedKeys::control); }
 	[[nodiscard]] auto shift_pressed() const -> bool { return pressed_keys.test(PressedKeys::shift); }
+	[[nodiscard]] auto mouse_pressed() const -> bool { return pressed_keys.test(PressedKeys::mouse); }
 	[[nodiscard]] auto palette_mode() const -> bool { return flags.test(GlobalFlags::palette_mode); }
 
 	Canvas map{};
@@ -58,7 +59,6 @@ class Editor {
 	sf::Texture tool_texture{};
 	sf::Sprite tool_sprites{};
 	sf::RectangleShape wallpaper{};
-	sf::RectangleShape backdrop{};
 	sf::RectangleShape target{};
 	sf::RectangleShape selector{};
 

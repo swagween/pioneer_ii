@@ -4,12 +4,12 @@
 namespace pi {
 
 void SelectionRectangular::handle_events(Canvas& canvas, sf::Event& e) {
-	sf::Vector2<uint32_t> dim = {static_cast<uint32_t>(canvas.dimensions.x), static_cast<uint32_t>(canvas.dimensions.y)};
+	sf::Vector2<uint32_t> dim = {static_cast<uint32_t>(canvas.get_real_dimensions().x), static_cast<uint32_t>(canvas.get_real_dimensions().y)};
 	if (in_bounds(dim) && ready) {
 		if (active) {
 			if (just_clicked) {
 				clicked_position = position;
-				selection = SelectBox(scaled_clicked_position(), {0, 0});
+				selection = SelectBox(scaled_clicked_position(), {});
 				clipboard = {};
 				mode = SelectMode::select;
 				just_clicked = false;
@@ -58,7 +58,7 @@ void SelectionRectangular::render(Canvas& canvas, sf::RenderWindow& win, sf::Vec
 		box.setFillColor(sf::Color{150, 190, 110, 40});
 		box.setOutlineThickness(-2);
 		if (clipboard) { box.setSize(clipboard.value().real_dimensions() * canvas.f_cell_size()); }
-		if (clipboard) { box.setPosition(f_scaled_position() * canvas.f_cell_size() + offset - clipboard.value().real_dimensions() * canvas.f_cell_size() + sf::Vector2<float>{32.f, 32.f}); }
+		if (clipboard) { box.setPosition(f_scaled_position() * canvas.f_cell_size() + offset - clipboard.value().real_dimensions() * canvas.f_cell_size() + sf::Vector2<float>{canvas.f_cell_size(), canvas.f_cell_size()}); }
 		if (transformed) { win.draw(box); }
 		[[fallthrough]];
 	case SelectMode::select:

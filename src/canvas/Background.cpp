@@ -35,9 +35,9 @@ void Background::update() {
 }
 
 void Background::render(Canvas& canvas, sf::RenderWindow& win, sf::Vector2<float>& campos) {
-	auto epsilon = 0.99999f;
 	for (auto& layer : layers) {
-		layer.final_position = (canvas.get_scaled_center() + canvas.get_scaled_position()) * layer.parallax;
+		layer.sprite.setOrigin(sf::Vector2<float>{static_cast<float>(dimensions.x), static_cast<float>(dimensions.y)} * 0.5f + canvas.get_offset_from_center());
+		layer.final_position = canvas.get_scaled_center() + canvas.get_position() + canvas.get_offset_from_center() * layer.parallax;
 		layer.sprite.setScale({canvas.get_scale(), canvas.get_scale()});
 		layer.sprite.setPosition(layer.final_position);
 		win.draw(layer.sprite);

@@ -1,6 +1,3 @@
-//
-//  Camera.hpp
-//
 
 #pragma once
 
@@ -10,21 +7,9 @@
 
 namespace pi {
 
-float const CAM_FRICTION = 0.9f;
-float const CAM_MASS = 1.0f;
-float const CAM_GRAV = 0.003f;
-
-int const CX_OFFSET = 60;
-int const CY_OFFSET = 60;
-
-float const CAM_BOUNDARY = 2048.0f;
-
-sf::Vector2<uint32_t> const aspect_ratio{3840, 2160};
-sf::Vector2<uint32_t> const screen_dimensions{aspect_ratio.x / 2, aspect_ratio.y / 2};
-
 class Camera {
   public:
-	Camera() { bounding_box = sf::Rect<float>({0.0f, 0.0f}, {(float)screen_dimensions.x, (float)screen_dimensions.y}); }
+	Camera(sf::Vector2<float> dimensions);
 
 	void update() {
 		bounding_box.left = position.x;

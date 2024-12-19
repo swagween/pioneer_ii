@@ -20,7 +20,7 @@
 namespace pi {
 
 int const NUM_LAYERS{8};
-int const CHUNK_SIZE{16};
+uint32_t const chunk_size{16};
 
 enum class Backdrop {
 	BG_DUSK,
@@ -82,22 +82,23 @@ class Canvas {
 	void move(sf::Vector2<float> distance);
 	void set_position(sf::Vector2<float> to_position);
 	void set_origin(sf::Vector2<float> to_origin);
+	void set_offset_from_center(sf::Vector2<float> offset);
 	void set_scale(float to_scale);
 	void center(sf::Vector2<float> point);
 	void zoom(float amount);
+	void set_backdrop_color(sf::Color color);
 	Map& get_layers();
 	sf::Vector2<int> get_tile_coord(int lookup);
 	[[nodiscard]] auto states_empty() const -> bool { return map_states.empty(); }
 	[[nodiscard]] auto hovered() const -> bool { return state.test(CanvasState::hovered); }
 	[[nodiscard]] auto editable() const -> bool { return properties.test(CanvasProperties::editable); }
+	[[nodiscard]] auto chunk_dimensions() const -> sf::Vector2<uint32_t> { return dimensions / chunk_size; }
 	[[nodiscard]] auto get_position() const -> sf::Vector2<float> { return camera.position; }
-	[[nodiscard]] auto get_scaled_position() const -> sf::Vector2<float> { return camera.position * scale; }
-	[[nodiscard]] auto within_bounds(sf::Vector2<float> const& point) const -> bool {
-		return point.x > camera.position.x && point.x < real_dimensions.x + camera.position.x && point.y > camera.position.y && point.y < real_dimensions.y + camera.position.y;
-	}
+	[[nodiscard]] auto get_scaled_position() const -> sf::Vector2<float> { return camera.position / scale; }
 	[[nodiscard]] auto get_real_dimensions() const -> sf::Vector2<float> { return real_dimensions * scale; }
 	[[nodiscard]] auto get_center() const -> sf::Vector2<float> { return real_dimensions * 0.5f; }
 	[[nodiscard]] auto get_origin() const -> sf::Vector2<float> { return origin; }
+	[[nodiscard]] auto get_offset_from_center() const -> sf::Vector2<float> { return offset_from_center; }
 	[[nodiscard]] auto get_scaled_center() const -> sf::Vector2<float> { return real_dimensions * 0.5f * scale; }
 	[[nodiscard]] auto u_cell_size() const -> int { return static_cast<uint32_t>(i_cell_size()); }
 	[[nodiscard]] auto i_cell_size() const -> int { return static_cast<int>(f_cell_size()); }
@@ -105,6 +106,9 @@ class Canvas {
 	[[nodiscard]] auto f_native_cell_size() const -> float { return 32.f; }
 	[[nodiscard]] auto get_scale() const -> float { return scale; }
 	[[nodiscard]] auto within_zoom_limits(float delta) const -> bool { return get_scale() + delta >= min_scale && get_scale() + delta <= max_scale; }
+	[[nodiscard]] auto within_bounds(sf::Vector2<float> const& point) const -> bool {
+		return point.x > camera.position.x && point.x < real_dimensions.x + camera.position.x && point.y > camera.position.y && point.y < real_dimensions.y + camera.position.y;
+	}
 
 	void edit_tile_at(int i, int j, int new_val, int layer_index);
 	void erase_at(int i, int j, int layer_index);
@@ -116,7 +120,6 @@ class Canvas {
 
 	// layers
 	sf::Vector2<uint32_t> dimensions{};
-	sf::Vector2<uint32_t> chunk_dimensions{};
 	sf::Vector2<int> metagrid_coordinates{};
 
 	struct {
@@ -161,13 +164,15 @@ class Canvas {
   private:
 	sf::Vector2<float> origin{};
 	sf::Vector2<float> real_dimensions{};
+	sf::Vector2<float> offset_from_center{};
 	std::vector<Map> map_states{};
 	std::vector<Map> redo_states{};
 	util::BitFlags<CanvasState> state{};
 	util::BitFlags<CanvasProperties> properties{};
-	Camera camera{};
+	Camera camera;
 	sf::RectangleShape box{};
 	sf::RectangleShape gridbox{};
+	sf::RectangleShape border{};
 	std::unique_ptr<Background> background{};
 
 	float scale{1.f};

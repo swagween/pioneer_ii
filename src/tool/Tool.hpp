@@ -30,9 +30,9 @@ class Tool {
 	void activate();
 	
 	[[nodiscard]] auto f_position() const -> sf::Vector2<float> { return position; }
-	[[nodiscard]] auto scaled_position() const -> sf::Vector2<uint32_t> { return {static_cast<uint32_t>(position.x / 32.f), static_cast<uint32_t>(position.y / 32.f)}; }
+	[[nodiscard]] auto scaled_position() const -> sf::Vector2<uint32_t> { return {static_cast<uint32_t>(std::floor(position.x / 32.f)), static_cast<uint32_t>(std::floor(position.y / 32.f))}; }
 	[[nodiscard]] auto f_scaled_position() const -> sf::Vector2<float> { return {static_cast<float>(scaled_position().x), static_cast<float>(scaled_position().y)}; }
-	[[nodiscard]] auto scaled_clicked_position() const -> sf::Vector2<uint32_t> { return {static_cast<uint32_t>(clicked_position.x / 32.f), static_cast<uint32_t>(clicked_position.y / 32.f)}; }
+	[[nodiscard]] auto scaled_clicked_position() const -> sf::Vector2<uint32_t> { return {static_cast<uint32_t>(std::floor(clicked_position.x / 32.f)), static_cast<uint32_t>(std::floor(clicked_position.y / 32.f))}; }
 	[[nodiscard]] auto get_window_position() const -> sf::Vector2<float> { return window_position; }
 	[[nodiscard]] auto get_window_position_scaled() const -> sf::Vector2<float> { return window_position / 32.f; }
 	[[nodiscard]] auto palette_interactable() const -> bool { return type == ToolType::select || type == ToolType::eyedropper; }
